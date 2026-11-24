@@ -13,14 +13,76 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
+import time
 import zipfile
 from runtime_manifest import verify_runtime
+from verify_macos_dmg import verify_dmg, VIEZAN_REQUIREMENT
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def run(*args, env=None):
     subprocess.run([str(a) for a in args], check=True, cwd=ROOT, env=env)
+
+
+def msvc_redist_root():
+    if os.environ.get('VCToolsRedistDir'):
+        return Path(os.environ['VCToolsRedistDir'])
+    vswhere = Path(os.environ['ProgramFiles(x86)']) / 'Microsoft Visual Studio/Installer/vswhere.exe'
+    install = subprocess.check_output([vswhere, '-latest', '-products', '*', '-requires',
+        'Microsoft.VisualStudio.Component.VC.Tools.x86.x64', '-property', 'installationPath', '-utf8'],
+        encoding='utf-8-sig').strip()
+    if not install:
+        raise SystemExit('Windows packaging requires the Visual Studio C++ redistributable files')
+    vc = Path(install) / 'VC'
+    version = (vc / 'Auxiliary/Build/Microsoft.VCRedistVersion.default.txt').read_text(encoding='utf-8-sig').strip()
+    return vc / 'Redist/MSVC' / version
+
+
+def stage_msvc_runtime(root, architecture, stage):
+    directories = list((root / architecture).glob('Microsoft.VC*.CRT'))
+    if len(directories) != 1:
+        raise SystemExit(f'Expected one redistributable CRT directory in {root / architecture}')
+    files = sorted(directories[0].glob('*.dll'))
+    required = {'msvcp140.dll', 'vcruntime140.dll'}
+    if architecture in ('x64', 'arm64'):
+        required.add('vcruntime140_1.dll')
+    missing = required.difference(path.name.lower() for path in files)
+    if missing:
+        raise SystemExit(f'Missing Visual C++ runtime in {directories[0]}: {", ".join(sorted(missing))}')
+    for dll in files:
+        shutil.copy2(dll, stage / dll.name)
+
+
+def create_dmg(source, destination, volume):
+    # DiskImages can briefly report EBUSY on a hosted Mac. Keep each attempt
+    # separate because a failed invocation can leave a partial disk image.
+    with tempfile.TemporaryDirectory(dir=destination.parent) as staging:
+        for attempt in range(3):
+            image = Path(staging) / f'attempt-{attempt + 1}.dmg'
+            result = subprocess.run(['hdiutil', 'create', '-volname', volume, '-srcfolder', source,
+                                     '-format', 'UDZO', image], text=True, stderr=subprocess.PIPE,
+                                    env={**os.environ, 'LC_ALL': 'C'})
+            if result.returncode == 0:
+                os.link(image, destination)
+                return
+            print(result.stderr, file=sys.stderr, flush=True)
+            if 'Resource busy' not in result.stderr or attempt == 2:
+                result.check_returncode()
+            time.sleep(2 ** (attempt + 1))
+
+
+def notarize(upload, staple_target, profile, keychain):
+    command = ['xcrun', 'notarytool', 'submit', upload, '--keychain-profile', profile,
+               '--wait', '--output-format', 'json']
+    if keychain:
+        command.extend(['--keychain', keychain])
+    result = subprocess.run(command, check=True, stdout=subprocess.PIPE, text=True)
+    submission = json.loads(result.stdout)
+    if submission['status'] != 'Accepted':
+        raise SystemExit(f"Apple notarization {submission['id']}: {submission['status']}")
+    run('xcrun', 'stapler', 'staple', staple_target)
 
 
 def legacy_feed(installer, version):
@@ -40,6 +102,7 @@ def main():
     parser.add_argument('--patched-runtime', type=Path, help='Prepared Windows Viezan Ollama runtime directory')
     parser.add_argument('--identity', help='macOS Developer ID Application signing identity')
     parser.add_argument('--notary-profile', help='Existing notarytool Keychain profile')
+    parser.add_argument('--notary-keychain', type=Path, help='Keychain containing the notary profile when using a custom keychain')
     parser.add_argument('--certificate-thumbprint', help='Windows code-signing certificate in CurrentUser/My')
     parser.add_argument('--linuxdeploy', type=Path, help='Installed linuxdeploy executable with Qt plugin')
     args = parser.parse_args()
@@ -47,8 +110,8 @@ def main():
     output = args.output.expanduser().resolve()
     if output.exists() or source == output or output in source.parents or source in output.parents:
         parser.error('Choose a new staging directory outside the input')
-    if args.notary_profile and not args.identity:
-        parser.error('Notarization requires a signing identity')
+    if sys.platform == 'darwin' and not (args.identity and args.notary_profile):
+        parser.error('macOS distribution requires --identity (Developer ID Application) and --notary-profile')
     output.mkdir(parents=True)
     version = json.loads((ROOT / 'package.json').read_text())['version']
     architecture = {'AMD64': 'x64', 'x86_64': 'x64', 'aarch64': 'arm64'}.get(platform.machine(), platform.machine())
@@ -57,32 +120,31 @@ def main():
         if source.suffix != '.app' or not (source / 'Contents/MacOS/ViezanNative').is_file():
             parser.error('Input must be the native Viezan app bundle')
         app = output / 'Viezan.app'
-        shutil.copytree(source, app, symlinks=True)
-        if args.identity:
-            for binary in sorted((app / 'Contents/Resources/native').iterdir()):
-                if binary.is_file() and os.access(binary, os.X_OK):
-                    run('codesign', '--force', '--options', 'runtime', '--timestamp', '--sign', args.identity, binary)
-            run('codesign', '--force', '--options', 'runtime', '--timestamp', '--entitlements', ROOT / 'apps/packaging/entitlements.mac.plist', '--sign', args.identity, app)
-            run('codesign', '--verify', '--strict', '--deep', app)
-        archive = output / (name + '.zip')
-        run('ditto', '-c', '-k', '--keepParent', app, archive)
-        if args.notary_profile:
-            run('xcrun', 'notarytool', 'submit', archive, '--keychain-profile', args.notary_profile, '--wait')
-            run('xcrun', 'stapler', 'staple', app)
-            # Replace only the archive created by this invocation after stapling.
-            archive.unlink()
-            run('ditto', '-c', '-k', '--keepParent', app, archive)
-        image = output / (name + '.dmg')
+        run('ditto', source, app)
+        signing = ['codesign', '--force', '--options', 'runtime', '--timestamp', '--sign', args.identity]
+        for binary in sorted((app / 'Contents/Resources/native').iterdir()):
+            if binary.is_file() and os.access(binary, os.X_OK):
+                run(*signing, '--identifier', 'com.viezan.native.preview.' + binary.name, binary)
+        run(*signing, '--identifier', 'com.viezan.native.preview', '--entitlements',
+            ROOT / 'apps/packaging/entitlements.mac.plist', app)
+        run('codesign', '--verify', '--strict', '--deep', app)
+        run('codesign', '--verify', '-R', VIEZAN_REQUIREMENT, app)
         disk = output / 'disk'
         disk.mkdir()
-        shutil.copytree(app, disk / 'Viezan.app', symlinks=True)
+        # Keep the submission ZIP out of the release assets. The public ZIP contains the stapled app.
+        submission_zip = disk / 'submit.zip'
+        run('ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', app, submission_zip)
+        notarize(submission_zip, app, args.notary_profile, args.notary_keychain)
+        submission_zip.unlink()
+        archive = output / (name + '.zip')
+        run('ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', app, archive)
+        run('ditto', app, disk / 'Viezan.app')
         (disk / 'Applications').symlink_to('/Applications')
-        run('hdiutil', 'create', '-volname', 'Viezan', '-srcfolder', disk, '-format', 'UDZO', image)
-        if args.identity:
-            run('codesign', '--timestamp', '--sign', args.identity, image)
-        if args.notary_profile:
-            run('xcrun', 'notarytool', 'submit', image, '--keychain-profile', args.notary_profile, '--wait')
-            run('xcrun', 'stapler', 'staple', image)
+        image = output / (name + '.dmg')
+        create_dmg(disk, image, 'Viezan')
+        run('codesign', '--timestamp', '--sign', args.identity, image)
+        notarize(image, image, args.notary_profile, args.notary_keychain)
+        verify_dmg(image, distribution_arch=architecture, version=version)
         artifacts = [archive, image]
     elif sys.platform == 'win32':
         if source.suffix.lower() != '.exe' or not args.qt_bin:
@@ -91,7 +153,13 @@ def main():
         stage.mkdir()
         executable = stage / 'ViezanNativeQt.exe'
         shutil.copy2(source, executable)
-        run(args.qt_bin / 'windeployqt.exe', '--release', '--qmldir', ROOT / 'apps/desktop-qt/qml', '--dir', stage, executable)
+        spec = subprocess.check_output([args.qt_bin / 'qmake.exe', '-query', 'QMAKE_XSPEC'], text=True).strip()
+        deploy = [args.qt_bin / 'windeployqt.exe', '--release']
+        if 'msvc' in spec:
+            # The per-user installer and portable ZIP both load the CRT from beside the executable.
+            stage_msvc_runtime(msvc_redist_root(), architecture.lower(), stage)
+            deploy.append('--no-compiler-runtime')
+        run(*deploy, '--qmldir', ROOT / 'apps/desktop-qt/qml', '--dir', stage, executable)
         if args.patched_runtime:
             runtime = args.patched_runtime.resolve(strict=True)
             verify_runtime(runtime)

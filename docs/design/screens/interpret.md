@@ -1,5 +1,9 @@
 # Phiên dịch
 
+## AI mặc định dùng chung (2026-11-25)
+
+Bộ chọn model cập nhật AI mặc định cho toàn ứng dụng. Mỗi lần bắt đầu phiên dịch lấy model mặc định tại thời điểm bấm. Phân tích hoặc tóm tắt mới dùng model đang chọn. Bản ghi, lần thử lại đoạn dịch và tác vụ đang chạy giữ model lúc bắt đầu. Nhà cung cấp nhận dạng giọng nói có cài đặt riêng.
+
 ## Native hiện tại — trợ năng macOS (2026-11-08)
 
 - Nguyên bản trong bản ghi Glass dùng cùng cỡ chữ đọc với bản dịch; nút mở lớp nổi báo trạng thái chọn.

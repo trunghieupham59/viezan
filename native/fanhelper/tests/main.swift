@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 final class FakeSMC: FanSMCAccess {
   var values: [String: Double] = ["TC0P": 55]
@@ -101,7 +102,7 @@ final class CommandClient {
   let controller: FanController
   var consoleUID: uid_t = 501
   var shutdownFDs: [Int32] = []
-  var exitRequests = 0
+  var exitTimes: [Double] = []
 
   init(_ controller: FanController) {
     self.controller = controller
@@ -112,7 +113,7 @@ final class CommandClient {
     let environment = CommandEnvironment(
       protocolVersion: 1, helperVersion: "test", teamSigned: false, executableSha256: nil,
       isAllowedPeer: { uid, _ in uid == self.consoleUID }, writeLog: controller.log.write,
-      shutdownSocket: { self.shutdownFDs.append($0) }, requestExit: { self.exitRequests += 1 }
+      shutdownSocket: { self.shutdownFDs.append($0) }, requestExit: { self.exitTimes.append(monotonicSeconds()) }
     )
     return handle(Data(line.utf8), from: fd, controller: controller, options: Options(daemon: true), environment: environment)
   }
@@ -125,6 +126,19 @@ func decodedReply(_ data: Data?, id: Int) throws -> [String: Any] {
   guard let data, data.last == 0x0A, let reply = try JSONSerialization.jsonObject(with: data) as? [String: Any],
         reply["id"] as? Int == id else { throw CheckFailure(description: "missing or invalid reply to request \(id)") }
   return reply
+}
+
+checkFixture("only a reported Hardened Runtime flag satisfies the peer runtime check") { _, _, _ in
+  try expect(!hasHardenedRuntime(nil), "missing status accepted")
+  try expect(!hasHardenedRuntime(NSNumber(value: SecCodeStatus.valid.rawValue)), "plain signed peer accepted")
+  let flags = SecCodeStatus.valid.rawValue | SecCodeSignatureFlags.runtime.rawValue
+  try expect(hasHardenedRuntime(NSNumber(value: flags)), "hardened peer refused")
+}
+
+checkFixture("only an explicit ad-hoc signature allows the development exception") { _, _, _ in
+  try expect(!hasAdHocSignature(nil), "missing signing information accepted")
+  try expect(!hasAdHocSignature(0), "signature without the ad-hoc flag accepted")
+  try expect(hasAdHocSignature(NSNumber(value: SecCodeSignatureFlags.adhoc.rawValue)), "ad-hoc helper refused")
 }
 
 check("a. target write rolls back mode and returns the original error") { smc, controller, _ in
@@ -364,7 +378,11 @@ checkFixture("serve cleanup preserves the console restore and the next client") 
 
 checkFixture("setTarget from another fd is dropped without an SMC write or reply") { smc, controller, _ in
   let client = CommandClient(controller)
+  client.consoleUID = 502
   let reply = client.send(targetCommand, from: 12)
+  try controller.queue.sync {
+    try expect(controller.client?.fd == 11 && controller.restoreSeq == 0, "unrelated fd revoked the registered client")
+  }
   try expect(smc.writes.isEmpty, "another fd wrote to SMC")
   try expect(reply == nil && client.shutdownFDs.isEmpty, "answered or shut down the wrong fd")
 }
@@ -386,7 +404,10 @@ checkFixture("daemon rechecks the console user before setTarget") { smc, control
 checkFixture("valid setTarget writes the target and returns ok") { smc, controller, _ in
   let client = CommandClient(controller)
   let reply = try decodedReply(client.send(targetCommand), id: 1)
-  try expect(reply["ok"] as? Bool == true, "setTarget failed")
+  let result = reply["result"] as? [String: Any]
+  try expect(reply["ok"] as? Bool == true && result?["id"] as? String == "fan0" &&
+             result?["mode"] as? String == "manual" && result?["targetRpm"] as? Double == 3000,
+             "missing confirmed fan, mode or target")
   try expect(smc.writes.map(\.key) == ["F0Md", "F0Tg"] && smc.writes.map(\.value) == [1, 3000], "wrong SMC writes")
 }
 
@@ -404,15 +425,16 @@ checkFixture("setTarget with a nonnumeric rpm returns bad-request") { smc, contr
 
 checkFixture("helper.exit replies before calling the injected exit") { _, controller, _ in
   let client = CommandClient(controller)
+  let started = monotonicSeconds()
   let reply = try decodedReply(client.send(#"{"id":4,"op":"helper.exit"}"#), id: 4)
   let result = reply["result"] as? [String: Any]
-  try expect(reply["ok"] as? Bool == true && result?["exiting"] as? Bool == true && client.exitRequests == 0,
+  try expect(reply["ok"] as? Bool == true && result?["exiting"] as? Bool == true && client.exitTimes.isEmpty,
              "missing exit acknowledgement before callback")
   let deadline = monotonicSeconds() + 2
-  while client.exitRequests == 0 && monotonicSeconds() < deadline {
+  while client.exitTimes.isEmpty && monotonicSeconds() < deadline {
     RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.02))
   }
-  try expect(client.exitRequests == 1, "exit callback did not run")
+  try expect(client.exitTimes.count == 1 && client.exitTimes[0] - started >= 0.2, "exit callback missing or ran before the reply grace period")
 }
 
 for reason in ["ceiling", "ceiling-unreadable"] {

@@ -22,7 +22,7 @@ struct ImageControls: View {
             HStack(spacing: metric("tight")) {
                 if !statusOnly {
                     // "+" opens the shell's tools panel anchored here (attachments, chat mode, reasoning, voice).
-                    ShellToolbarButton(label: store.text("attachImage"), symbol: "plus", identifier: "tools-toggle", quiet: glassChat, soft: selected, expanded: shellLayer == .tools, enabled: !busy,
+                    ShellToolbarButton(label: store.text("composerTools"), symbol: "plus", identifier: "tools-toggle", quiet: glassChat, soft: selected, expanded: shellLayer == .tools, enabled: !busy,
                                        frameAction: { frame in NotificationCenter.default.post(name: .viezanOpenTools, object: NSValue(rect: frame)) }) {}
                         .frame(width: metric("control"), height: metric("control"))
                         // Chat board: "+" is a raised white lens inside the composer capsule.

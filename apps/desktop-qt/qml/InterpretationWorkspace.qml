@@ -73,7 +73,8 @@ Item {
     }
     property string shownSessionID: ""
     property color dangerColor: palette.placeholderText
-    property string modelID: snapshot.sessions.find(value => value.id === snapshot.active[snapshot.feature])?.model || ""
+    readonly property string modelID: live.summaryModel || (live.busy && live.current.model ? live.current.model
+        : snapshot.defaultModel || live.current.model || snapshot.sessions.find(value => value.id === snapshot.active[snapshot.feature])?.model || "")
     property int sourceIndex: 0
     property int targetIndex: languages.indexOf("vi")
     readonly property var captureKeys: ["microphone", "system", "mixed"]
@@ -84,14 +85,13 @@ Item {
     signal openSettings(string section)
     signal notification(string message, bool error, string level, string key)
     // Root scope: inside ProviderNotice handlers "model" names the notice's own property.
-    function useModel(id) { root.modelID = id }
+    function useModel(id) { bridge.command("defaultModel", {value: id}) }
     function syncSelection() {
         const current = live.current
         if (!current.id || current.id === shownSessionID) return
         shownSessionID = current.id
         root.sourceIndex = ["auto"].concat(languages).indexOf(current.source)
         root.targetIndex = languages.indexOf(current.target)
-        root.modelID = current.model
         root.captureIndex = root.captureKeys.indexOf(current.captureMode || "microphone")
         root.inputDeviceIndex = Math.max(0, root.inputDevices.findIndex(device => device.id === (current.deviceID || "")))
     }
@@ -266,13 +266,13 @@ Item {
                     Label { Accessible.role: Accessible.Heading; text: root.t("sessionPanel"); font.bold: true }
                     Label { text: new Date((root.live.current.created || 0) * 1000).toLocaleString(); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
                     Label { text: root.tpl("speakersAndLines", {speakers:root.speakers.length, lines:root.segments.length}); color: palette.placeholderText }
-                    Kit.ModelLabel { modelID: root.modelID; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                    Kit.ModelLabel { modelID: root.live.current.model || root.modelID; wrapMode: Text.Wrap; Layout.fillWidth: true }
                     Repeater { model: root.speakers; delegate: Label { required property string modelData; text: (root.live.current.speakerNameMap?.[modelData] || modelData) + " · " + root.tpl("speakerLines", {n:root.segments.filter(segment => segment.speaker === modelData).length}); wrapMode: Text.Wrap; Layout.fillWidth: true } }
                     Kit.GlassButton { id: summaryTrigger; icon.source: "icons/reasoning.svg"; text: root.t(root.live.summarizing ? "stop" : "summarize"); enabled: root.live.summarizing || (!root.live.busy && !!root.segments.length); Layout.fillWidth: true; ToolTip.visible: hovered && !glassSummary.visible; ToolTip.text: text; popupOpen: glassSummary.visible; onClicked: root.live.summarizing ? root.live.cancelSummary() : glassSummary.openAt(summaryTrigger) }
                     Label { visible: root.live.summarizing; text: root.t("summarizing"); Layout.fillWidth: true }
                     Label { visible: !!root.live.current[root.summaryKind]; Accessible.role: Accessible.Heading; text: root.t("interpret_" + root.summaryKind); font.bold: true }
                     TextArea { visible: !!body; Accessible.name: root.t("interpret_" + root.summaryKind); readonly property string body: root.live.current[root.summaryKind] || ""; readonly property bool streaming: root.live.summarizing; function updateContent() { if (streaming) text = body; else root.bridge.renderMarkdown(textDocument, body) } onBodyChanged: updateContent(); onStreamingChanged: updateContent(); Component.onCompleted: updateContent(); textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; background: null; Layout.fillWidth: true }
-                    Kit.GlassButton { objectName: "interpret-summary-regenerate"; visible: !!root.live.current[root.summaryKind] && !root.live.summarizing; icon.source: "icons/refresh.svg"; text: root.t("quickRegenerate"); enabled: !root.live.busy; onClicked: root.live.summarize(root.summaryKind) }
+                    Kit.GlassButton { objectName: "interpret-summary-regenerate"; visible: !!root.live.current[root.summaryKind] && !root.live.summarizing; icon.source: "icons/refresh.svg"; text: root.t("quickRegenerate"); enabled: !root.live.busy; onClicked: root.live.summarize(root.summaryKind, root.modelID) }
                     }
                     }
                     Kit.Card {
@@ -301,7 +301,7 @@ Item {
                 Repeater { model: root.captureKeys; delegate: Kit.PanelRow { required property string modelData; required property int index; text: root.t("capture_" + modelData); selected: root.captureIndex === index; enabled: !root.live.busy; Layout.fillWidth: true; onClicked: root.captureIndex = index } }
                 Label { text: root.t("captureDevice"); color: palette.placeholderText }
                 Repeater { model: root.inputDevices; delegate: Kit.PanelRow { required property var modelData; required property int index; text: modelData.name; selected: root.inputDeviceIndex === index; enabled: !root.live.busy && root.captureIndex !== 1; Layout.fillWidth: true; onClicked: root.inputDeviceIndex = index } }
-                Label { text: root.t("modelID"); color: palette.placeholderText }
+                Label { text: root.t("appDefaultAI"); color: palette.placeholderText }
                 Kit.ModelLabel { id: interpretFormatter; visible: false }
                 Repeater { model: root.bridge.localModels.filter(id => root.bridge.chatCapable(id)); delegate: Kit.PanelRow { required property string modelData; text: interpretFormatter.format(modelData); selected: root.modelID === modelData; enabled: !root.live.busy; Layout.fillWidth: true; onClicked: root.useModel(modelData) } }
             }
@@ -309,7 +309,7 @@ Item {
     }
     Kit.AnchoredPanel {
         id: glassSummary; shell: root.shell; objectName: "interpret-summary-menu"
-        contentItem: ColumnLayout { Repeater { model: ["summary","actionItems","decisions","speakerAnalysis"]; delegate: Kit.PanelRow { required property string modelData; text: root.t("interpret_" + modelData); selected: root.summaryKind === modelData && !!root.live.current[modelData]; Layout.fillWidth: true; onClicked: { root.summaryKind = modelData; if (!root.live.current[modelData]) root.live.summarize(modelData); glassSummary.close() } } } }
+        contentItem: ColumnLayout { Repeater { model: ["summary","actionItems","decisions","speakerAnalysis"]; delegate: Kit.PanelRow { required property string modelData; text: root.t("interpret_" + modelData); selected: root.summaryKind === modelData && !!root.live.current[modelData]; Layout.fillWidth: true; onClicked: { root.summaryKind = modelData; if (!root.live.current[modelData]) root.live.summarize(modelData, root.modelID); glassSummary.close() } } } }
     }
     Kit.AnchoredPanel {
         id: glassExport; shell: root.shell; objectName: "interpret-export-menu"

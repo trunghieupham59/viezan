@@ -16,7 +16,7 @@ public struct ImageAttachment: Codable, Equatable, Identifiable, Sendable {
     public func sameFile(_ other: ImageAttachment) -> Bool { id == other.id && name == other.name && mime == other.mime }
 }
 public enum Attachments {
-    private static var directory: URL { FilePersistence.previewURL().deletingLastPathComponent().appendingPathComponent("attachments", isDirectory: true) }
+    static var directory: URL { FilePersistence.previewURL().deletingLastPathComponent().appendingPathComponent("attachments", isDirectory: true) }
     public static func quarantineUnreferenced(workspace: Workspace) throws {
         // Preserve content outside the live set for recovery; never follow links.
         let manager = FileManager.default
@@ -63,6 +63,9 @@ public enum Attachments {
         guard UUID(uuidString: attachment.id) != nil, ["image/jpeg", "image/png", "image/webp", "image/gif"].contains(attachment.mime) else { throw ProviderFailure.invalidResponse }
         let live = directory.appendingPathComponent(attachment.id)
         let url = FileManager.default.fileExists(atPath: live.path) ? live : directory.appendingPathComponent("recovery").appendingPathComponent(attachment.id)
+        return try readFile(url)
+    }
+    private static func readFile(_ url: URL) throws -> Data {
         let properties = try url.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey, .fileSizeKey])
         guard properties.isSymbolicLink != true, properties.isRegularFile == true, let size = properties.fileSize, size <= 20_000_000 else { throw ProviderFailure.invalidResponse }
         return try Data(contentsOf: url)
@@ -87,16 +90,35 @@ public enum Attachments {
         guard process.terminationStatus == 0, FileManager.default.fileExists(atPath: url.path) else { throw CancellationError() }
         return try read(url)
     }
-    static func restore(_ attachment: ImageAttachment, data: Data) throws {
+    struct InstalledFile {
+        let url: URL
+        let identity: stat
+
+        func discard() throws {
+            var current = stat()
+            if lstat(url.path, &current) != 0 {
+                if errno == ENOENT { return }
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
+            guard current.st_dev == identity.st_dev, current.st_ino == identity.st_ino else { throw StorageFailure.invalidData }
+            guard unlink(url.path) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        }
+    }
+    /// Only a file created by this call belongs to the import's rollback.
+    static func restore(_ attachment: ImageAttachment, data: Data, in directory: URL) throws -> InstalledFile? {
         guard UUID(uuidString: attachment.id) != nil, data.count <= 20_000_000 else { throw StorageFailure.invalidData }
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let url = directory.appendingPathComponent(attachment.id)
         if FileManager.default.fileExists(atPath: url.path) {
-            guard try self.data(attachment) == data else { throw StorageFailure.invalidData }
-            return
+            guard try readFile(url) == data else { throw StorageFailure.invalidData }
+            return nil
         }
-        try data.write(to: url, options: [.withoutOverwriting])
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        do {
+            let identity = try FilePersistence.writePrivate(data, to: url, exclusive: true)
+            return InstalledFile(url: url, identity: identity)
+        } catch let error as POSIXError where error.code == .EEXIST {
+            guard try readFile(url) == data else { throw StorageFailure.invalidData }
+            return nil
+        }
     }
     public static func recognize(_ attachment: ImageAttachment) throws -> String {
         try recognize(data(attachment))

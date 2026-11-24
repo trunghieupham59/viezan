@@ -25,6 +25,7 @@ class Interpretation final : public QObject {
     Q_PROPERTY(bool listening READ listening NOTIFY changed)
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
     // An analysis is being written (Interpret-Summary "Đang tổng hợp…"); cancelSummary stops only it.
+    Q_PROPERTY(QString summaryModel READ summaryModel NOTIFY changed)
     Q_PROPERTY(bool summarizing READ summarizing NOTIFY changed)
     // The transcript store could not be read; writes stay blocked until reload() succeeds.
     Q_PROPERTY(bool blocked READ blocked NOTIFY changed)
@@ -41,7 +42,7 @@ public:
     QVariantList sessions() const { return m_sessions; }
     QVariantMap current() const;
     bool listening() const { return m_listening; }
-    bool busy() const { return m_listening || m_starting || !m_active.isEmpty() || m_summarizing; }
+    bool busy() const { return m_listening || m_starting || !m_active.isEmpty() || summarizing(); }
     double level() const { return m_level; }
     QString error() const { return m_error; }
     Q_INVOKABLE void start(const QString &model, const QString &provider, const QString &source, const QString &target, const QString &locale, const QString &captureMode = "microphone", const QString &deviceID = {});
@@ -52,14 +53,15 @@ public:
     /// Undo of deleteSession: the session returns in its chronological place and is selected.
     Q_INVOKABLE void restoreSession(const QVariantMap &session);
     Q_INVOKABLE void cancelSummary();
-    bool summarizing() const { return m_summarizing; }
+    bool summarizing() const { return !m_summaryModel.isEmpty(); }
+    QString summaryModel() const { return m_summaryModel; }
     bool blocked() const { return m_blocked; }
     Q_INVOKABLE void reload();
     bool clearAll(const ArchiveCommit &commit = {});
     Q_INVOKABLE void select(const QString &id);
     // A fresh, empty transcript; the next start creates the session.
     Q_INVOKABLE void clearSelection() { if (busy()) return; silence(); m_selected.clear(); emit changed(); }
-    Q_INVOKABLE void summarize(const QString &kind = "summary");
+    Q_INVOKABLE void summarize(const QString &kind = "summary", const QString &model = {});
     // One instruction per analysis, so the summary does not repeat the other three (as Swift summaryPrompt).
     static QString summaryPrompt(const QString &kind, const QString &target);
     Q_INVOKABLE void retry(const QString &id);
@@ -82,8 +84,9 @@ private:
     SpeakerTurns m_turns;
     QVariantList m_sessions;
     QString m_summaryKind = "summary";
+    QString m_summaryModel;
     QString m_selected, m_file, m_error, m_active, m_attempt, m_summaryID;
-    bool m_listening = false, m_starting = false, m_summarizing = false, m_blocked = false;
+    bool m_listening = false, m_starting = false, m_blocked = false;
     double m_level = 0;
     quint64 m_generation = 0;
     AudioCapture m_audioCapture;

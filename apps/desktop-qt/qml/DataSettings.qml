@@ -73,7 +73,8 @@ ColumnLayout {
                 Label { text: data.t("newSessions") + ": " + (data.bridge.backupPreview.newSessions || 0); wrapMode: Text.Wrap; Layout.fillWidth: true }
                 Label { text: data.t("interpret") + ": " + (data.bridge.backupPreview.interpretation || 0) }
                 Label { text: data.t("existingSessions") + ": " + (data.bridge.backupPreview.existingSessions || 0); wrapMode: Text.Wrap; Layout.fillWidth: true }
-                CheckBox { id: restorePreferences; text: data.t("restorePreferences"); Layout.fillWidth: true; contentItem: Label { text: restorePreferences.text; leftPadding: restorePreferences.indicator.width + restorePreferences.spacing; wrapMode: Text.Wrap; verticalAlignment: Text.AlignVCenter } }
+                Kit.GlassSwitch { id: restorePreferences; Accessible.name: text; text: data.t("restorePreferences"); Layout.fillWidth: true; contentItem: Label { text: restorePreferences.text; leftPadding: restorePreferences.indicator.width + restorePreferences.spacing; wrapMode: Text.Wrap; verticalAlignment: Text.AlignVCenter } }
+                Label { visible: restorePreferences.checked && !!data.bridge.backupPreview.migratedAppearance; text: data.t("backupGlassAppearance"); wrapMode: Text.Wrap; Layout.fillWidth: true }
                 Flow {
                     Layout.fillWidth: true; spacing: data.metrics.small
                     Kit.GlassButton { text: data.t("close"); enabled: !data.bridge.backupBusy; onClicked: data.bridge.dismissBackup() }

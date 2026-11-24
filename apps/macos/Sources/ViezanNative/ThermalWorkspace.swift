@@ -36,15 +36,8 @@ struct ThermalWorkspace: View {
                 Button(store.text(monitor.monitoring ? "stop" : "startMonitoring"), systemImage: monitor.monitoring ? "stop.fill" : "play.fill", role: monitor.monitoring ? .destructive : nil) { if monitor.monitoring { monitor.stop() } else { monitor.start() } }
                     .buttonStyle(.vznOutline).controlSize(.regular).fixedSize()
             }
-            if sensors.isEmpty && fans.isEmpty {
-                // Thermal-States: before the first reading the page shows a toned thermometer, not an empty card.
-                let waiting = ThermalStatus.waiting(monitoring: monitor.monitoring, hasSnapshot: monitor.snapshot != nil, hasError: monitor.error != nil)
-                GlassEmptyState(symbol: "thermometer.medium", tone: "tone-orange", title: store.text(waiting ? "thermal_waiting" : "sensorsEmpty"), hint: waiting ? nil : store.text("sensorsEmptyHint"))
-                    .padding(.vertical, metric("large") * 2)
-            } else if sensors.isEmpty && fans.isEmpty {
-                ContentUnavailableView(store.text("sensorsEmpty"), systemImage: "thermometer.medium", description: Text(store.text("sensorsEmptyHint")))
-                    .frame(maxWidth: .infinity).cardSurface()
-            } else {
+            readerNotice(monitor)
+            if !sensors.isEmpty || !fans.isEmpty {
                 // Live metric tiles: the hottest sensor, then each fan.
                 UniformGrid(maxColumns: 3) {
                     if let hottest = sensors.max(by: { $0.celsius < $1.celsius }) {
@@ -64,17 +57,6 @@ struct ThermalWorkspace: View {
                 }
             }
             AdaptiveColumns { controlCard(monitor); sensorCard(monitor) }
-            if let error = monitor.error, ThermalStatus.isReaderError(error) {
-                NoticeBand(role: "danger", edge: false) {
-                    Image(systemName: "exclamationmark.triangle").foregroundStyle(contentColor("danger", scheme)).accessibilityHidden(true)
-                    Text(store.text(error)).foregroundStyle(contentColor("text-strong", scheme)).fixedSize(horizontal: false, vertical: true)
-                    // Thermal-States: when the reader stopped, the band offers to start it again.
-                    if ThermalStatus.canRetry(error: error, monitoring: monitor.monitoring) {
-                        Spacer(minLength: metric("small"))
-                        Button(store.text("retry")) { monitor.start() }.buttonStyle(.vznOutline).fixedSize().accessibilityIdentifier("thermal-retry")
-                    }
-                }
-            }
         }
         // Approval is granted in System Settings, so the status is read again when the person comes back.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in store.thermalMonitor.refreshHelperStatus() }
@@ -88,12 +70,12 @@ struct ThermalWorkspace: View {
             awaitingApply = nil
             ToastCenter.shared.show(store.text("fanAppliedToast").replacingOccurrences(of: "{name}", with: name), key: "thermal-fan")
         }
-        .onChange(of: monitor.error) { _, error in
-            guard let error, !ThermalStatus.isReaderError(error) else { return }
+        .onChange(of: monitor.fanFailure) { _, failure in
+            guard let error = failure?.code else { return }
             if error == "fanCommandError" || error == "fanProfileApplyError" {
                 awaitingApply = nil
             }
-            ToastCenter.shared.show(store.text(error), key: "thermal-fan", level: .danger)
+            ToastCenter.shared.show(store.text(error), key: "thermal-fan", level: .danger, announcementPriority: .medium)
         }
         .onChange(of: fanPopover == nil && confirmation == nil) { _, closed in
             guard closed, let opener = returnFocus else { return }
@@ -197,6 +179,13 @@ extension ThermalWorkspace {
                 StatusBadge(text: store.text(monitor.helperStatus), tone: ThermalStatus.helperTone(monitor.helperStatus))
             }
             if monitor.helperStatus == "helperApproval" { approvalPrompt(monitor) }
+            if monitor.helperStatus == "helperUnavailable" {
+                hint(store.text("thermal_fan_helper_not_installed_desc"))
+                helperActions(monitor)
+            }
+            if monitor.helperStatus == "thermal_fan_helper_missing_short" {
+                hint(store.text("thermal_fan_helper_missing"))
+            }
             // Targets are only offered once the helper can apply them.
             if monitor.helperStatus == "helperEnabled" {
                 let blocked = FanControlDisplay.manualBlock(calibrating: monitor.calibrating, monitoring: monitor.monitoring)
@@ -209,11 +198,39 @@ extension ThermalWorkspace {
                     }
                 }
             }
-            HStack {
-                Spacer()
-                Menu(store.text("setUpHelper")) { helperActions(monitor) }.menuStyle(.button).buttonStyle(.vznQuiet).fixedSize()
+            if monitor.helperStatus == "helperEnabled" {
+                HStack {
+                    Spacer()
+                    Menu(store.text("setUpHelper")) { helperActions(monitor) }.menuStyle(.button).buttonStyle(.vznQuiet).fixedSize()
+                }
             }
         }.frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+    }
+    @ViewBuilder private func readerNotice(_ monitor: ThermalMonitor) -> some View {
+        switch ThermalStatus.readerState(error: monitor.error, monitoring: monitor.monitoring,
+                                         sensorCount: monitor.snapshot.map { $0.sensors?.count ?? 0 }) {
+        case .missing, .failed:
+            let missing = monitor.error == "thermalReaderMissing"
+            VStack(alignment: .leading, spacing: metric("small")) {
+                InlineFailure(title: store.text(missing ? "thermal_reader_missing_title" : "thermal_error_title"),
+                              detail: store.text(missing ? "thermal_reader_missing_desc" : "thermal_error_desc"))
+                Button(store.text("retry")) { monitor.stop(); monitor.start() }
+                    .buttonStyle(.vznOutline).accessibilityIdentifier("thermal-retry")
+            }
+        case .empty:
+            NoticeBand(role: "warning", edge: false) {
+                VStack(alignment: .leading, spacing: metric("tight")) {
+                    Label(store.text("thermal_no_sensors_title"), systemImage: "thermometer.medium")
+                        .font(.vzn("labelScale", .semibold))
+                    hint(store.text("thermal_no_sensors_desc"))
+                }.accessibilityElement(children: .combine)
+            }
+        case .waiting: StatusBadge(text: store.text("thermal_waiting"), tone: .busy)
+        case .idle:
+            GlassEmptyState(symbol: "thermometer.medium", tone: "tone-orange", title: store.text("sensorsEmpty"),
+                            hint: store.text("sensorsEmptyHint")).padding(.vertical, metric("large") * 2)
+        case .reading: EmptyView()
+        }
     }
     @ViewBuilder fileprivate func controlCard(_ monitor: ThermalMonitor) -> some View {
         glassControlCard(monitor)
@@ -489,16 +506,32 @@ extension ThermalWorkspace {
     }
     /// Thermal spec "Helper: chờ phê duyệt": say what is needed and offer System Settings in place.
     fileprivate func approvalPrompt(_ monitor: ThermalMonitor) -> some View {
-        HStack(spacing: metric("small")) {
-            Text(store.text("thermal_fan_helper_approval_title")).font(.vzn("labelScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: metric("small"))
-            Button(store.text("openSystemSettings")) { monitor.openHelperSettings() }.buttonStyle(.vznOutline).fixedSize()
+        NoticeBand(role: "warning", edge: false) {
+            VStack(alignment: .leading, spacing: metric("small")) {
+                Label(store.text("thermal_fan_helper_approval_title"), systemImage: "exclamationmark.triangle")
+                    .font(.vzn("labelScale", .semibold)).fixedSize(horizontal: false, vertical: true)
+                hint(store.text("thermal_fan_helper_approval_desc"))
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: metric("small")) { helperActions(monitor) }.fixedSize()
+                    VStack(alignment: .leading, spacing: metric("small")) { helperActions(monitor) }
+                }
+            }
         }
     }
-    @ViewBuilder fileprivate func helperActions(_ monitor: ThermalMonitor) -> some View {
-        // Register only while the daemon is absent; remove only once it is installed or awaiting approval.
-        if monitor.helperStatus != "helperEnabled" && monitor.helperStatus != "helperApproval" { Button(store.text("registerHelper")) { confirmHelper = true } }
-        if monitor.helperStatus == "helperEnabled" || monitor.helperStatus == "helperApproval" { Button(store.text("unregisterHelper"), role: .destructive) { confirmRemoval = true } }
+    fileprivate func helperActions(_ monitor: ThermalMonitor) -> some View {
+        ForEach(FanHelperAction.available(for: monitor.helperStatus), id: \.self) { action in
+            let button = Button(store.text(action.rawValue), role: action == .unregisterHelper ? .destructive : nil) {
+                switch action {
+                case .registerHelper: confirmHelper = true
+                case .unregisterHelper: confirmRemoval = true
+                case .openSystemSettings: monitor.openHelperSettings()
+                case .retry: monitor.refreshHelperStatus()
+                }
+            }
+            if monitor.helperStatus != "helperEnabled" {
+                button.buttonStyle(action.approvalStyle)
+            } else { button }
+        }
     }
     @ViewBuilder fileprivate func sensorCard(_ monitor: ThermalMonitor) -> some View {
         glassSensorCard(monitor)
@@ -528,7 +561,7 @@ extension ThermalWorkspace {
                         .accessibilityLabel(store.text("fanCalibrate")).accessibilityValue(Text("\(Int(monitor.calibrationProgress * 100)) %"))
                 }.padding(.horizontal, metric("inset")).padding(.bottom, metric("small"))
             }
-            if sensors.isEmpty { Text(store.text("sensorsEmptyHint")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).padding(metric("inset")) }
+
             ForEach(ThermalSensors.Group.allCases, id: \.self) { group in
                 if let rows = groups[group], !rows.isEmpty {
                     groupHead(group, hottest: rows.map(\.max).max()).padding(.horizontal, metric("inset")).padding(.top, metric("small")).padding(.bottom, metric("tight"))
@@ -892,13 +925,35 @@ private struct NativeFanRow: View {
     }
 }
 
+enum FanHelperAction: String {
+    case registerHelper, unregisterHelper, openSystemSettings, retry
+
+    static func available(for status: String) -> [Self] {
+        switch status {
+        case "helperApproval": [.unregisterHelper, .openSystemSettings, .retry]
+        case "helperEnabled": [.unregisterHelper]
+        case "helperUnavailable": [.registerHelper]
+        default: []
+        }
+    }
+    @MainActor var approvalStyle: VznButtonStyle {
+        switch self {
+        case .unregisterHelper: .vznQuiet
+        case .retry: .vznPrimary
+        case .openSystemSettings, .registerHelper: .vznOutline
+        }
+    }
+}
+
 enum ThermalStatus {
-    /// Retry restarts the sensor reader, so it is offered only for the reader's own failures.
-    static func canRetry(error: String, monitoring: Bool) -> Bool { !monitoring && isReaderError(error) }
-    /// Sensor-reader failures concern the whole page; every other error belongs to the fan control card.
+    enum ReaderState { case idle, waiting, missing, failed, empty, reading }
+    static func readerState(error: String?, monitoring: Bool, sensorCount: Int?) -> ReaderState {
+        if error == "thermalReaderMissing" { return .missing }
+        if error == "thermalReadError" { return .failed }
+        if let sensorCount { return sensorCount == 0 ? .empty : .reading }
+        return monitoring ? .waiting : .idle
+    }
     static func isReaderError(_ error: String) -> Bool { ["thermalReaderMissing", "thermalReadError"].contains(error) }
-    /// The reader runs but has not delivered its first reading: "Reading sensors…", not "no data".
-    static func waiting(monitoring: Bool, hasSnapshot: Bool, hasError: Bool) -> Bool { monitoring && !hasSnapshot && !hasError }
     /// Thermal-States: an approved helper is ready; one waiting for approval in System Settings is a
     /// warning, because fan control does nothing until the person acts; anything else is idle.
     static func helperTone(_ status: String) -> StatusTone {

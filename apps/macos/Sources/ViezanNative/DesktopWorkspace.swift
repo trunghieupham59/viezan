@@ -58,7 +58,7 @@ struct DesktopWorkspace: View {
                         .background(contentColor("action-soft", scheme), in: Capsule())
                     Text(store.text("previewSource")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
                     Text(store.text("previewTranslated")).font(.vzn("subtitleScale", .semibold)).foregroundStyle(contentColor("text-strong", scheme)).fixedSize(horizontal: false, vertical: true)
-                    Text(ModelLineup.shortName(store.session.model)).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).help(store.session.model)
+                    Text(ModelLineup.shortName(store.appModel)).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).help(store.appModel)
                 }.padding(metric("inset") + metric("tight")).frame(maxWidth: .infinity, alignment: .leading)
                     .background { ReadingPanelSurface() }
                     .padding(metric("gutter"))

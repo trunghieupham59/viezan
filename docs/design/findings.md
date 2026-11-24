@@ -58,8 +58,15 @@ No known accessibility items remain in this list.
 - Hardcoded CSS values: `codex.css` (sidebar `10px 8px`, `180ms`, command palette `560px`/`480px`); `chat.css` (`5px 9px`, `104px`, `44px`, `720px`, `.usage-cost-badge` at 18/10/11 px).
 - Dead code: Home's activity icon is not passed to `ActivityRow`; nine thermal i18n keys are unused.
 
+## Quyết định thiết kế (2026-11-25)
+
+- Kế hoạch gỡ trên macOS cho tích từng mục toàn máy đã xác minh. Việc chọn chỉ sửa kế hoạch, Finder xử lý quyền khi người dùng xác nhận.
+
 ## Quyết định thiết kế (2026-11-03 · Liquid Glass 2.0)
 
+- 2026-11-25 · Chọn AI trên một màn hình đặt mặc định chung để người dùng chỉ chọn một lần. Chat có tin nhắn giữ model riêng và mỗi yêu cầu giữ model từ lúc gửi đến cả khi thử lại.
+
+- 2026-11-25 · Trang Ứng dụng trên macOS giới hạn chiều rộng danh sách để người dùng đọc được đường dẫn và toàn bộ nhãn thao tác trước khi chuyển tệp vào Thùng rác.
 - 2026-11-24 · PO yêu cầu trang Ứng dụng gỡ được gói thuộc root (ứng dụng App Store) thay vì khoá: Viezan nhờ Finder chuyển gói vào Thùng rác để macOS hỏi mật khẩu hoặc Touch ID, vì cách này cho người dùng hộp thoại hệ thống quen thuộc mà Viezan không phải mang mã chạy quyền root. Thay cho quyết định "không tự nâng quyền" ở phần gỡ gói; helper root riêng vẫn không làm.
 - 2026-11-24 · Trang Ứng dụng cảnh báo khi lựa chọn gỡ hoặc đặt lại có dữ liệu cá nhân. Khi gặp thư mục không đọc được, nút mở cài đặt Full Disk Access giúp người dùng tự khắc phục kết quả quét thiếu rồi bấm Quét lại. Viezan vẫn không tự xin quyền.
 - 2026-11-24 · Trang Nhiệt độ & quạt dùng “cấu hình” và “dịch vụ quạt” (EN “profile”, “fan helper”, JA「プロファイル」「ファンヘルパー」) để nút, trạng thái và thông báo gọi cùng một đối tượng bằng cùng một tên.

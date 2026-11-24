@@ -24,7 +24,7 @@ ColumnLayout {
     readonly property string modelID: {
         var id = snapshot.active[snapshot.feature]
         var session = snapshot.sessions.find(function(s) { return s.id === id })
-        return session ? session.model : ""
+        return snapshot.defaultModel || session?.model || ""
     }
     Label { text: usage.t("usageHint"); wrapMode: Text.Wrap; Layout.fillWidth: true }
     Repeater {

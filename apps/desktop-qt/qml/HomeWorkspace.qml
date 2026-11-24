@@ -25,7 +25,7 @@ NamedScrollView {
     readonly property var metrics: bridge.metrics
     readonly property bool darkMode: bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
     property bool compact: width < metrics.reading
-    readonly property string activeModel: snapshot.sessions.find(item => item.id === snapshot.active[snapshot.feature])?.model || ""
+    readonly property string activeModel: snapshot.defaultModel || snapshot.sessions.find(item => item.id === snapshot.active[snapshot.feature])?.model || ""
     readonly property string modelAvailability: (bridge.localModels, bridge.providersChecked, bridge.availability(activeModel))
     readonly property var colors: bridge.palettes[darkMode ? "dark" : "light"]
     property string filter: ""
@@ -102,7 +102,7 @@ NamedScrollView {
         Item {
             id: strip
             visible: !home.compact
-            readonly property string activeModel: home.snapshot.sessions.find(item => item.id === home.snapshot.active[home.snapshot.feature])?.model || ""
+            readonly property string activeModel: home.activeModel
             readonly property string availability: (home.bridge.localModels, home.bridge.providersChecked, home.bridge.availability(activeModel))
             Layout.alignment: Qt.AlignTop
             implicitWidth: stripRow.implicitWidth + home.metrics.gap + home.metrics.tight

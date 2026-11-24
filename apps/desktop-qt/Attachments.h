@@ -7,6 +7,8 @@
 namespace Attachments {
 bool quarantineUnreferenced(const QVariantMap &workspace);
 QVariantMap ingest(const QUrl &source);
+QVariantMap ingest(const QByteArray &bytes, const QString &name);
+void discardNew(const QVariantMap &attachment);
 bool restore(const QVariantMap &attachment, const QByteArray &bytes);
 QByteArray data(const QVariantMap &attachment);
 

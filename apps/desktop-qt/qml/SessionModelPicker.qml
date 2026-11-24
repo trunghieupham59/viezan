@@ -19,7 +19,7 @@ ColumnLayout {
     property bool glassFeature: false
     property bool featureIconOnly: false
     property bool selectionOnly: false
-    property string selectedModel: session.model || ""
+    property string selectedModel: shell.requestModel
     signal modelChosen(string modelID)
     signal configureRequested()
     readonly property Item modelControl: glassFeature ? featureTrigger : lineupTrigger
@@ -62,7 +62,7 @@ ColumnLayout {
         glassMaterial: false
         flat: true
         readonly property bool iconOnly: modelPicker.shell.width < metrics.reading
-        text: (modelPicker.careful ? t("tierCareful") + " · " : "") + modelPicker.bridge.shortModelName(session.model)
+        text: (modelPicker.careful ? t("tierCareful") + " · " : "") + modelPicker.bridge.shortModelName(modelPicker.selectedModel)
         implicitHeight: metrics.control
         implicitWidth: iconOnly ? metrics.control : Math.min(metrics.compactSidebar, implicitContentWidth + leftPadding + rightPadding)
         Accessible.name: t("model") + ": " + text
@@ -89,7 +89,7 @@ ColumnLayout {
         property point origin: Qt.point(0, 0)
         readonly property bool featureMode: modelPicker.glassFeature || session.feature !== "chat"
         // Reasoning tiers are a Chat choice; a selection-only caller lists chat-capable models.
-        readonly property var sections: !visible ? [] : (modelPicker.bridge.historyRevision, modelPicker.bridge.catalogRevision, modelPicker.bridge.modelSections(query, ownerID))
+        readonly property var sections: !visible ? [] : (modelPicker.selectedModel, modelPicker.bridge.historyRevision, modelPicker.bridge.catalogRevision, modelPicker.bridge.modelSections(query, ownerID))
             .filter(section => !featureMode || section.key !== "purpose")
             .map(section => !modelPicker.selectionOnly ? section : Object.assign({}, section, {rows: section.rows.filter(row => !row.model || modelPicker.bridge.chatCapable(row.model))}))
             .filter(section => section.rows.length > 0)
@@ -99,11 +99,14 @@ ColumnLayout {
                 result.push(Object.assign({}, section.rows[i], {section: section.key, first: i === 0}))
             return result
         }
+        readonly property real roomBelow: Math.max(0, modelPicker.shell.height - origin.y - anchorItem.height - metrics.small - metrics.inset)
+        readonly property real roomAbove: Math.max(0, origin.y - metrics.small - metrics.inset)
+        readonly property bool opensBelow: featureMode && (roomBelow >= metrics.editor * 3 || roomBelow >= roomAbove)
         width: Math.min(metrics.sidebar + metrics.editor, modelPicker.shell.width - metrics.inset * 2)
         // Below a feature trigger the panel stops at the window edge instead of covering the trigger.
-        height: Math.min(body.implicitHeight + topPadding + bottomPadding, featureMode ? modelPicker.shell.height - origin.y - anchorItem.height - metrics.small - metrics.inset : modelPicker.shell.height - metrics.inset * 2)
+        height: Math.min(body.implicitHeight + topPadding + bottomPadding, featureMode ? (opensBelow ? roomBelow : roomAbove) : modelPicker.shell.height - metrics.inset * 2)
         x: Math.max(metrics.inset, Math.min(origin.x, modelPicker.shell.width - width - metrics.inset))
-        y: featureMode ? Math.max(metrics.inset, Math.min(origin.y + anchorItem.height + metrics.small, modelPicker.shell.height - height - metrics.inset)) : Math.max(metrics.inset, origin.y - height - metrics.small)
+        y: opensBelow ? Math.max(metrics.inset, Math.min(origin.y + anchorItem.height + metrics.small, modelPicker.shell.height - height - metrics.inset)) : Math.max(metrics.inset, origin.y - height - metrics.small)
         padding: metrics.small
         modal: false; focus: true
         closePolicy: Popup.CloseOnPressOutside | (modelPicker.shell.composing() ? 0 : Popup.CloseOnEscape)
@@ -165,6 +168,7 @@ ColumnLayout {
             id: body
             anchors.fill: parent
             spacing: metrics.small
+            Label { text: t("appDefaultAI"); Accessible.role: Accessible.Heading; font.bold: true; wrapMode: Text.Wrap; Layout.fillWidth: true }
             Kit.SearchField {
                 id: lineupSearch
                 objectName: "model-lineup-search"
@@ -243,8 +247,8 @@ ColumnLayout {
                     lineup.close()
                     // Feature views keep their own configuration: the caller's panel, or the model and instructions dialog.
                     if (feature && modelPicker.selectionOnly) modelPicker.configureRequested()
-                    else if (feature) { modelDialog.ownerID = session.id; modelID.text = session.model; instructions.text = session.systemPrompt || ""; modelDialog.open() }
-                    else modelPicker.shell.openSettingsSection(session.model.startsWith("openai:") || session.model.startsWith("claude:") || session.model.startsWith("gemini:") ? "providers" : "localModels") } }
+                    else if (feature) { modelDialog.ownerID = session.id; modelDialog.initialModel = modelPicker.selectedModel; modelID.text = modelDialog.initialModel; instructions.text = session.systemPrompt || ""; modelDialog.open() }
+                    else modelPicker.shell.openSettingsSection(["openai", "claude", "gemini"].includes(modelPicker.selectedModel.split(":")[0]) ? "providers" : "localModels") } }
             }
         }
     }
@@ -255,10 +259,11 @@ ColumnLayout {
         anchors.centerIn: parent
         margins: metrics.inset
         property string ownerID: ""
-        title: t("configureModel")
+        property string initialModel: ""
+        title: t("appDefaultAI")
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
-        onAccepted: { modelPicker.shell.command("model", {sessionID: ownerID, value: modelID.text.trim()}); modelPicker.shell.command("systemPrompt", {sessionID: ownerID, value: instructions.text}) }
+        onAccepted: { if (modelID.text.trim() !== initialModel) modelPicker.shell.command("model", {sessionID: ownerID, value: modelID.text.trim()}); modelPicker.shell.command("systemPrompt", {sessionID: ownerID, value: instructions.text}) }
         ColumnLayout {
             TextField { id: modelID; placeholderText: t("modelID"); Accessible.name: placeholderText; Layout.fillWidth: true }
             Label { text: t("modelIDHint"); wrapMode: Text.Wrap; Layout.maximumWidth: metrics.sidebar + metrics.editor }

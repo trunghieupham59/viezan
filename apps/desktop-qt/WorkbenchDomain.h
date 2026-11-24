@@ -11,6 +11,8 @@ inline constexpr int quickQuestionLimit = 3000;
 qsizetype graphemeCount(const QString &text);
 QVariantMap create(const QString &chatID, const QString &translateID);
 inline constexpr int pinnedModelLimit = 8;
+bool validModel(const QString &id);
+QString modelForNextRequest(const QVariantMap &state, const QVariantMap &session);
 bool validate(const QVariantMap &state);
 QVariantMap recover(const QVariantMap &state, bool repairStoredTitles = true);
 QVariantMap command(const QVariantMap &state, const QString &name,

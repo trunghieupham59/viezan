@@ -6,7 +6,6 @@ import ViezanDomain
 struct InterpretationWorkspace: View {
     static func persistentError(_ key: String) -> Bool { key == "interpretStorageError" || key == "microphoneDenied" }
     let store: WorkbenchStore
-    @State private var setupOpen = false
     @State private var historyQuery = ""
     @State private var historyHighlight: String?
     @State private var showOriginal = true
@@ -19,7 +18,7 @@ struct InterpretationWorkspace: View {
     @State private var inputs: [NativeInputDevice] = []
     @State private var source = "auto"
     @State private var target = "vi"
-    @State private var model = ""
+    private var model: String { store.interpretationModel }
     @State private var subtitle: NSPanel?
     // Follow new lines while the reader sits at the end; a manual scroll up pauses following.
     @State private var followBottom = true
@@ -29,7 +28,6 @@ struct InterpretationWorkspace: View {
     @Environment(\.colorScheme) private var scheme
     private func toggle(_ id: String) { layer = layer == id ? nil : id }
     private var live: Interpretation { store.interpretation }
-    private var modelChoices: [String] { (store.availableModels + [model]).filter { !$0.isEmpty }.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } } }
     private var historyRecords: [InterpretationSession] {
         live.sessions.filter { historyQuery.isEmpty || Date(timeIntervalSince1970: $0.created).formatted().localizedStandardContains(historyQuery) || $0.segments.contains { $0.original.localizedStandardContains(historyQuery) || $0.translated.localizedStandardContains(historyQuery) } }
     }
@@ -46,7 +44,7 @@ struct InterpretationWorkspace: View {
     var body: some View {
         VStack(alignment: .leading, spacing: metric("gap")) {
             languageRow
-            ProviderNotice(store: store, model: model) { model = $0 }
+            ProviderNotice(store: store, model: model) { store.setModel(nil, $0) }
             SpeechProviderNotice(store: store)
             sessionBar
             CardDivider()
@@ -182,7 +180,7 @@ struct InterpretationWorkspace: View {
                         Button(store.text("cancel"), role: .destructive) { live.cancelSummary() }.buttonStyle(.vznQuiet)
                     } else {
                         CopyResponseButton(text: text, label: store.text("copy"), copiedLabel: store.text("copied")).disabled(text.isEmpty)
-                        Button(store.text(text.isEmpty ? "summarize" : "quickRegenerate"), systemImage: text.isEmpty ? "sparkles" : "arrow.clockwise") { live.summarize(kind: tab) }.buttonStyle(.vznQuiet).disabled(live.busy)
+                        Button(store.text(text.isEmpty ? "summarize" : "quickRegenerate"), systemImage: text.isEmpty ? "sparkles" : "arrow.clockwise") { live.summarize(kind: tab, model: model) }.buttonStyle(.vznQuiet).disabled(live.busy)
                     }
                 }
                 // Collapsing leaves the head row, so the transcript gets the whole column back.
@@ -237,7 +235,7 @@ struct InterpretationWorkspace: View {
                             }
                         }
                     }
-                    Button { summaryTab = "summary"; live.summarize(kind: "summary") } label: { Label(store.text("summarize"), systemImage: "sparkles").frame(maxWidth: .infinity) }.buttonStyle(.vznPrimary)
+                    Button { summaryTab = "summary"; live.summarize(kind: "summary", model: model) } label: { Label(store.text("summarize"), systemImage: "sparkles").frame(maxWidth: .infinity) }.buttonStyle(.vznPrimary)
                         .disabled(live.busy || current.segments.isEmpty).padding(.top, metric("small")).accessibilityIdentifier("interpret-panel-summarize")
                 } else {
                     Text(store.text("interpretEmptyHint")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -258,8 +256,8 @@ struct InterpretationWorkspace: View {
     }
     private func syncSelection() {
         if let current = live.current {
-            model = current.model; source = current.source; target = current.target; captureMode = current.captureMode ?? "microphone"; deviceID = current.deviceID ?? ""
-        } else if model.isEmpty { model = store.session.model; target = store.session.target }
+            source = current.source; target = current.target; captureMode = current.captureMode ?? "microphone"; deviceID = current.deviceID ?? ""
+        } else { target = store.session.target }
     }
     // Reversible: the session leaves at once and the toast's Undo puts it back.
     private func deleteWithUndo(_ id: String) {
@@ -286,23 +284,8 @@ struct InterpretationWorkspace: View {
                 LanguagePill(store: store, role: store.text("outputLanguage"), code: target, open: layer == "target") { toggle("target") }.disabled(live.busy).layerAnchor("target").accessibilityAddTraits(layer == "target" ? .isSelected : [])
             }
             Spacer(minLength: metric("small"))
-            // Real model IDs from provider discovery; the chip opens the list, not a free-text field.
-            Menu {
-                Picker(store.text("model"), selection: $model) {
-                    ForEach(modelChoices, id: \.self) { id in Text(nativeModelLabel(id, store: store)).tag(id) }
-                }.pickerStyle(.inline)
-                Divider()
-                Button(store.text("recordingOptions")) { setupOpen = true }
-            } label: {
-                // `✦ Haiku 5.5 ⌄` on a glass pill, like the other language pages' model chip.
-                HStack(spacing: metric("small") - metric("hairline") * 2) {
-                    if modelUnavailable(model, store: store) { StatusDot(tone: .failed) } else { Image(systemName: "sparkles").imageScale(.small).foregroundStyle(contentColor("action", scheme)) }
-                    Text(model.isEmpty ? store.text("modelID") : ModelLineup.shortName(model)).foregroundStyle(contentColor("text-strong", scheme))
-                    Image(systemName: "chevron.down").imageScale(.small).foregroundStyle(contentColor("text-soft", scheme))
-                }.lineLimit(1)
-            }
-                .menuStyle(.button).buttonStyle(VznButtonStyle(kind: .outline)).menuIndicator(.hidden).fixedSize().foregroundStyle(.secondary).help(model).disabled(live.busy)
-                .accessibilityLabel(store.text("model") + ": " + model)
+            ModelPicker(store: store, compact: true, badge: true, modelOverride: model)
+                .disabled(live.busy)
         }
     }
     // Session state, source and the single start/stop action.
@@ -342,7 +325,7 @@ struct InterpretationWorkspace: View {
                     Button(store.text("newInterpretation"), systemImage: "arrow.clockwise") { live.clearSelection() }.buttonStyle(.vznOutline).fixedSize()
                         .disabled(live.busy).accessibilityIdentifier("interpret-new-inline")
                 }
-                Button(store.text("startInterpretation"), systemImage: "mic") { store.audio.cancel(); Task { await live.start(model: model, provider: store.speechProvider, source: source, target: target, locale: store.workspace.locale, captureMode: captureMode, deviceID: deviceID) } }
+                Button(store.text("startInterpretation"), systemImage: "mic") { let chosenModel = model; store.audio.cancel(); Task { await live.start(model: chosenModel, provider: store.speechProvider, source: source, target: target, locale: store.workspace.locale, captureMode: captureMode, deviceID: deviceID) } }
                     .buttonStyle(.vznPrimary).fixedSize()
                     .disabled(live.busy || store.loadBlocked || live.storageBlocked || !NativeModel.valid(model) || model.hasPrefix("demo."))
             }
@@ -454,7 +437,7 @@ struct InterpretationWorkspace: View {
             VStack(alignment: .leading, spacing: metric("tight")) {
                 ForEach(Self.summaryOrder, id: \.self) { kind in
                     PanelRow(title: store.text("interpret_" + kind), selected: live.current.map { !summaryText($0, kind).isEmpty } ?? false, identifier: "analysis-" + kind) {
-                        summaryTab = kind; live.summarize(kind: kind); layer = nil
+                        summaryTab = kind; live.summarize(kind: kind, model: model); layer = nil
                     }
                 }
             }.padding(metric("small")).frame(width: metric("sidebar") + metric("large") + metric("gap"))

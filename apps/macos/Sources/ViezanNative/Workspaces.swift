@@ -184,7 +184,7 @@ struct ChatWorkspace: View {
                 .transition(.opacity)
             }
             // Same column as the composer it warns about.
-            ProviderNotice(store: store, model: session.model)
+            ProviderNotice(store: store, model: store.workspace.modelForNextRequest(session))
                 .frame(maxWidth: metric("reading")).padding(.horizontal, metric("gutter"))
             // Chat-States: image mode with no OpenAI or Gemini key on this device says so before sending.
             if session.chatMode == "image", store.providers.checked, !["openai", "gemini"].contains(where: store.providers.keyed.contains) {
@@ -408,6 +408,24 @@ struct UserBubbleShape: Shape {
     }
 }
 
+struct DictionaryContextField {
+    static let shortcut = KeyboardShortcut("c", modifiers: [.command, .shift])
+    static func performShortcut(composing: Bool, action: (() -> Void)?) {
+        if !composing { action?() }
+    }
+    var expanded: Bool?
+    func isVisible(_ value: String?) -> Bool { expanded ?? !(value ?? "").isEmpty }
+    mutating func toggle(_ value: String?) { expanded = !isVisible(value) }
+}
+
+private struct DictionaryContextActionKey: FocusedValueKey { typealias Value = () -> Void }
+extension FocusedValues {
+    var dictionaryContextAction: (() -> Void)? {
+        get { self[DictionaryContextActionKey.self] }
+        set { self[DictionaryContextActionKey.self] = newValue }
+    }
+}
+
 struct TranslationWorkspace: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var store: WorkbenchStore
@@ -423,10 +441,10 @@ struct TranslationWorkspace: View {
                 // Translate-States: the pair is locked while a request runs.
                 NativeFlow(spacing: metric("small")) { languageControls }.disabled(store.running(session.id) != nil)
                 Spacer(minLength: metric("small"))
-                ModelPicker(store: store, compact: true, badge: true)
+                ModelPicker(store: store, compact: true, badge: true, iconOnly: narrowDictionary)
             }
             // Glass Translate has no rule under the language row; Dictionary draws one under its fields.
-            ProviderNotice(store: store, model: session.model)
+            ProviderNotice(store: store, model: store.workspace.modelForNextRequest(session))
             if let notice = store.resetNotice, notice.feature == session.feature {
                 // Translate-States: a quiet 12 pt line — neutral dot, the notice, and a text link back.
                 HStack(spacing: metric("small")) {
@@ -440,6 +458,7 @@ struct TranslationWorkspace: View {
             }
             if session.feature == .dictionary { dictionaryBody } else { panels }
         }.padding(.horizontal, metric("gutter") - metric("tight")).padding(.top, metric("gap")).padding(.bottom, metric("gutter") - metric("tight"))
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { dictionaryWidth = $0 }
             .onChange(of: session.id) { _, _ in layer = nil }
             .floatingLayers($layer, trailing: { ["options", "listen", "compare"].contains($0) }) { id, width, height in layerPanel(id, width: width, height: height) }
     }
@@ -529,49 +548,66 @@ struct TranslationWorkspace: View {
     @State private var termFocused = false
     @FocusState private var contextFocused: Bool
     /// Dictionary-Empty / Entry: the context line is opened from the field's own toggle.
-    @State private var contextOpen = false
+    @State private var contextField = DictionaryContextField()
+    @State private var dictionaryWidth: CGFloat = .infinity
+    private var narrowDictionary: Bool { session.feature == .dictionary && dictionaryWidth < metric("reading") }
     /// Bumped to hand focus back to the term when the context line closes.
     @State private var termFocusBump = 0
     /// The toggle and ⌘⇧C: opening puts the caret in the context line; closing returns it to the
-    /// term. A context that already has text stays on screen either way, so nothing typed is lost.
+    /// term. Folding keeps the session text for the next lookup.
     private func toggleContext() {
-        withAnimation(reduceMotion ? nil : .easeOut(duration: metric("durationFast"))) { contextOpen.toggle() }
-        if contextOpen { contextFocused = true } else { contextFocused = false; termFocusBump += 1 }
+        withAnimation(reduceMotion ? nil : .easeOut(duration: metric("durationFast"))) { contextField.toggle(session.dictionaryContext) }
+        if contextField.expanded == true { contextFocused = true } else { contextFocused = false; termFocusBump += 1 }
     }
     // Dictionary-Empty / Entry: the lookup field is the hero (52 pt, 44 once an entry shows),
     // with the context toggle and Look up inside it; the entry reads in the 760 column below.
     private var glassDictionary: some View {
         let entryShown = !session.output.isEmpty || store.running(session.id) != nil
         return VStack(alignment: .leading, spacing: metric("gap")) {
-            VStack(spacing: metric("gap")) {
-                if !entryShown {
-                    Text(store.text("dictionaryAsk")).font(.vzn("headingScale", .semibold)).foregroundStyle(contentColor("text-strong", scheme))
-                        .accessibilityAddTraits(.isHeader).padding(.top, metric("large")).padding(.bottom, metric("tight"))
-                }
-                dictionaryField(compact: entryShown)
-                if contextOpen || !(session.dictionaryContext ?? "").isEmpty { dictionaryContextLine }
-                if session.draft.count > 120 {
-                    Text(store.text("dictionaryTermLimit")).font(.vzn("smallScale")).foregroundStyle(contentColor("danger", scheme)).frame(maxWidth: .infinity, alignment: .leading)
-                } else if !entryShown {
-                    HStack(spacing: metric("small")) {
-                        KeyCap(text: "↩"); Text(store.text("lookup"))
-                        Text("·").accessibilityHidden(true)
-                        Text(store.text("dictionaryTermLimit"))
-                    }.font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
-                }
-            }.frame(maxWidth: metric("reading")).frame(maxWidth: .infinity)
+            dictionaryHeader(entryShown: entryShown)
             if entryShown { CardDivider().frame(maxWidth: metric("reading")).frame(maxWidth: .infinity).padding(.top, metric("tight")) }
             dictionaryResult
         }
-        .onChange(of: session.id) { _, _ in contextOpen = false; contextFocused = false }
+        .focusedSceneValue(\.dictionaryContextAction, contextAction)
+        .onChange(of: session.id) { _, _ in contextField = DictionaryContextField(); contextFocused = false }
     }
+    private var contextAction: (() -> Void)? { layer == nil ? { toggleContext() } : nil }
+    private func dictionaryHeader(entryShown: Bool) -> some View {
+        VStack(spacing: metric("gap")) {
+            if !entryShown {
+                Text(store.text("dictionaryAsk")).font(.vzn("headingScale", .semibold)).foregroundStyle(contentColor("text-strong", scheme))
+                    .accessibilityAddTraits(.isHeader).padding(.top, metric("large")).padding(.bottom, metric("tight"))
+            }
+            dictionaryField(compact: entryShown || narrowDictionary)
+            if contextField.isVisible(session.dictionaryContext) { dictionaryContextLine }
+            if contextTooLong {
+                Text(store.text("dictionaryContextTooLong")).font(.vzn("smallScale"))
+                    .foregroundStyle(contentColor("danger", scheme)).frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("dictionary-context-error")
+            }
+            if session.draft.count > 120 {
+                Text(store.text("dictionaryTermLimit")).font(.vzn("smallScale")).foregroundStyle(contentColor("danger", scheme)).frame(maxWidth: .infinity, alignment: .leading)
+            } else if !entryShown {
+                NativeFlow(spacing: metric("small")) {
+                    shortcutHint("↩", "lookup")
+                    shortcutHint("⌘⇧C", "dictionaryAddContext")
+                    shortcutHint("⌘V", "pasteText")
+                    Text(store.text("dictionaryTermLimit"))
+                }.font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
+            }
+        }.frame(maxWidth: metric("reading")).frame(maxWidth: .infinity)
+    }
+    private func shortcutHint(_ key: String, _ title: String) -> some View {
+        HStack(spacing: metric("tight")) { KeyCap(text: key); Text(store.text(title)) }.accessibilityElement(children: .combine)
+    }
+    private var contextTooLong: Bool { (session.dictionaryContext?.count ?? 0) > WorkbenchStore.dictionaryContextLimit }
+
     private func dictionaryField(compact: Bool) -> some View {
         let sessionID = session.id
-        // The store refuses a context over 500 characters; the control says so instead of doing nothing.
-        let invalid = session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || session.draft.count > 120 || (session.dictionaryContext?.count ?? 0) > 500
+        let invalid = session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || session.draft.count > 120 || contextTooLong
         let height = compact ? metric("navControl") + metric("tight") : metric("hero") + metric("tight")
         let font = NSFont.systemFont(ofSize: NSFont.systemFontSize * metric("sectionScale"))
-        let hasContext = contextOpen || !(session.dictionaryContext ?? "").isEmpty
+        let hasContext = contextField.isVisible(session.dictionaryContext) || !(session.dictionaryContext ?? "").isEmpty
         return HStack(spacing: metric("gap")) {
             Image(systemName: "magnifyingglass").font(.vzn("subtitleScale")).foregroundStyle(contentColor("text-muted", scheme)).accessibilityHidden(true)
             ComposerEditor(text: Binding(get: { store.session(sessionID)?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("source"), font: font, focusEpoch: focusEpoch + termFocusBump, accessibilityID: "dictionary-term", submitOnReturn: true, onFocus: { termFocused = $0 }) { if !invalid { store.submit(sessionID) } }
@@ -582,7 +618,7 @@ struct TranslationWorkspace: View {
                 Image(systemName: "text.quote").frame(width: metric("control"), height: metric("control"))
                     .background(Circle().fill(contentColor("action", scheme).opacity(hasContext ? metric("selectionOpacity") : 0)))
                     .foregroundStyle(contentColor(hasContext ? "action-text" : "text-muted", scheme)).contentShape(Circle())
-            }.buttonStyle(.plain).keyboardShortcut("c", modifiers: [.command, .shift]).help(store.text("dictionaryAddContext")).accessibilityLabel(store.text("dictionaryAddContext"))
+            }.buttonStyle(.plain).help(store.text("dictionaryContextLabel") + " (⌘⇧C)").accessibilityLabel(store.text("dictionaryAddContext"))
                 .accessibilityAddTraits(hasContext ? .isSelected : []).accessibilityIdentifier("dictionary-context-toggle")
             if let task = store.running(session.id) {
                 Button(store.text("stop"), systemImage: "stop.fill", role: .destructive) { store.cancel(task.id) }.buttonStyle(.vznQuiet)
@@ -599,14 +635,16 @@ struct TranslationWorkspace: View {
     }
     // The context line under the field: caps label, the text, its count and a clear control.
     private var dictionaryContextLine: some View {
+        let sessionID = session.id
         let value = session.dictionaryContext ?? ""
         return HStack(spacing: metric("gap") - metric("hairline") * 2) {
             Text(store.text("dictionaryContextLabel").uppercased(with: Locale(identifier: store.workspace.locale))).font(.system(size: NSFont.systemFontSize * metric("captionScale") * 0.9, weight: .semibold)).foregroundStyle(contentColor("text-muted", scheme)).fixedSize()
-            TextField(store.text("dictionaryContext"), text: Binding(get: { session.dictionaryContext ?? "" }, set: { setContext($0, for: session.id) }))
+            TextField(store.text("dictionaryContext"), text: Binding(get: { store.session(sessionID)?.dictionaryContext ?? "" }, set: { setContext($0, for: sessionID) }))
                 .textFieldStyle(.plain).focused($contextFocused).accessibilityLabel(store.text("dictionaryContextLabel"))
-            Text("\(value.count) / 500").font(.vzn("captionScale")).monospacedDigit().foregroundStyle(contentColor(value.count > 500 ? "danger" : "text-soft", scheme)).fixedSize()
+                .accessibilityHint(contextTooLong ? store.text("dictionaryContextTooLong") : "")
+            Text("\(value.count) / \(WorkbenchStore.dictionaryContextLimit)").font(.vzn("captionScale")).monospacedDigit().foregroundStyle(contentColor(contextTooLong ? "danger" : "text-soft", scheme)).fixedSize()
             // Clearing is this control's job; the toggle and ⌘⇧C only fold the line. Focus goes back to the term.
-            Button { setContext("", for: session.id); contextOpen = false; contextFocused = false; termFocusBump += 1 } label: { Image(systemName: "xmark").imageScale(.small) }
+            Button { setContext("", for: session.id); contextField.expanded = false; contextFocused = false; termFocusBump += 1 } label: { Image(systemName: "xmark").imageScale(.small) }
                 .buttonStyle(.plain).foregroundStyle(contentColor("text-muted", scheme)).help(store.text("dictionaryRemoveContext")).accessibilityLabel(store.text("dictionaryRemoveContext"))
         }
         .font(.system(size: NSFont.systemFontSize)).padding(.horizontal, metric("inset") - metric("hairline") * 2).frame(height: metric("navControl"))
@@ -628,7 +666,7 @@ struct TranslationWorkspace: View {
     /// Saved words: favourite lookups, newest first.
     private var savedLookups: [Session] {
         store.workspace.sessions.filter { $0.feature == .dictionary && $0.favorite == true && $0.archived != true && DictionaryEntry.parse($0.output) != nil }
-            .sorted { ($0.updated ?? 0) > ($1.updated ?? 0) }.prefix(5).map { $0 }
+            .sorted { ($0.updated ?? 0) > ($1.updated ?? 0) }
     }
     private func lookupPair(_ item: Session) -> String {
         let source = item.source == "auto" ? (DictionaryEntry.parse(item.output)?.detectedSourceLang ?? "auto") : item.source
@@ -645,13 +683,13 @@ struct TranslationWorkspace: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: metric("small")) {
                 Eyebrow(text: title)
-                if let count { Text(String(count)).font(.vzn("captionScale")).foregroundStyle(contentColor("text-soft", scheme)) }
+                if let count { Text(store.text("wordsCount").replacingOccurrences(of: "{n}", with: String(count))).font(.vzn("captionScale")).foregroundStyle(contentColor("text-soft", scheme)) }
                 Spacer(minLength: metric("small"))
                 Button { NotificationCenter.default.post(name: .viezanOpenLibrary, object: favorites) } label: {
                     HStack(spacing: metric("tight")) { Text(link); Image(systemName: "arrow.right").imageScale(.small) }
                 }.buttonStyle(.plain).font(.vzn("smallScale", .medium)).foregroundStyle(contentColor("action-text", scheme))
             }.padding(.horizontal, metric("gap")).frame(height: metric("gutter") + metric("tight"))
-            ForEach(Array(rows.enumerated()), id: \.element.id) { index, item in
+            ForEach(Array(rows.prefix(5).enumerated()), id: \.element.id) { index, item in
                 if index > 0 { CardDivider().padding(.horizontal, metric("gap")) }
                 Button { store.select(item.id) } label: {
                     HStack(spacing: metric("gap")) {
@@ -709,7 +747,7 @@ struct TranslationWorkspace: View {
                         }.padding(.top, metric("large") - metric("small"))
                     }
                 } else if let entry = DictionaryEntry.parse(session.output) {
-                    DictionaryResultView(entry: entry, store: store)
+                    DictionaryResultView(entry: entry, store: store, compact: narrowDictionary)
                 } else if store.running(session.id) == nil, let missing = DictionaryEntry.notFound(session.output) {
                     notFound(missing)
                 } else {
@@ -727,6 +765,7 @@ struct TranslationWorkspace: View {
         let language = store.text("lang_" + (session.source == "auto" ? session.target : session.source))
         return VStack(alignment: .leading, spacing: metric("gap")) {
             HStack(spacing: metric("gap")) {
+                Image(systemName: "magnifyingglass").foregroundStyle(contentColor("text-muted", scheme)).accessibilityHidden(true)
                 Text(term).font(.system(size: NSFont.systemFontSize * metric("displayScale") + metric("tight") / 2, weight: .semibold)).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(1)
                 StatusBadge(text: store.text("dictionaryNotFound"), tone: .warning)
             }
@@ -746,34 +785,46 @@ struct TranslationWorkspace: View {
                         .accessibilityLabel(store.text("lookup") + " " + item.word).accessibilityIdentifier("dictionary-suggestion-\(index)")
                 }
             }
-            HStack(spacing: metric("small")) {
-                Button(store.text("dictionaryTranslatePhrase").replacingOccurrences(of: "{term}", with: term), systemImage: Feature.translate.symbol) {
-                    let id = store.createDetachedSession(feature: .translate, draft: term); store.select(id); NotificationCenter.default.post(name: .viezanOpenRoute, object: "translate")
-                }.buttonStyle(.vznOutline)
-                Button(store.text("dictionaryAskAI"), systemImage: "bubble.left") {
-                    let id = store.createDetachedSession(feature: .chat, draft: term); store.select(id); NotificationCenter.default.post(name: .viezanOpenRoute, object: "chat")
-                }.buttonStyle(.vznOutline)
-            }.padding(.top, metric("tight"))
+            VStack(spacing: 0) {
+                dictionaryExit(store.text("dictionaryTranslatePhrase").replacingOccurrences(of: "{term}", with: term), symbol: Feature.translate.symbol, feature: .translate, term: term)
+                CardDivider()
+                dictionaryExit(store.text("dictionaryAskAI"), symbol: "bubble.left", feature: .chat, term: term)
+            }
         }.padding(.top, metric("small"))
+    }
+    private func dictionaryExit(_ title: String, symbol: String, feature: Feature, term: String) -> some View {
+        Button {
+            let id = store.createDetachedSession(feature: feature, draft: term)
+            store.select(id)
+            NotificationCenter.default.post(name: .viezanOpenRoute, object: feature.rawValue)
+        } label: {
+            HStack(spacing: metric("small")) {
+                Image(systemName: symbol).accessibilityHidden(true)
+                Text(title)
+                Spacer()
+                Image(systemName: "chevron.right").accessibilityHidden(true)
+            }.padding(.horizontal, metric("gap")).frame(minHeight: metric("hero")).contentShape(Rectangle())
+        }.buttonStyle(HomeRowLensStyle())
     }
     @ViewBuilder private var dictionaryBody: some View {
         glassDictionary
     }
     @ViewBuilder private var failure: some View {
         if let task = store.workspace.tasks.first(where: { $0.request.sessionID == session.id }), [.failed, .interrupted, .cancelled].contains(task.status) {
-            HStack(spacing: metric("small")) {
-                Image(systemName: "exclamationmark.triangle").foregroundStyle(Color(nsColor: task.status == .failed ? .systemRed : .secondaryLabelColor)).accessibilityHidden(true)
-                TaskStatusText(store: store, task: task)
-                Button(store.text("retry")) { store.retry(task.id) }.disabled(!store.canRetry(task))
+            VStack(alignment: .leading, spacing: metric("small")) {
+                if task.status == .failed {
+                    InlineFailure(title: store.text("failed"), detail: store.text(task.errorCode ?? "providerError")).help(task.errorDetail ?? "")
+                } else { TaskStatusText(store: store, task: task) }
+                Button(store.text("retry")) { store.retry(task.id) }.buttonStyle(.vznOutline).disabled(!store.canRetry(task))
             }
         }
     }
     @ViewBuilder private var languageControls: some View {
-        LanguagePill(store: store, role: store.text("inputLanguage"), code: session.source, open: layer == "source") { toggle("source") }.layerAnchor("source").accessibilityAddTraits(layer == "source" ? .isSelected : [])
+        LanguagePill(store: store, role: store.text("inputLanguage"), code: session.source, compact: narrowDictionary, open: layer == "source") { toggle("source") }.layerAnchor("source").accessibilityAddTraits(layer == "source" ? .isSelected : [])
         // Swapping needs a known source; with auto-detect the button waits, like Interpretation.
         Button { store.setPair(session.id, source: session.target, target: session.source) } label: { Image(systemName: "arrow.left.arrow.right").foregroundStyle(contentColor("text-muted", scheme)) }
             .buttonStyle(.vznOutline).disabled(session.source == "auto").help(store.text("swap")).accessibilityLabel(store.text("swap"))
-        LanguagePill(store: store, role: store.text("outputLanguage"), code: session.target, open: layer == "target") { toggle("target") }.layerAnchor("target").accessibilityAddTraits(layer == "target" ? .isSelected : [])
+        LanguagePill(store: store, role: store.text("outputLanguage"), code: session.target, compact: narrowDictionary, open: layer == "target") { toggle("target") }.layerAnchor("target").accessibilityAddTraits(layer == "target" ? .isSelected : [])
     }
     private func paneHeader<Trailing: View>(_ title: String, @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack(spacing: metric("small")) {
@@ -830,7 +881,7 @@ struct TranslationWorkspace: View {
     /// Characters a single translation request handles well; longer text is split by the user.
     static let sourceLimit = WorkbenchStore.translateLimit
     // The result becomes the next source, read the other way round (Electron's "use as source").
-    private func useResultAsSource() {
+    func useResultAsSource() {
         let id = session.id, text = session.output, draft = session.draft, source = session.source, target = session.target
         store.setPair(id, source: target, target: TranslateSwap.target(source: source, target: target, locale: store.workspace.locale, languages: NativeResources.shared.nativeLanguages))
         store.setDraft(id, text)
@@ -1235,14 +1286,15 @@ struct LanguagePill: View {
     let store: WorkbenchStore
     var role: String
     var code: String
+    var compact = false
     var open = false
     var action: () -> Void
     @Environment(\.colorScheme) private var scheme
     var body: some View {
         Button(action: action) {
             HStack(spacing: metric("small") - metric("hairline") * 2) {
-                Text(role).foregroundStyle(contentColor("text-muted", scheme))
-                Text(store.text("lang_" + code)).fontWeight(.semibold).foregroundStyle(contentColor("text-strong", scheme))
+                if !compact { Text(role).foregroundStyle(contentColor("text-muted", scheme)) }
+                Text(compact && code != "auto" ? code.uppercased() : store.text("lang_" + code)).fontWeight(.semibold).foregroundStyle(contentColor("text-strong", scheme))
                 Image(systemName: "chevron.down").imageScale(.small).foregroundStyle(contentColor("text-soft", scheme)).accessibilityHidden(true)
             }.font(.system(size: NSFont.systemFontSize)).lineLimit(1)
         }.buttonStyle(.vznOutline).fixedSize()

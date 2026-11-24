@@ -21,7 +21,7 @@ ApplicationWindow {
     palette.disabled.button: colors["surface-subtle"]
     palette.mid: colors.border
     palette.midlight: colors.border
-    background: Kit.ReadingPanelSurface { radius: window.metrics.largeRadius }
+    background: Kit.ReadingPanelSurface { radius: window.metrics.surfaceRadius }
     readonly property var localeStrings: bridge.strings
     function t(key) { return localeStrings[key] || key }
     function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }

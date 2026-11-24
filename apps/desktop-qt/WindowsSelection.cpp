@@ -1,4 +1,27 @@
 #include "WindowsSelection.h"
+bool WindowsSelectionText::matchesDocument() const {
+    return !selection.isEmpty() && prefix.isValidUtf16() && selection.isValidUtf16() && suffix.isValidUtf16()
+        && prefix + selection + suffix == full;
+}
+
+WindowsSelectionText::Result WindowsSelectionText::replace(const QString &replacement, const Read &read, const Write &write) {
+    QString current;
+    if (!applied.isEmpty() || !matchesDocument() || replacement.isEmpty() || replacement.contains(QChar::Null)
+        || replacement.size() > 32768 || !replacement.isValidUtf16() || !read(current) || current != full) return Result::Failed;
+    if (replacement == selection) return Result::Unchanged;
+    const auto next = prefix + replacement + suffix;
+    if (next.size() > 131072 || !write(next) || !read(current) || current != next) return Result::Failed;
+    applied = next;
+    return Result::Replaced;
+}
+
+bool WindowsSelectionText::undo(const Read &read, const Write &write) {
+    QString current;
+    if (applied.isEmpty() || !read(current) || current != applied || !write(full) || !read(current) || current != full) return false;
+    applied.clear();
+    return true;
+}
+
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <UIAutomation.h>
@@ -18,14 +41,13 @@ bool text(IUIAutomationTextRange *range, QString &result) {
     result = take(value); return result.size() <= 131072;
 }
 }
-struct WindowsSelection::State {
+struct WindowsSelection::State : WindowsSelectionText {
     HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     ComPtr<IUIAutomationElement> element;
     ComPtr<IUIAutomationTextPattern> pattern;
     ComPtr<IUIAutomationTextRange> selected;
     ComPtr<IUIAutomationValuePattern> editor;
-    QString full, prefix, selection, suffix, applied;
-    int process = 0; bool captured = false, replaced = false;
+    int process = 0; bool captured = false;
     ~State() { editor.Reset(); selected.Reset(); pattern.Reset(); element.Reset(); if (SUCCEEDED(initialized)) CoUninitialize(); }
     bool value(QString &result) const {
         BOOL password = TRUE, readonly = TRUE, enabled = FALSE; int owner = 0;
@@ -62,7 +84,7 @@ QString WindowsSelection::capture() {
         FAILED(document->Clone(&before)) || FAILED(document->Clone(&after)) || !before || !after ||
         FAILED(before->MoveEndpointByRange(TextPatternRangeEndpoint_End, s.selected.Get(), TextPatternRangeEndpoint_Start)) ||
         FAILED(after->MoveEndpointByRange(TextPatternRangeEndpoint_Start, s.selected.Get(), TextPatternRangeEndpoint_End)) ||
-        !text(before.Get(), s.prefix) || !text(after.Get(), s.suffix) || s.prefix + s.selection + s.suffix != s.full) return s.selection;
+        !text(before.Get(), s.prefix) || !text(after.Get(), s.suffix) || !s.matchesDocument()) return s.selection;
     s.captured = true; return s.selection;
 #else
     return {};
@@ -70,42 +92,42 @@ QString WindowsSelection::capture() {
 }
 bool WindowsSelection::canReplace() const {
 #ifdef Q_OS_WIN
-    return state->captured && !state->replaced;
+    return state->captured && state->applied.isEmpty();
 #else
     return false;
 #endif
 }
 bool WindowsSelection::canUndo() const {
 #ifdef Q_OS_WIN
-    return state->captured && state->replaced;
+    return state->captured && !state->applied.isEmpty();
 #else
     return false;
 #endif
 }
-bool WindowsSelection::replace(const QString &replacement) {
+WindowsSelectionText::Result WindowsSelection::replace(const QString &replacement) {
 #ifdef Q_OS_WIN
     auto &s = *state; QString current;
-    if (!canReplace() || replacement.isEmpty() || replacement.contains(QChar::Null) || replacement.size() > 32768 || !s.value(current) || current != s.full) return false;
+    if (!canReplace()) return WindowsSelectionText::Result::Failed;
     ComPtr<IUIAutomationTextRangeArray> ranges; ComPtr<IUIAutomationTextRange> selection; int count = 0, start = 1, end = 1;
     if (FAILED(s.pattern->GetSelection(&ranges)) || !ranges || FAILED(ranges->get_Length(&count)) || count != 1 ||
         FAILED(ranges->GetElement(0, &selection)) || !selection ||
         FAILED(selection->CompareEndpoints(TextPatternRangeEndpoint_Start, s.selected.Get(), TextPatternRangeEndpoint_Start, &start)) || start != 0 ||
         FAILED(selection->CompareEndpoints(TextPatternRangeEndpoint_End, s.selected.Get(), TextPatternRangeEndpoint_End, &end)) || end != 0 ||
-        !text(selection.Get(), current) || current != s.selection) return false;
-    s.applied = s.prefix + replacement + s.suffix;
-    if (s.applied.size() > 131072 || !setValue(s.editor.Get(), s.applied)) { s.applied.clear(); return false; }
-    s.replaced = true;
-    return s.value(current) && current == s.applied;
+        !text(selection.Get(), current) || current != s.selection) return WindowsSelectionText::Result::Failed;
+    return s.replace(replacement, [&s](QString &value) { return s.value(value); },
+                     [&s](const QString &value) { return setValue(s.editor.Get(), value); });
 #else
     Q_UNUSED(replacement)
-    return false;
+    return WindowsSelectionText::Result::Failed;
 #endif
 }
 bool WindowsSelection::undo() {
 #ifdef Q_OS_WIN
-    auto &s = *state; QString current;
-    if (!canUndo() || !s.value(current) || current != s.applied || !setValue(s.editor.Get(), s.full)) return false;
-    s.captured = false; s.replaced = false; return s.value(current) && current == s.full;
+    auto &s = *state;
+    if (!canUndo() || !s.undo([&s](QString &value) { return s.value(value); },
+                              [&s](const QString &value) { return setValue(s.editor.Get(), value); })) return false;
+    s.captured = false;
+    return true;
 #else
     return false;
 #endif

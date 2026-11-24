@@ -8,12 +8,13 @@ public struct FanRule: Codable, Equatable, Sendable {
     public var valid: Bool { !sensor.isEmpty && sensor.count <= 64 && lower.isFinite && upper.isFinite && lower >= 20 && upper <= 110 && upper > lower }
 }
 public struct FanProfile: Codable, Identifiable, Sendable {
+    static let quietID = "quiet"
     public var id: String
     public var name: String
     public var rules: [String: FanRule]
     public init(id: String = UUID().uuidString, name: String, rules: [String: FanRule]) { self.id = id; self.name = name; self.rules = rules }
     public static let builtins: [FanProfile] = [
-        .init(id: "quiet", name: "fanQuiet", rules: ["*": .init(sensor: "cpu", lower: 70, upper: 100)]),
+        .init(id: quietID, name: "fanQuiet", rules: ["*": .init(sensor: "cpu", lower: 70, upper: 100)]),
         .init(id: "cool", name: "fanCool", rules: ["*": .init(sensor: "cpu", lower: 45, upper: 75)]),
         .init(id: "gaming", name: "fanGaming", rules: ["*": .init(sensor: "gpu", lower: 50, upper: 80)]),
         .init(id: "localAI", name: "fanLocalAI", rules: ["*": .init(sensor: "cpu", lower: 45, upper: 70)])
@@ -54,8 +55,9 @@ public enum FanPolicy {
         let smc = sensors.filter { !$0.isHID }
         var selected: [ThermalSnapshot.Sensor]
         switch source {
-        case "cpu": selected = smc.filter { $0.key.hasPrefix("TC") || $0.key.hasPrefix("Tp") || $0.key.hasPrefix("Te") || $0.key.hasPrefix("Tf") }
-        case "gpu": selected = smc.filter { $0.key.hasPrefix("TG") || $0.key.hasPrefix("Tg") }
+        case "cpu", "gpu":
+            let group: ThermalSensors.Group = source == "cpu" ? .cpu : .gpu
+            selected = smc.filter { ThermalSensors.classify($0).group == group }
         case "all": selected = smc
         case "affinity": selected = smc.filter { affinity[fan]?.contains($0.key) == true }
         default: selected = sensors.filter { $0.key == source }
@@ -73,6 +75,43 @@ extension ThermalSnapshot.Fan {
     var speedRange: ClosedRange<Double>? {
         guard let min, let max, min.isFinite, max.isFinite, max > min else { return nil }
         return min...max
+    }
+}
+
+/// One fan during one run of the built-in Quiet profile. The reader samples about every two seconds.
+struct QuietFanResponse {
+    private var lastSample: ContinuousClock.Instant?
+    private var previousDemand: Double?
+    private var lastTarget: Double?
+
+    mutating func nextTarget(temperature: Double, rule: FanRule, fan: ThermalSnapshot.Fan,
+                             range: ClosedRange<Double>, sampledAt: ContinuousClock.Instant) -> Double? {
+        guard sampledAt != lastSample else { return nil }
+        lastSample = sampledAt
+
+        let demand = FanPolicy.target(temperature: temperature, rule: rule, minimum: range.lowerBound, maximum: range.upperBound)
+        let held = min(range.upperBound, max(range.lowerBound, lastTarget ?? fan.target ?? fan.rpm))
+        let target: Double
+        if temperature >= rule.upper {
+            // Use the hardware maximum, even when the curve's 50 RPM rounding would undershoot it.
+            target = range.upperBound
+        } else if let previousDemand {
+            let span = range.upperBound - range.lowerBound
+            if demand > held {
+                // Only the increase supported by both readings is eligible for this step.
+                let confirmed = max(held, min(previousDemand, demand))
+                target = min(confirmed, held + max(1, (span * 0.10).rounded()))
+            } else {
+                target = max(demand, held - max(1, (span * 0.05).rounded()))
+            }
+        } else {
+            // On activation keep the existing speed request until a second reading is available.
+            target = held
+        }
+        previousDemand = demand
+        guard target != lastTarget else { return nil }
+        lastTarget = target
+        return target
     }
 }
 

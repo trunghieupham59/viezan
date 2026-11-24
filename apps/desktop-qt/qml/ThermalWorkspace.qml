@@ -21,12 +21,14 @@ NamedScrollView {
     Component.onDestruction: if (startedHere) monitor.stop()
     contentWidth: availableWidth
     // Hot (≥ 90 °C) readings use the theme's danger color; the number still carries the meaning.
-    property color dangerColor: palette.text
+    readonly property QtObject appearance: SurfaceAppearance {}
+    property color dangerColor: appearance.colors.danger
     component MetricTile: Kit.Card {
         Accessible.name: tile.title
         id: tile
         property string title
         property string value
+        property real fraction: -1
         property string detail
         Layout.fillWidth: true
         ColumnLayout {
@@ -34,6 +36,12 @@ NamedScrollView {
             Kit.Eyebrow { text: tile.title }
             Label { text: tile.value; font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.displayScale }
             Label { text: tile.detail; color: palette.placeholderText; elide: Text.ElideRight; Layout.fillWidth: true }
+            Rectangle {
+                visible: tile.fraction >= 0; Accessible.ignored: true
+                Layout.fillWidth: true; implicitHeight: page.metrics.tight + page.metrics.hairline * 2
+                radius: height / 2; color: page.appearance.colors["surface-muted"]
+                Rectangle { height: parent.height; width: parent.width * Math.max(0, Math.min(1, tile.fraction)); radius: parent.radius; color: page.appearance.colors.warning; Accessible.ignored: true }
+            }
         }
     }
     ColumnLayout {
@@ -48,7 +56,7 @@ NamedScrollView {
             columns: Math.max(1, Math.floor(width / page.metrics.sidebar))
             columnSpacing: page.metrics.inset; rowSpacing: page.metrics.inset
             Layout.fillWidth: true
-            MetricTile { visible: !!page.hottest; title: page.t("thermal_hottest"); value: page.hottest ? page.hottest.value.toFixed(0) + " °C" : ""; detail: page.hottest ? (page.hottestRow()?.label ? page.t("thermal_label_" + page.hottestRow().label) + " · " : "") + page.hottest.name : "" }
+            MetricTile { visible: !!page.hottest; title: page.t("thermal_hottest"); fraction: page.hottest ? page.hottest.value / page.metrics.thermalScaleMax : -1; value: page.hottest ? page.hottest.value.toFixed(0) + " °C" : ""; detail: page.hottest ? (page.hottestRow()?.label ? page.t("thermal_label_" + page.hottestRow().label) + " · " : "") + page.hottest.name : "" }
             Repeater {
                 model: page.monitor.fans
                 delegate: MetricTile { required property var modelData; required property int index; title: page.tpl("thermal_fan_name", {n: index + 1}); value: modelData.value.toFixed(0); detail: page.t("rpm") + " · " + modelData.name }
@@ -98,11 +106,17 @@ NamedScrollView {
                                 Layout.fillWidth: true
                                 ToolTip.text: reading.members.map(member => member.name + " " + member.value.toFixed(0) + " °C").join("\n"); ToolTip.visible: rowHover.hovered || sensor.activeFocus
                                 HoverHandler { id: rowHover }
-                                Label { text: reading.max.toFixed(0) + " °C"; font.bold: true; color: reading.max >= 90 ? page.dangerColor : palette.text }
+                                Label { text: reading.max.toFixed(0) + " °C"; font.bold: true; color: reading.max >= 90 ? page.dangerColor : reading.max >= 70 ? page.appearance.colors.warning : palette.text }
                             }
                         }
                     }
-                    Kit.PrimaryButton { text: page.t(page.monitor.monitoring ? "stop" : "checkCapability"); Layout.topMargin: page.metrics.small; onClicked: page.monitor.monitoring ? page.monitor.stop() : page.monitor.start() }
+                    FocusScope {
+                        Layout.topMargin: page.metrics.small
+                        implicitWidth: page.monitor.monitoring ? stop.implicitWidth : start.implicitWidth
+                        implicitHeight: page.monitor.monitoring ? stop.implicitHeight : start.implicitHeight
+                        SettingsDangerButton { id: stop; visible: page.monitor.monitoring; focus: visible; text: page.t("stop"); Accessible.name: text; onClicked: page.monitor.stop() }
+                        Kit.PrimaryButton { id: start; visible: !page.monitor.monitoring; focus: visible; text: page.t("checkCapability"); Accessible.name: text; onClicked: page.monitor.start() }
+                    }
                 }
             }
             Kit.Card {

@@ -8,6 +8,14 @@ import "SettingsSearch.js" as SettingsSearch
 // screen, is driven from the keyboard, and hides when it loses focus.
 AuxiliaryWindow {
     id: launcher
+    component ShortcutHint: RowLayout {
+        property string action
+        property string keys
+        spacing: launcher.metrics.tight
+        Accessible.role: Accessible.StaticText; Accessible.name: action + " " + keys
+        Label { text: parent.action; color: palette.placeholderText; Accessible.ignored: true }
+        Kit.KeyCap { text: parent.keys; Accessible.ignored: true }
+    }
     signal openMainRequested(string sessionID)
     signal askRequested(string text)
     signal openRouteRequested(string route)
@@ -41,10 +49,17 @@ AuxiliaryWindow {
         if (typeof seconds !== "number" || !isFinite(seconds)) return ""
         const date = new Date(seconds * 1000), now = new Date()
         const locale = Qt.locale(bridge.locale)
-        if (date > now) return date.toLocaleDateString(locale, Locale.ShortFormat)
         // Compare local calendar dates across day boundaries and daylight-saving changes.
         const day = d => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000
         const days = day(now) - day(date)
+        if (date > now) {
+            if (days === -1) return t("launcherFutureTomorrow")
+            if (days < -1) return tpl("launcherFutureDays", {n: (-days).toLocaleString(locale, 'f', 0)})
+            const minutesAhead = Math.floor((date - now) / 60000)
+            if (minutesAhead < 1) return t("launcherFutureSoon")
+            return minutesAhead < 60 ? tpl("launcherFutureMinutes", {n: minutesAhead})
+                                     : tpl("launcherFutureHours", {n: Math.floor(minutesAhead / 60)})
+        }
         if (days === 1) return t("group_yesterday").toLowerCase()
         if (days > 1) return tpl("historyDaysAgo", {n: days.toLocaleString(locale, 'f', 0)})
         const minutes = Math.floor((now - date) / 60000)
@@ -166,7 +181,7 @@ AuxiliaryWindow {
             model: launcher.needsRates ? launcher.desktop.currencyCodes.filter(code => code !== launcher.currencySource) : []
             MenuItem {
                 required property string modelData
-                text: modelData
+                text: modelData + " · " + launcher.t("currencyName_" + modelData)
                 checkable: true
                 checked: modelData === launcher.money.to
                 onTriggered: {
@@ -322,20 +337,21 @@ AuxiliaryWindow {
             Rectangle {
                 visible: !!launcher.current
                 color: palette.alternateBase; Layout.fillWidth: true; implicitHeight: footer.implicitHeight + launcher.metrics.small * 2
-                bottomLeftRadius: launcher.metrics.largeRadius; bottomRightRadius: launcher.metrics.largeRadius
+                bottomLeftRadius: launcher.metrics.surfaceRadius; bottomRightRadius: launcher.metrics.surfaceRadius
+                Rectangle { anchors.top: parent.top; width: parent.width; height: launcher.metrics.hairline; color: launcher.colors.divider; Accessible.ignored: true }
                 RowLayout {
                     id: footer
                     anchors.fill: parent; anchors.leftMargin: launcher.metrics.inset; anchors.rightMargin: launcher.metrics.inset
                     spacing: launcher.metrics.gap
                     Label { text: !launcher.trimmed ? launcher.t("launcher_prefix_hint") : launcher.current?.title || ""; elide: Text.ElideMiddle; color: palette.placeholderText; Layout.fillWidth: true }
-                    Label { visible: launcher.current?.kind === "file"; text: launcher.t("launcher_reveal") + "  Shift ↵"; color: palette.placeholderText }
-                    Label {
+                    ShortcutHint { visible: launcher.current?.kind === "file"; action: launcher.t("launcher_reveal"); keys: "Shift ↵" }
+                    ShortcutHint {
                         readonly property bool currency: launcher.current?.kind === "currency"
                         visible: !currency || !!launcher.current.copy || launcher.current.retry
-                        text: launcher.t(currency && launcher.current.retry ? "retry" : currency || launcher.current?.kind === "copy" ? "launcher_copy" : "launcher_open") + "  ↵"
-                        color: palette.placeholderText
+                        action: launcher.t(currency && launcher.current.retry ? "retry" : currency || launcher.current?.kind === "copy" ? "launcher_copy" : "launcher_open")
+                        keys: "↵"
                     }
-                    Label { visible: launcher.current?.kind !== "ai"; text: launcher.t("launcher_ai") + (Qt.platform.os === "osx" ? "  ⌘ ↵" : "  Ctrl ↵"); color: palette.placeholderText }
+                    ShortcutHint { visible: launcher.current?.kind !== "ai"; action: launcher.t("launcher_ai"); keys: Qt.platform.os === "osx" ? "⌘ ↵" : "Ctrl ↵" }
                 }
             }
         }

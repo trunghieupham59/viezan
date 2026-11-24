@@ -1,5 +1,9 @@
 # Quick Chat (Hỏi AI trong cửa sổ nổi)
 
+## AI mặc định dùng chung (2026-11-25)
+
+Chat nhanh mới dùng AI mặc định của ứng dụng. Đổi model trong bộ chọn cập nhật mặc định chung và chat đang mở. Tiếp tục một chat đã có tin nhắn sẽ dùng model riêng của chat đó.
+
 > Bản vẽ gốc: `boards/Launcher.dc.html`, `boards/LauncherStates.dc.html` · Board chi tiết: `specs/quick-chat.html` · Mã nguồn: `src/components/AIChatPopup.tsx` (`AIChatPopup`, `ActiveQACard`, `QAEntry`, `CardActions`), được gắn bởi `src/pages/QuickLauncher.tsx`; điểm vào renderer `quick-chat.html` → `src/quick-chat-main.tsx`; CSS `src/styles/codex.css` (mục "Quick chat"), `src/index.css` (`.quick-chat-*`, `@layer components`), `src/styles/launcher.css`; cửa sổ và IPC: `electron/main.ts` (`createQuickChatWindow`, `positionQuickChatWindow`, `toggleQuickChatWindow`), `electron/ipc/quickChat.ts`, `electron/services/quickAiSession.ts`; nhận bàn giao ở cửa sổ chính: `src/App.tsx` (`quickChat.onOpenInChat`)
 
 Luật chung ở [`../foundations.md`](../foundations.md). Chế độ tìm của cùng cửa sổ ở [`launcher.md`](launcher.md) (mục "Chế độ Hỏi AI" ở đó là bản tóm tắt; tài liệu này là đặc tả đầy đủ). Trang AI Chat đầy đủ ở [`chat.md`](chat.md).
@@ -206,7 +210,7 @@ Khác biệt với bản vẽ / đề xuất:
 14. **Esc ẩn cả cửa sổ** thay vì về chế độ tìm (đã nêu ở `launcher.md` §10.4). Đề xuất giữ nguyên: Esc lần một về tìm, lần hai ẩn.
 15. **Nút Gửi không thành nút Dừng.** Trong lúc gửi, Gửi là spinner `disabled` ở header, còn "Dừng" ở footer cách xa. AI Chat chính đổi chỗ Gửi thành Dừng (`src/pages/ChatPage.tsx`, `.chat-stop-button`); **đề xuất** làm giống để chuột không phải đi xa.
 16. **Không tự cuộn theo câu trả lời dài**: chỉ cuộn khi bắt đầu lượt mới. Có thể là chủ ý (đọc từ đầu); nếu giữ thì nên có nút "Xuống cuối" khi câu trả lời vượt khung (**đề xuất**).
-17. **Không có tệp đính kèm, ảnh, chọn model hay chọn nhà cung cấp trong popup**: popup luôn dùng provider/model đang chọn ở cửa sổ chính, chỉ đổi được qua Cài đặt. Chọn model ngay trong popup là **đề xuất**.
+17. **Tệp đính kèm và ảnh trong popup** vẫn là đề xuất.
 18. **Không có lối vào từ khay hệ thống hay bảng lệnh ⌘K**; "Hỏi AI" trong ⌘K là một bề mặt trả lời khác, có bộ nút riêng. Hợp nhất hai bề mặt là **đề xuất**.
 19. "Mở Cài đặt" mở mục mặc định của Cài đặt, không nhảy tới Cài đặt › Mô hình AI như `foundations.md` §12 yêu cầu cho trạng thái thiếu khoá.
 
@@ -220,4 +224,6 @@ trong ô. Chip model mở Cài đặt › Nhà cung cấp (khác bản Electron,
 dài…" nằm dưới ô hỏi, hội thoại vẫn hiện (theo đề xuất ở mục 4).
 
 Chênh lệch còn lại so với spec: chỉ thẻ mới nhất có "Tạo lại phản hồi" (tạo lại ở thẻ cũ cần cắt các lượt sau —
-chưa có trong store); chưa có lưu đệm câu hỏi đầu 10 phút và Smart Thinking; Qt vẫn mở Chat nhanh riêng.
+chưa có trong store); chưa có lưu đệm câu hỏi đầu 10 phút và Smart Thinking; trên Qt, Launcher chuyển sang cửa sổ phụ ở chế độ Quick AI. Nút Quay lại mở Launcher. Chip model của Quick AI và Chat nhanh mở bộ chọn của phiên đang hiển thị. Esc trả focus về chip đã mở bộ chọn. Quick AI gom câu hỏi và câu trả lời trong một thẻ.
+
+Trên Qt, Chat nhanh và Quick AI giữ Enter để xuống dòng và Ctrl+Enter để gửi. Chân cửa sổ hiển thị hai phím này. Ô nguồn Dịch cũng giữ Enter để soạn nhiều dòng.

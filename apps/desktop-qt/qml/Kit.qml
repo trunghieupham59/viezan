@@ -165,8 +165,6 @@ QtObject {
         property color edgeColor: "transparent"
         property color edgeHighlight: edgeColor
         readonly property var metrics: workbench.metrics
-        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
-        readonly property var themeColors: workbench.palettes[darkMode ? "dark" : "light"]
         radius: metrics.chromeSurfaceRadius
         gradient: Gradient {
             GradientStop { position: 0; color: chrome.appearance.solid ? chrome.appearance.edge : chrome.edgeHighlight }
@@ -354,6 +352,20 @@ QtObject {
         id: glassComboBox
         property bool glassMaterial: true
         ControlLens { control: glassComboBox; active: glassComboBox.glassMaterial }
+    }
+    component GlassField: TextField {
+        id: field
+        property QtObject appearance: SurfaceAppearance {}
+        readonly property var metrics: workbench.metrics
+        implicitHeight: Math.max(metrics.control, contentHeight + topPadding + bottomPadding)
+        leftPadding: metrics.gap; rightPadding: metrics.gap
+        Binding { target: field.background; property: "visible"; value: false }
+        Rectangle {
+            anchors.fill: parent; z: -1; radius: field.metrics.controlRadius; Accessible.ignored: true
+            color: field.appearance.solid ? field.appearance.control : field.appearance.colors["surface-subtle"]
+            border.width: field.activeFocus ? field.metrics.focusRingWidth : field.metrics.hairline
+            border.color: field.activeFocus ? field.palette.highlight : field.appearance.edge
+        }
     }
     // Search remains a native TextField: composition, selection and its caller's
     // key handlers stay intact. The editing plane is opaque and inset, while
@@ -601,7 +613,7 @@ QtObject {
             visible: !!box.title
             width: box.width
             height: box.headerHeight
-            Label { x: box.metrics.inset; width: parent.width - box.metrics.inset * 2; anchors.verticalCenter: parent.verticalCenter; text: box.title; font.bold: true; elide: Text.ElideRight; Accessible.role: Accessible.Heading }
+            Label { x: box.metrics.inset; width: parent.width - box.metrics.inset * 2; anchors.verticalCenter: parent.verticalCenter; text: box.title; font.weight: Font.DemiBold; font.pointSize: Qt.application.font.pointSize * box.metrics.subtitleScale; elide: Text.ElideRight; Accessible.role: Accessible.Heading }
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: box.metrics.hairline; color: box.palette.midlight }
         }
         background: Item {
@@ -615,6 +627,12 @@ QtObject {
         property string detail
         property alias detailFont: detailLabel.font
         property bool divider: true
+        // Only dividers in a settings card extend through the card's content padding.
+        readonly property real dividerBleed: {
+            let item = parent
+            while (item && !(item instanceof Control)) item = item.parent
+            return item instanceof GroupBox ? item.leftPadding : 0
+        }
         default property alias trailing: slot.data
         readonly property var metrics: workbench.metrics
         spacing: 0
@@ -640,7 +658,7 @@ QtObject {
             }
             RowLayout { id: slot; Layout.fillWidth: true; spacing: row.metrics.small }
         }
-        Rectangle { visible: row.divider; color: palette.midlight; implicitHeight: row.metrics.hairline; Layout.fillWidth: true }
+        Rectangle { visible: row.divider; Layout.leftMargin: -row.dividerBleed; Layout.rightMargin: -row.dividerBleed; color: palette.midlight; implicitHeight: row.metrics.hairline; Layout.fillWidth: true }
     }
     component KeyCap: Label {
         id: cap
@@ -680,7 +698,7 @@ QtObject {
         contentItem: RowLayout {
             spacing: primary.metrics.small
             IconImage { visible: !!primary.icon.source.toString(); source: primary.icon.source; color: primary.icon.color; sourceSize.width: primary.metrics.icon; sourceSize.height: primary.metrics.icon; Accessible.ignored: true }
-            Label { id: primaryLabel; visible: primary.display !== AbstractButton.IconOnly; text: primary.text; color: primary.enabled ? primary.palette.highlightedText : primary.palette.disabled.buttonText; Accessible.ignored: true }
+            Label { id: primaryLabel; font.weight: Font.DemiBold; visible: primary.display !== AbstractButton.IconOnly; text: primary.text; color: primary.enabled ? primary.palette.highlightedText : primary.palette.disabled.buttonText; Accessible.ignored: true }
             KeyCap { id: primaryShortcut; objectName: "primary-shortcut"; visible: !!primary.shortcutText && primary.display !== AbstractButton.IconOnly; text: primary.shortcutText; color: primary.enabled ? primary.palette.placeholderText : primary.palette.disabled.buttonText; Accessible.ignored: true }
         }
         readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
@@ -695,8 +713,15 @@ QtObject {
                 GradientStop { position: 0; color: primary.colors["action-fill-top"] }
                 GradientStop { position: 1; color: primary.down || primary.hovered ? primary.colors["action-active"] : primary.colors["action-fill-bottom"] }
             }
-            border.width: primary.visualFocus ? primary.metrics.focusRingWidth : primary.appearance.solid ? primary.metrics.hairline : 0
-            border.color: primary.appearance.solid && !primary.visualFocus ? primary.appearance.edge : primary.colors["action-text"]
+            border.width: primary.visualFocus ? primary.metrics.focusRingWidth : primary.metrics.hairline
+            border.color: primary.visualFocus ? primary.colors["action-text"] : primary.appearance.solid ? primary.appearance.edge : primary.colors["material-border"]
+            Rectangle {
+                visible: primary.enabled && !primary.down && !primary.appearance.solid
+                z: -1; x: 0; y: primary.metrics.hairline * 2
+                width: parent.width; height: parent.height; radius: height / 2
+                color: Qt.alpha(primary.colors.action, primary.metrics.selectionOpacity)
+                Accessible.ignored: true
+            }
         }
         Accessible.name: text
     }

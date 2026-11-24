@@ -20,7 +20,6 @@ struct ApplicationsWorkspace: View {
     private var filtered: [InstalledApplication] { apps.applications.filter { query.isEmpty || $0.name.localizedStandardContains(query) || $0.bundleID.localizedStandardContains(query) } }
     @State private var focused: String?
     @State private var journalOpen = false
-    @State private var wideLayout = true
     private var confirming: Bool { issueToTrash != nil || (confirmation && apps.plan != nil) }
     private var acceptsShortcuts: Bool { !apps.busy && !confirming && store.updatePrompt == nil && shellLayer == nil && previewURL == nil && !journalOpen }
     private var acceptsDrop: Bool { acceptsShortcuts }
@@ -42,7 +41,12 @@ struct ApplicationsWorkspace: View {
         ToastCenter.shared.show(store.text(error), key: "apps-error", level: .danger)
     }
     private func apply(_ plan: ApplicationPlan) {
-        Task { await apps.apply(planID: plan.id, itemIDs: selected, reset: reset, quit: quit); if let id = apps.journals.first?.id, apps.plan == nil { announce(id) }; reportError() }
+        Task {
+            let previous = apps.journals.first?.id
+            await apps.apply(planID: plan.id, itemIDs: selected, reset: reset, quit: quit)
+            if let id = apps.journals.first?.id, id != previous { announce(id) }
+            reportError()
+        }
     }
     private func undo(_ id: String) {
         Task { await apps.undo(id); reportError(); if apps.error == nil { announce(id, undone: true) } }
@@ -60,25 +64,25 @@ struct ApplicationsWorkspace: View {
     // Apps board: intro with the journal, a flat searchable list (selection is a lens), the
     // app's head with its two actions, then the plan card ending in the solid danger action.
     private var glassBody: some View {
-        VStack(alignment: .leading, spacing: metric("gutter")) {
-            PageIntro(title: store.text("appsTitle"), subtitle: store.text("appsSubtitle")) {
-                Button(store.text("journalUndo"), systemImage: "clock.arrow.circlepath") { journalOpen.toggle() }
-                    .buttonStyle(.vznOutline).fixedSize()
-                    .help(apps.journals.first(where: \.canUndo).map {
-                        store.text("appUndoLatestHint").replacingOccurrences(of: "{name}", with: $0.appName)
-                    } ?? "")
-                    .popover(isPresented: $journalOpen) { journal }
-            }
-            if let error = apps.error, Self.persistentError(error) {
-                NoticeBand(role: "danger", edge: false) {
-                    Image(systemName: "exclamationmark.triangle").foregroundStyle(contentColor("danger", scheme)).accessibilityHidden(true)
-                    Text(store.text(error)).foregroundStyle(contentColor("text-strong", scheme)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+        GeometryReader { geometry in
+            let wide = geometry.size.width >= metric("reading") + metric("large") * 2
+            let verticalInset = geometry.size.height <= metric("minWindowHeight") ? metric("small") : metric("gutter")
+            VStack(alignment: .leading, spacing: verticalInset) {
+                PageIntro(title: store.text("appsTitle"), subtitle: store.text("appsSubtitle")) {
+                    Button(store.text("journalUndo"), systemImage: "clock.arrow.circlepath") { journalOpen.toggle() }
+                        .buttonStyle(.vznOutline).fixedSize()
+                        .help(apps.journals.first(where: \.canUndo).map {
+                            store.text("appUndoLatestHint").replacingOccurrences(of: "{name}", with: $0.appName)
+                        } ?? "")
+                        .popover(isPresented: $journalOpen) { journal }
                 }
-            }
-            if !apps.scanIssues.isEmpty { scanWarning }
-            GeometryReader { geometry in
-                let wide = geometry.size.width >= metric("reading")
-                let _ = DispatchQueue.main.async { if wideLayout != wide { wideLayout = wide } }
+                if let error = apps.error, Self.persistentError(error) {
+                    NoticeBand(role: "danger", edge: false) {
+                        Image(systemName: "exclamationmark.triangle").foregroundStyle(contentColor("danger", scheme)).accessibilityHidden(true)
+                        Text(store.text(error)).foregroundStyle(contentColor("text-strong", scheme)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                if !apps.scanIssues.isEmpty { scanWarning }
                 HStack(alignment: .top, spacing: metric("gutter")) {
                     if wide || (apps.plan == nil && focused == nil) {
                         VStack(alignment: .leading, spacing: metric("small")) {
@@ -89,10 +93,10 @@ struct ApplicationsWorkspace: View {
                                 if apps.busy { ProgressView().controlSize(.small).accessibilityLabel(store.text("running")) }
                             }
                             inventory
-                        }.frame(maxWidth: wide ? geometry.size.width * metric("inventorySplit") : .infinity)
+                        }.frame(width: wide ? metric("sidebar") : nil)
                     }
                     if wide || apps.plan != nil || focused != nil {
-                        glassDetail.frame(maxWidth: .infinity, alignment: .topLeading)
+                        glassDetail(wide: wide).frame(maxWidth: .infinity, alignment: .topLeading)
                     }
                 }
                 // On the whole board, so a narrow window showing only the detail still takes a dropped app.
@@ -105,8 +109,11 @@ struct ApplicationsWorkspace: View {
                             .allowsHitTesting(false).accessibilityHidden(true)
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-        }.padding(.horizontal, metric("large")).padding(.vertical, metric("gutter"))
+            .padding(.horizontal, wide ? metric("large") : metric("inset"))
+            .padding(.vertical, verticalInset)
+        }
         .task { if apps.applications.isEmpty { await apps.refresh() }; if focused == nil { focused = filtered.first?.id } }
         .onChange(of: query) { _, _ in if apps.plan == nil, !filtered.contains(where: { $0.id == focused }) { focused = filtered.first?.id } }
         .background {
@@ -145,7 +152,7 @@ struct ApplicationsWorkspace: View {
                                 .foregroundStyle(contentColor("text-strong", scheme)).fixedSize(horizontal: false, vertical: true)
                         }
                     }
-                    if !reset, plan.items.contains(where: { $0.note == "authentication" && selected.contains($0.id) }) {
+                    if plan.items.contains(where: { $0.requiresFinder && selected.contains($0.id) }) {
                         NoticeBand(role: "text-muted", edge: false) {
                             Image(systemName: "key.horizontal").foregroundStyle(contentColor("text-muted", scheme)).accessibilityHidden(true)
                             Text(store.text("appConfirmAuthentication"))
@@ -153,39 +160,47 @@ struct ApplicationsWorkspace: View {
                         }
                     }
                     let paths = plan.items.filter { selected.contains($0.id) }.map { shortPath($0.path) }
-                    VStack(alignment: .leading, spacing: metric("tight")) {
-                        ForEach(Array(paths.prefix(6).enumerated()), id: \.offset) { _, path in
-                            Text(path).font(.system(size: NSFont.systemFontSize * metric("smallScale"), design: .monospaced)).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(1).truncationMode(.middle)
+                    let selectedPaths = VStack(alignment: .leading, spacing: metric("tight")) {
+                        ForEach(paths, id: \.self) { path in
+                            Text(verbatim: path).font(.system(size: NSFont.systemFontSize * metric("smallScale"), design: .monospaced)).foregroundStyle(contentColor("text-muted", scheme)).fixedSize(horizontal: false, vertical: true)
                         }
-                        if paths.count > 6 { Text("+\(paths.count - 6)").font(.vzn("smallScale")).foregroundStyle(contentColor("text-soft", scheme)) }
-                    }.padding(.top, metric("tight")).accessibilityElement(children: .combine)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    ViewThatFits(in: .vertical) {
+                        selectedPaths.fixedSize(horizontal: false, vertical: true)
+                        ScrollView { selectedPaths }
+                    }.frame(maxHeight: metric("editor"), alignment: .topLeading)
+                        .padding(.top, metric("tight"))
                     HStack(spacing: metric("small")) {
                         Spacer(minLength: 0)
                         Button(store.text("cancel")) { confirmation = false }
                             .buttonStyle(.vznOutline).focused($planCancelFocused).keyboardShortcut(.cancelAction).accessibilityIdentifier("confirm-cancel")
-                        Button(store.text(reset ? "appReset" : "appUninstall"), role: .destructive) { confirmation = false; apply(plan) }.buttonStyle(DangerSolidStyle()).accessibilityIdentifier("confirm-destructive")
+                        Button(store.text(reset ? "appReset" : "appUninstall"), role: .destructive) { confirmation = false; apply(plan) }.buttonStyle(DangerSolidStyle()).fixedSize().accessibilityIdentifier("confirm-destructive")
                     }.padding(.top, metric("tight"))
                 }.onAppear { planCancelFocused = true }
             }
         }
     }
-    @ViewBuilder private var glassDetail: some View {
+    @ViewBuilder private func glassDetail(wide: Bool) -> some View {
         if let app = apps.plan?.app ?? apps.applications.first(where: { $0.id == focused }) {
             VStack(alignment: .leading, spacing: metric("inset")) {
-                HStack(alignment: .center, spacing: metric("gap")) {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: app.path)).resizable().frame(width: metric("navControl") + metric("small"), height: metric("navControl") + metric("small")).accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: metric("tight")) {
-                        Text(app.name).font(.vzn("titleScale", .semibold)).lineLimit(1)
-                        Text(shortPath(app.path) + " · " + app.version).font(.system(size: NSFont.systemFontSize * metric("smallScale"), design: .monospaced))
-                            .foregroundStyle(contentColor("text-muted", scheme)).lineLimit(1).truncationMode(.middle).textSelection(.enabled).help(app.bundleID)
+                adaptiveRow {
+                    HStack(spacing: metric("gap")) {
+                        Image(nsImage: NSWorkspace.shared.icon(forFile: app.path)).resizable().frame(width: metric("navControl") + metric("small"), height: metric("navControl") + metric("small")).accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: metric("tight")) {
+                            Text(app.name).font(.vzn("titleScale", .semibold))
+                            Text(verbatim: shortPath(app.path) + " · " + app.version).font(.system(size: NSFont.systemFontSize * metric("smallScale"), design: .monospaced))
+                                .foregroundStyle(contentColor("text-muted", scheme)).textSelection(.enabled).help(app.bundleID)
+                        }.fixedSize(horizontal: false, vertical: true)
+                        if let blocked = app.blocked { Image(systemName: "lock").foregroundStyle(contentColor("text-muted", scheme)).help(blockedReason(blocked)).accessibilityHidden(true) }
                     }
-                    Spacer(minLength: metric("small"))
-                    if let blocked = app.blocked { Image(systemName: "lock").foregroundStyle(contentColor("text-muted", scheme)).help(blockedReason(blocked)).accessibilityHidden(true) }
-                    Button(store.text("previewChanges")) { inspect(app) }
-                        .buttonStyle(.vznOutline).fixedSize().disabled(apps.busy || app.blocked != nil)
-                    Button(store.text("resetData"), role: .destructive) { Task { await apps.inspect(app.id); reset = true; selected = Set(apps.plan?.items.filter { $0.selected && $0.kind != "bundle" }.map(\.id) ?? []); quit = false } }
-                        .buttonStyle(.vznOutline).fixedSize().disabled(apps.busy || app.blocked != nil)
-                    if !wideLayout { Button { focused = nil; apps.dismissPlan() } label: { Image(systemName: "xmark") }.buttonStyle(.vznQuiet).accessibilityLabel(store.text("close")) }
+                } actions: {
+                    HStack(spacing: metric("gap")) {
+                        Button(store.text("previewChanges")) { inspect(app) }
+                            .buttonStyle(.vznOutline).disabled(apps.busy || app.blocked != nil)
+                        Button(store.text("resetData"), role: .destructive) { Task { await apps.inspect(app.id); reset = true; selected = Set(apps.plan?.items.filter { $0.selected && $0.kind != "bundle" }.map(\.id) ?? []); quit = false } }
+                            .buttonStyle(.vznOutline).disabled(apps.busy || app.blocked != nil)
+                        if !wide { Button { focused = nil; apps.dismissPlan() } label: { Image(systemName: "xmark") }.buttonStyle(.vznQuiet).accessibilityLabel(store.text("close")) }
+                    }.fixedSize()
                 }
                 if let blocked = app.blocked {
                     // Apps-States: a locked app explains why in a warm card where the plan would be.
@@ -197,8 +212,7 @@ struct ApplicationsWorkspace: View {
                         .cardSurface(padded: false)
                         .overlay(RoundedRectangle(cornerRadius: metric("chromeCardRadius"), style: .continuous).strokeBorder(contentColor("warning", scheme).opacity(metric("selectionOpacity") * 3), lineWidth: metric("hairline")))
                 }
-                if let plan = apps.plan { planCard(plan) }
-                Spacer(minLength: 0)
+                if let plan = apps.plan { planCard(plan) } else { Spacer(minLength: 0) }
             }
         } else {
             GlassEmptyState(symbol: "macwindow", tone: "text-muted", title: store.text("apps"), hint: store.text("appsSubtitle")).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -206,13 +220,12 @@ struct ApplicationsWorkspace: View {
     }
     // The reviewable plan: grouped checkbox rows (path mono, evidence, size, Reveal), then the summary foot.
     private func planCard(_ plan: ApplicationPlan) -> some View {
-        let bytes = plan.items.filter { selected.contains($0.id) }.compactMap(\.bytes).reduce(0, +)
-        return VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: metric("small")) {
                 Text(store.text("appPlanTitle").replacingOccurrences(of: "{name}", with: plan.app.name)).font(.system(size: NSFont.systemFontSize, weight: .semibold)).lineLimit(1)
                 Spacer(minLength: metric("small"))
                 Toggle(store.text("appReset"), isOn: $reset).toggleStyle(.switch).controlSize(.small).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
-                    .disabled(apps.busy).onChange(of: reset) { _, value in if value { for item in plan.items where item.kind == "bundle" { selected.remove(item.id) } } }
+                    .disabled(apps.busy).onChange(of: reset) { _, value in if value { for item in plan.items where item.uninstallOnly { selected.remove(item.id) } } }
                 Button { apps.dismissPlan() } label: { Image(systemName: "xmark") }.buttonStyle(.vznQuiet).disabled(apps.busy).help(store.text("close")).accessibilityLabel(store.text("close"))
             }.padding(.horizontal, metric("inset")).frame(minHeight: metric("navControl") + metric("small"))
             if plan.incomplete {
@@ -230,40 +243,69 @@ struct ApplicationsWorkspace: View {
                             Eyebrow(text: store.text("appKind_" + kind)).padding(.horizontal, metric("inset")).frame(height: metric("gutter") + metric("tight"), alignment: .center)
                             ForEach(items) { item in
                                 CardDivider()
-                                HStack(spacing: metric("gap")) {
-                                    Toggle(isOn: Binding(get: { selected.contains(item.id) }, set: { if $0 { selected.insert(item.id) } else { selected.remove(item.id) } })) {
-                                        VStack(alignment: .leading, spacing: metric("hairline") * 2) {
-                                            Text(shortPath(item.path)).font(.system(size: NSFont.systemFontSize, design: .monospaced)).lineLimit(1).truncationMode(.middle).textSelection(.enabled).help(item.path)
-                                            // Apps board: an unticked personal-data item says why ("dữ liệu cá nhân, giữ mặc định").
-                                            Text(item.blocked.map { store.text($0) } ?? ([store.text("appEvidence_" + item.evidence)] + [item.note.map { store.text("appNote_" + $0) }].compactMap { $0 }).joined(separator: " · "))
-                                                .font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
-                                        }
-                                    }.toggleStyle(.checkbox).disabled(apps.busy || item.blocked != nil || (reset && item.kind == "bundle"))
-                                    Spacer(minLength: metric("small"))
-                                    Text(item.bytes.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? store.text("notMeasured")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).monospacedDigit()
-                                    let quickLook = store.text("appQuickLookPath").replacingOccurrences(of: "{path}", with: shortPath(item.path))
-                                    HStack(spacing: metric("gap")) {
-                                        Button { previewURL = URL(fileURLWithPath: item.path) } label: { Image(systemName: "eye") }
-                                            .buttonStyle(.vznQuiet).controlSize(.small).disabled(item.bytes == nil).help(quickLook).accessibilityLabel(quickLook)
-                                        Button(store.text("reveal")) { apps.reveal(item.id) }
-                                    }.buttonStyle(.plain).font(.vzn("smallScale", .medium)).foregroundStyle(contentColor("action-text", scheme))
-                                        .disabled(apps.busy)
-                                }.padding(.horizontal, metric("inset")).frame(minHeight: metric("navControl") + metric("tight"))
+                                planItemRow(item, selection: $selected)
                             }
                         }
                     }
                 }
             }
             CardDivider()
+            planFooter(plan)
+        }.cardSurface(padded: false)
+    }
+
+    func planItemRow(_ item: ApplicationDataItem, selection: Binding<Set<String>>) -> some View {
+        let note = item.uninstallOnly && item.kind != "bundle"
+            ? store.text(reset ? "appSystemUninstallOnly" : "appNote_authentication")
+            : item.note.map { store.text("appNote_" + $0) }
+        let detail = item.blocked.map { store.text($0) }
+            ?? [store.text("appEvidence_" + item.evidence), note].compactMap { $0 }.joined(separator: " · ")
+        return adaptiveRow {
+            Toggle(isOn: Binding(get: { selection.wrappedValue.contains(item.id) }, set: { checked in
+                if checked { selection.wrappedValue.insert(item.id) } else { selection.wrappedValue.remove(item.id) }
+            })) {
+                VStack(alignment: .leading, spacing: metric("hairline") * 2) {
+                    Text(verbatim: shortPath(item.path))
+                        .font(.system(size: NSFont.systemFontSize, design: .monospaced))
+                        .fixedSize(horizontal: false, vertical: true).textSelection(.enabled).help(item.path)
+                    Text(detail)
+                        .font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
+                }
+            }.toggleStyle(.checkbox)
+                .accessibilityLabel(Text(verbatim: shortPath(item.path) + ", " + detail))
+                .disabled(apps.busy || item.blocked != nil || (reset && item.uninstallOnly))
+                .frame(idealWidth: metric("sidebar"), maxWidth: .infinity, alignment: .leading)
+        } actions: {
+            HStack(spacing: metric("gap")) {
+                Text(item.bytes.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? store.text("notMeasured"))
+                    .font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).monospacedDigit()
+                let quickLook = store.text("appQuickLookPath").replacingOccurrences(of: "{path}", with: shortPath(item.path))
+                Button { previewURL = URL(fileURLWithPath: item.path) } label: { Image(systemName: "eye") }
+                    .buttonStyle(.vznQuiet).controlSize(.small).disabled(item.bytes == nil).help(quickLook).accessibilityLabel(quickLook)
+                Button(store.text("reveal")) { apps.reveal(item.id) }
+                    .buttonStyle(.plain).font(.vzn("smallScale", .medium)).foregroundStyle(contentColor("action-text", scheme))
+            }.fixedSize().disabled(apps.busy)
+        }
+        .padding(.horizontal, metric("inset")).padding(.vertical, metric("tight"))
+        .frame(minHeight: metric("navControl") + metric("tight"))
+    }
+
+    func planFooter(_ plan: ApplicationPlan) -> some View {
+        let bytes = plan.items.filter { selected.contains($0.id) }.compactMap(\.bytes).reduce(0, +)
+        return adaptiveRow {
             HStack(spacing: metric("gap")) {
                 Text(store.text("appSelectedSummary").replacingOccurrences(of: "{count}", with: String(selected.count)).replacingOccurrences(of: "{size}", with: ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)))
                     .font(.vzn("smallScale", .semibold)).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: metric("small"))
-                Toggle(store.text("appQuit"), isOn: $quit).toggleStyle(.switch).controlSize(.small).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).disabled(apps.busy)
-                Button(store.text(reset ? "appReset" : "appUninstall"), role: .destructive) { confirmation = true }
-                    .buttonStyle(DangerSolidStyle()).disabled(apps.busy || selected.isEmpty || plan.app.blocked != nil)
-            }.padding(.horizontal, metric("inset")).padding(.vertical, metric("gap"))
-        }.cardSurface(padded: false)
+                Toggle(isOn: $quit) {
+                    Text(store.text("appQuit")).lineLimit(nil).fixedSize(horizontal: false, vertical: true)
+                }.toggleStyle(.switch).controlSize(.small).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).disabled(apps.busy)
+            }
+        } actions: {
+            Button(store.text(reset ? "appReset" : "appUninstall"), role: .destructive) { confirmation = true }
+                .buttonStyle(DangerSolidStyle()).fixedSize()
+                .disabled(apps.busy || selected.isEmpty || plan.app.blocked != nil)
+        }.padding(.horizontal, metric("inset")).padding(.vertical, metric("gap"))
     }
     private func counted(_ key: String, _ count: Int) -> String { store.text(key).replacingOccurrences(of: "{count}", with: String(count)) }
     private func blockedReason(_ code: String) -> String { code == "appIncomplete" ? counted("appBlockedInventory", apps.blockingIssueCount) : store.text(code) }
@@ -304,7 +346,7 @@ struct ApplicationsWorkspace: View {
         }
     }
     func scanWarningHeader(blocking: Bool, count: Int) -> some View {
-        scanRow(alignment: .top) {
+        adaptiveRow(alignment: .top) {
             VStack(alignment: .leading, spacing: metric("tight")) {
                 Label {
                     Text(counted(blocking ? "appScanIncompleteTitle" : "appScanLeftoverTitle", count))
@@ -349,7 +391,7 @@ struct ApplicationsWorkspace: View {
         let reveal = store.text("reveal")
         let move = store.text("appTrashIssue")
         let canTrash = issue.canTrash
-        return scanRow {
+        return adaptiveRow {
             VStack(alignment: .leading, spacing: metric("hairline") * 2) {
                 Text(shortPath(issue.path)).font(.system(size: NSFont.systemFontSize, design: .monospaced))
                     .lineLimit(1).truncationMode(.middle).textSelection(.enabled).help(issue.path)
@@ -379,7 +421,7 @@ struct ApplicationsWorkspace: View {
             }.buttonStyle(.vznQuiet).fixedSize()
         }
     }
-    private func scanRow<Details: View, Actions: View>(
+    private func adaptiveRow<Details: View, Actions: View>(
         alignment: VerticalAlignment = .center, @ViewBuilder details: () -> Details, @ViewBuilder actions: () -> Actions
     ) -> some View {
         ViewThatFits(in: .horizontal) {
@@ -416,7 +458,18 @@ struct ApplicationsWorkspace: View {
                         Text("\(journal.items.filter { ["trashed", "preferencesRemoved"].contains($0.status) }.count) / \(journal.items.count)").monospacedDigit()
                         Button(store.text("appRestore")) { undo(journal.id) }.disabled(apps.busy || !journal.canUndo)
                     }
-                    ForEach(journal.items) { item in Text([shortPath(item.path), store.text("app_" + item.status), ByteCountFormatter.string(fromByteCount: item.bytes, countStyle: .file)].joined(separator: " · ")).font(.vzn("captionScale")).foregroundStyle(.secondary).textSelection(.enabled) }
+                    ForEach(journal.items) { item in
+                        Text([shortPath(item.path), store.text("app_" + item.status), ByteCountFormatter.string(fromByteCount: item.bytes, countStyle: .file)].joined(separator: " · "))
+                            .font(.vzn("captionScale")).foregroundStyle(.secondary).textSelection(.enabled)
+                        if item.issue == "appRestoreInFinder" || item.issue == "appPutBackItem" || item.status == "restoring" {
+                            if let issue = item.issue, ["appRestoreInFinder", "appPutBackItem"].contains(issue) {
+                                Text(store.text(issue)).font(.vzn("captionScale"))
+                            }
+                            Button(store.text("reveal")) {
+                                Task { await apps.revealRestoreItem(item.id); reportError() }
+                            }.disabled(apps.busy)
+                        }
+                    }
                     Divider()
                 }
             }.padding(metric("inset"))

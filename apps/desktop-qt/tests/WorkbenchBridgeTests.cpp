@@ -4,6 +4,7 @@
 #include "../HistoryStorage.h"
 #include "../AttachmentImageProvider.h"
 #include <QClipboard>
+#include <QMimeData>
 #include <QBuffer>
 #include <QAccessible>
 #include "../NativeAudio.h"
@@ -13,6 +14,7 @@
 #include "../CloudProtocol.h"
 #include "../VoiceGate.h"
 #include "../TextLanguage.h"
+#include "../WindowsSelection.h"
 #include "../LanguageSegments.h"
 #include "../ThermalSensors.h"
 #include "../LauncherTools.h"
@@ -259,6 +261,8 @@ private slots:
             if (preset != "absent-preset") appearance["preset"] = preset == "null" ? QVariant() : QVariant(preset);
             state["appearance"] = appearance;
         }
+        // Persistence writes current state. Only recovery accepts a historical preset.
+        QCOMPARE(WorkbenchDomain::validate(state), noAppearance || preset == "glass");
         QFile file(path);
         const auto original = QJsonDocument::fromVariant(state).toJson();
         QVERIFY(file.open(QIODevice::WriteOnly));
@@ -273,6 +277,10 @@ private slots:
             return;
         }
         QVERIFY(!bridge.loadBlocked() && bridge.storageError().isEmpty());
+        const auto preview = NativeBackup::preview(NativeBackup::exportData(state));
+        QVERIFY(preview.valid);
+        const QStringList legacyPresets{"graphite", "paper", "corporate", "midnight"};
+        QCOMPARE(preview.migratedAppearance, legacyPresets.contains(preset));
         const auto migrated = bridge.appearance();
         QCOMPARE(migrated.value("preset").toString(), "glass");
         QCOMPARE(migrated.value("mode").toString(), noAppearance ? "system" : preset == "midnight" ? "dark" : mode);
@@ -1635,24 +1643,24 @@ private slots:
             auto *row = visualItem(root, "installed-model-" + id);
             return row ? row->property("detail").toString() : QString();
         };
-        QTRY_COMPARE(detail(model), "2,6 GB · " + model + " · gpu · 48,2 token/giây");
-        QCOMPARE(detail(missing), missing + " · Chưa đo được");
+        QTRY_COMPARE(detail(model), "2,6 GB · " + model + " · GPU · 48,2 token/giây");
+        QCOMPARE(detail(missing), missing + " · Chưa đo");
 
         auto *performance = bridge.localPerformance();
         performance->selectModel(model);
         performance->select("hybrid");
-        QTRY_COMPARE(detail(model), "2,6 GB · " + model + " · hybrid · 12,0 token/giây");
+        QTRY_COMPARE(detail(model), "2,6 GB · " + model + " · CPU + GPU · 12,0 token/giây");
         performance->select("auto");
-        QTRY_COMPARE(detail(model), "2,6 GB · " + model + " · gpu · 48,2 token/giây");
+        QTRY_COMPARE(detail(model), "2,6 GB · " + model + " · GPU · 48,2 token/giây");
 
         // Changing only the size or app language must format the cached rate.
         QVERIFY(writeStore(51));
         snapshot.ollamaSizes.clear();
         bridge.applyProviderSnapshot(snapshot);
         bridge.command("locale", {{"value", "en"}});
-        QTRY_COMPARE(detail(model), model + " · gpu · 48.2 tokens/s");
+        QTRY_COMPARE(detail(model), model + " · GPU · 48.2 tokens/s");
         bridge.command("locale", {{"value", "ja"}});
-        QTRY_COMPARE(detail(model), model + " · gpu・48.2トークン/秒");
+        QTRY_COMPARE(detail(model), model + " · GPU・48.2トークン/秒");
         QCOMPARE(detail(missing), missing + " · 未計測");
 
         // Cancel synchronously on start, before the worker can issue a runtime request.
@@ -1661,13 +1669,13 @@ private slots:
         });
         performance->compare();
         QTRY_VERIFY(!performance->busy());
-        QTRY_COMPARE(detail(model), model + " · gpu・51.0トークン/秒");
+        QTRY_COMPARE(detail(model), model + " · GPU・51.0トークン/秒");
         bridge.applyProviderSnapshot({});
         QTRY_VERIFY(!visualItem(root, "installed-model-" + model));
         QVERIFY(performance->measured().isEmpty());
         QVERIFY(writeStore(60));
         bridge.applyProviderSnapshot(snapshot);
-        QTRY_COMPARE(detail(model), model + " · gpu・60.0トークン/秒");
+        QTRY_COMPARE(detail(model), model + " · GPU・60.0トークン/秒");
         QCOMPARE(warnings.count(), 0);
     }
 
@@ -3636,6 +3644,7 @@ private slots:
         QCOMPARE(surface->property("overlayColor").value<QColor>().alpha(), 255);
         QVERIFY(QMetaObject::invokeMethod(lineup, "close"));
         auto *opener = visualItem(root->contentItem(), "chat-tools-trigger"); QVERIFY(opener);
+        QCOMPARE(qmlValue(opener, "Accessible.name").toString(), bridge.strings().value("composerTools").toString());
         auto *toolsPanel = root->findChild<QObject *>("chat-tools-panel"); QVERIFY(toolsPanel);
         for (const auto width : {640, 820, 1280}) {
             root->resize(width, 800); QCoreApplication::processEvents();
@@ -4170,7 +4179,10 @@ private slots:
         translation["updated"] = double(now.addDays(-2).toSecsSinceEpoch()); sessions[1] = translation;
         auto archived = chat; archived["id"] = "archived"; archived["archived"] = true;
         archived["updated"] = double(now.addDays(-20).toSecsSinceEpoch()); archived["archivedAt"] = double(now.toSecsSinceEpoch()); sessions.append(archived);
-        state["sessions"] = sessions; state["appearance"] = QVariantMap{{"mode", mode}, {"textSize", "medium"}};
+        state["sessions"] = sessions;
+        auto appearance = state.value("appearance").toMap();
+        appearance["mode"] = mode;
+        state["appearance"] = appearance;
         state["shell"] = QVariantMap{{"lastRoute", "chat"}, {"navigationCollapsed", false}};
         QVERIFY(WorkbenchDomain::validate(state));
         QFile file(dir.filePath("state.json")); QVERIFY(file.open(QIODevice::WriteOnly)); file.write(QJsonDocument::fromVariant(state).toJson()); file.close();
@@ -4388,6 +4400,67 @@ private slots:
         QTRY_VERIFY(visualItem(root->contentItem(), "chat-failure-" + secondID, true));
         for (const auto &warning : warnings) for (const auto &error : qvariant_cast<QList<QQmlError>>(warning.at(0))) qWarning().noquote() << error.toString();
         QCOMPARE(warnings.count(), 0);
+    }
+    void chatPasteAcceptsClipboardPngAndPreservesTextPaste() {
+        TemporaryHistoryProfile profile;
+        QVERIFY(profile.valid());
+        WorkbenchBridge bridge(nullptr, profile.dir.filePath("state.json"), false);
+        bridge.command("route", {{"value", "chat"}});
+        QQmlApplicationEngine engine;
+        engine.addImageProvider("attachments", new AttachmentImageProvider);
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        auto *draft = visualItem(window->contentItem(), "chat-draft");
+        QVERIFY(draft);
+        draft->forceActiveFocus();
+        auto *clipboard = QGuiApplication::clipboard();
+        auto pastePng = [&](const QByteArray &bytes) {
+            auto *mime = new QMimeData;
+            mime->setData("image/png", bytes);
+            clipboard->setMimeData(mime);
+            QTest::keySequence(window, QKeySequence::Paste);
+        };
+
+        clipboard->setText("some text");
+        QTest::keySequence(window, QKeySequence::Paste);
+        QTRY_COMPARE(current(bridge).value("draft").toString(), QString("some text"));
+        QImage sample(3, 2, QImage::Format_RGB32);
+        sample.fill(Qt::red);
+        QBuffer buffer;
+        QVERIFY(buffer.open(QIODevice::WriteOnly));
+        QVERIFY(sample.save(&buffer, "PNG"));
+        pastePng(buffer.data());
+        QTRY_COMPARE(current(bridge).value("images").toList().size(), 1);
+        const auto attachment = current(bridge).value("images").toList().first().toMap();
+        QCOMPARE(attachment.value("mime").toString(), QString("image/png"));
+        QCOMPARE(attachment.value("width").toInt(), 3);
+        QCOMPARE(attachment.value("height").toInt(), 2);
+        QCOMPARE(Attachments::data(attachment), buffer.data());
+
+        QSignalSpy failures(&bridge, &WorkbenchBridge::actionFailed);
+        pastePng("not a PNG");
+        QTRY_COMPARE(failures.count(), 1);
+        QCOMPARE(failures.first().first().toString(), QString("imageError"));
+        QCOMPARE(current(bridge).value("images").toList().size(), 1);
+        QCOMPARE(current(bridge).value("draft").toString(), QString("some text"));
+
+        const auto owner = current(bridge).value("id").toString();
+        clipboard->setImage(sample);
+        for (int i = 0; i < 4; ++i) QVERIFY(bridge.pasteChatImage(owner));
+        QCOMPARE(failures.count(), 2);
+        QCOMPARE(failures.last().first().toString(), QString("chatImageLimit"));
+        bridge.command("new", {{"feature", "chat"}});
+        QVERIFY(current(bridge).value("id").toString() != owner);
+        auto originalImages = [&] {
+            for (const auto &value : bridge.state().value("sessions").toList())
+                if (value.toMap().value("id") == owner) return value.toMap().value("images").toList();
+            return QVariantList{};
+        };
+        QTRY_COMPARE(originalImages().size(), 4);
+        QVERIFY(current(bridge).value("images").toList().isEmpty());
     }
     void glassImageResearchAndReset_data() { glassHistoryActions_data(); }
     void glassImageResearchAndReset() {
@@ -4714,6 +4787,71 @@ private slots:
         QCOMPARE(current(reopened).value("draft").toString(), QString("Unsent"));
         QVERIFY(reopened.state().value("shell").toMap().value("navigationCollapsed").toBool());
     }
+    void everywhereChangesTheDefaultWithoutSwitchingTheOpenChat() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("model", {{"value", "ollama:first"}});
+        bridge.command("draft", {{"value", "Existing conversation"}});
+        bridge.command("submit");
+        const auto original = latest(bridge);
+        bridge.command("route", {{"value", "everywhere"}});
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        QQuickItem *button = nullptr;
+        QTRY_VERIFY(button = visualItem(window->contentItem(), "everywhere-model-trigger"));
+        QVERIFY(QMetaObject::invokeMethod(button, "clicked"));
+        QObject *popup = nullptr;
+        QTRY_VERIFY(popup = window->findChild<QObject *>("model-lineup-panel"));
+        QTRY_VERIFY(popup->property("visible").toBool());
+        QVERIFY(popup->property("height").toDouble() > 0);
+        const QVariantMap row{{"kind", "model"}, {"model", "gemini:next"}};
+        QVERIFY(QMetaObject::invokeMethod(popup, "choose", Q_ARG(QVariant, row)));
+        QTRY_COMPARE(bridge.state().value("defaultModel"), QString("gemini:next"));
+        QCOMPARE(window->property("systemRoute").toString(), QString("everywhere"));
+        QCOMPARE(current(bridge).value("model"), QString("ollama:first"));
+        QCOMPARE(latest(bridge), original);
+    }
+    void sharedModelFollowsNewWorkAndKeepsRequestSnapshots() {
+        QTemporaryDir dir;
+        const auto path = dir.filePath("state.json");
+        const QString first = "ollama:fixture", next = "gemini:fixture";
+        {
+            WorkbenchBridge bridge(nullptr, path, false);
+            const auto chat = current(bridge).value("id");
+            bridge.command("model", {{"value", first}});
+            bridge.command("draft", {{"value", "First question"}});
+            bridge.command("submit");
+            const auto chatJob = latest(bridge);
+            bridge.command("navigate", {{"feature", "translate"}});
+            bridge.command("draft", {{"value", "Hello"}});
+            bridge.command("submit");
+            const auto translation = latest(bridge);
+            QCOMPARE(translation.value("request").toMap().value("model"), first);
+            bridge.command("navigate", {{"feature", "dictionary"}});
+            bridge.command("model", {{"value", next}});
+            QCOMPARE(latest(bridge), translation);
+            bridge.command("cancel", {{"taskID", translation.value("id")}});
+            bridge.command("retry", {{"taskID", translation.value("id")}});
+            QCOMPARE(latest(bridge).value("request"), translation.value("request"));
+            bridge.command("select", {{"sessionID", chat}});
+            QCOMPARE(bridge.modelForNextRequest(current(bridge)), first);
+            QCOMPARE(bridge.state().value("tasks").toList().last().toMap(), chatJob);
+            bridge.command("new");
+            QCOMPARE(current(bridge).value("model"), next);
+        }
+        WorkbenchBridge reopened(nullptr, path, false);
+        QCOMPARE(reopened.state().value("defaultModel"), next);
+        const auto quick = reopened.createDetachedSession("translate", "Hi");
+        reopened.command("defaultModel", {{"value", first}});
+        reopened.command("submit", {{"sessionID", quick}});
+        QCOMPARE(latest(reopened).value("request").toMap().value("model"), first);
+        reopened.command("defaultModel", {{"value", "invalid"}});
+        QCOMPARE(reopened.state().value("defaultModel"), first);
+    }
     void simultaneousTasksKeepTheirSessionsAndModels() {
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
@@ -4908,6 +5046,40 @@ private slots:
         QVERIFY(reopened.history({}, true).isEmpty());
     }
 
+    void backupRestoresModelPinsOnlyWhenRequested() {
+        TemporaryHistoryProfile profile;
+        QVERIFY(profile.valid());
+        WorkbenchBridge bridge(nullptr, profile.dir.filePath("workbench.json"), false);
+        bridge.command("togglePinnedModel", {{"value", "openai:gpt-4.1"}});
+        auto source = WorkbenchDomain::create("chat", "translate");
+        const QStringList incoming{"ollama:gemma3", "claude:claude-sonnet-4"};
+        source["pinnedModels"] = incoming;
+        const auto path = profile.dir.filePath("backup.json");
+        auto restore = [&](bool preferences) {
+            bridge.inspectBackup(QUrl::fromLocalFile(path));
+            QTRY_VERIFY(!bridge.backupBusy());
+            bridge.confirmBackup(preferences);
+            QTRY_VERIFY(!bridge.backupBusy());
+            QCOMPARE(bridge.backupStatus(), QString("succeeded"));
+        };
+        QVERIFY(writeBytes(path, NativeBackup::exportData(source)));
+        restore(false);
+        QCOMPARE(bridge.state().value("pinnedModels").toStringList(), QStringList{"openai:gpt-4.1"});
+        restore(true);
+        QCOMPARE(bridge.state().value("pinnedModels").toStringList(), incoming);
+        source.remove("pinnedModels");
+        // A version-1 archive written before pinning has no field in the stored snapshot.
+        auto legacy = QJsonDocument::fromJson(NativeBackup::exportData(source)).object();
+        const auto snapshot = QJsonDocument::fromVariant(source).toJson(QJsonDocument::Compact);
+        legacy["workspace"] = QString::fromLatin1(snapshot.toBase64());
+        legacy["sha256"] = QString::fromLatin1(QCryptographicHash::hash(snapshot, QCryptographicHash::Sha256).toHex());
+        QVERIFY(writeBytes(path, QJsonDocument(legacy).toJson()));
+        restore(true);
+        QCOMPARE(bridge.state().value("pinnedModels").toStringList(), incoming);
+        QVERIFY(writeBytes(path, NativeBackup::exportData(source)));
+        restore(true);
+        QVERIFY(bridge.state().value("pinnedModels").toStringList().isEmpty());
+    }
     void failedBackupPreservesBothStores_data() {
         QTest::addColumn<QString>("fault");
         for (const QString fault : {"workspace-write", "transcript-write", "attachment-conflict", "blocked-reload", "shutdown"})
@@ -5617,6 +5789,37 @@ private slots:
         QCOMPARE(ImageGeneration::imageModel("openai", "gpt-image-1-mini", {"openai:gpt-image-1-mini", "openai:gpt-image-1.5"}), QString("gpt-image-1-mini"));
         QCOMPARE(ImageGeneration::imageModel("openai", "", {}), QString("gpt-image-1"));
     }
+    void windowsSelectionVerifiesEditsBeforeOfferingUndo() {
+        WindowsSelectionText edit{QStringLiteral("Hi 🌏 world!"), QStringLiteral("Hi 🌏 "), "world", "!", {}};
+        QString document = edit.full;
+        int writes = 0;
+        auto read = [&](QString &value) { value = document; return true; };
+        auto acceptsOnly = [&](const QString &) { ++writes; return true; };
+        auto write = [&](const QString &value) { ++writes; document = value; return true; };
+        using Result = WindowsSelectionText::Result;
+        QVERIFY(edit.matchesDocument());
+        QCOMPARE(edit.replace("world", read, write), Result::Unchanged);
+        QCOMPARE(writes, 0);
+        QVERIFY(edit.applied.isEmpty());
+        QCOMPARE(edit.replace(QStringLiteral("世界"), read, acceptsOnly), Result::Failed);
+        QVERIFY(edit.applied.isEmpty());
+        QVERIFY(!edit.undo(read, write));
+        QCOMPARE(edit.replace(QStringLiteral("世界"), read, write), Result::Replaced);
+        QCOMPARE(document, QStringLiteral("Hi 🌏 世界!"));
+        QVERIFY(!edit.undo(read, acceptsOnly));
+        const auto expected = document;
+        document = "intervening edit";
+        QVERIFY(!edit.undo(read, write));
+        QCOMPARE(document, QString("intervening edit"));
+        document = expected;
+        QVERIFY(edit.undo(read, write));
+        QCOMPARE(document, edit.full);
+        QVERIFY(edit.applied.isEmpty());
+        edit.prefix = edit.full.left(4);  // Ends inside the globe's surrogate pair.
+        edit.selection = edit.full.mid(4, 1);
+        edit.suffix = edit.full.mid(5);
+        QVERIFY(!edit.matchesDocument());
+    }
     void quickTranslatePairRoutesTextAlreadyInThePrimaryLanguage() {
         QCOMPARE(TextLanguage::detect("Xin chào, cuộc họp bắt đầu lúc chín giờ."), QString("vi"));
         QCOMPARE(TextLanguage::detect("会議は九時に始まります。"), QString("ja"));
@@ -5997,6 +6200,7 @@ private slots:
         auto *interpretView = visualItem(window->contentItem(), "interpret-workspace"); QVERIFY(interpretView);
         QTRY_COMPARE(interpretView->property("modelID").toString(), QString("ollama:qwen3"));
         QCOMPARE(current(bridge).value("model"), translationModel);
+        QCOMPARE(bridge.modelForNextRequest(current(bridge)), QString("ollama:qwen3"));
         auto *swap = visualItem(window->contentItem(), "interpret-swap"); QVERIFY(swap); QVERIFY(!swap->isEnabled());
         auto *inputLanguage = visualItem(window->contentItem(), "interpret-source-language"); QVERIFY(inputLanguage);
         QVERIFY(QMetaObject::invokeMethod(inputLanguage, "chosen", Q_ARG(QString, "en")));
@@ -6019,7 +6223,12 @@ private slots:
         QVERIFY(!live->exportText(false,true).contains("Hello")); QVERIFY(live->exportText(true,true).contains(QString::fromUtf8("Xin chào")));
         // No event loop turn between start and cancel: this exercises summary ownership
         // without waiting for or consuming a provider response.
-        live->summarize("summary"); QVERIFY(live->summarizing()); live->cancelSummary(); QVERIFY(!live->summarizing());
+        QVERIFY(QMetaObject::invokeMethod(summaryHeader, "clicked"));
+        QVERIFY(live->summarizing()); QCOMPARE(live->summaryModel(), QString("ollama:qwen3"));
+        bridge.command("defaultModel", {{"value", "ollama:next"}});
+        QCOMPARE(live->summaryModel(), QString("ollama:qwen3"));
+        QCOMPARE(live->current().value("model"), meeting.value("model"));
+        live->cancelSummary(); QVERIFY(!live->summarizing());
         live->deleteSession("w2-meeting");
         for (const auto &warning : warnings) for (const auto &error : qvariant_cast<QList<QQmlError>>(warning.at(0))) qWarning().noquote() << error.toString();
         QCOMPARE(warnings.count(),0);
@@ -6853,7 +7062,7 @@ void WorkbenchBridgeTests::w3SystemPages() {
     QVERIFY(recorder->property("waiting").toBool());
     auto *status = recorder->findChild<QQuickItem *>("shortcut-error"); QVERIFY(status);
     QVERIFY(status->isVisible());
-    QCOMPARE(status->property("text").toString(), bridge.strings().value("inProgress").toString());
+    QCOMPARE(status->property("text").toString(), bridge.strings().value("savingShortcut").toString());
     eval("desktop.busy = false; desktop.changed()");
     QTRY_VERIFY(!recorder->property("opened").toBool());
     QCOMPARE(eval("desktop.calls.length").toInt(), 2);
@@ -7083,6 +7292,11 @@ void WorkbenchBridgeTests::w4SettingsPages() {
             QTRY_VERIFY2(control->mapToScene(QPointF(control->width(),0)).x() <= width, qPrintable(sections[i]));
         }
         auto text = [&](const char *key) { return bridge.strings().value(key).toString(); };
+        if (sections[i] == "appearance") {
+            auto *theme = visualItem(settings, "settings-theme");
+            QVERIFY(theme);
+            QTRY_VERIFY(qAbs(theme->width() - theme->implicitWidth()) <= 1);
+        }
         if (sections[i] == "providers") {
             checkAccessibleName(settings, "key-busy", text("apiKey"));
             checkAccessible(settings, "key-status", QAccessible::StaticText);
@@ -7620,6 +7834,16 @@ void WorkbenchBridgeTests::w5bLauncher() {
     QTRY_VERIFY(picker = visualItem(window->contentItem(), "launcher-currency-target", true));
     QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, picker->mapToScene(picker->boundingRect().center()).toPoint());
     QTRY_VERIFY(targetMenu->property("visible").toBool());
+    for (const auto &language : {QString("vi"), QString("ja"), QString("en")}) {
+        bridge.command("locale", {{"value", language}});
+        for (const auto &code : money.currencyCodes()) {
+            const auto label = bridge.strings().value("currencyName_" + code).toString();
+            QVERIFY2(!label.isEmpty() && label != code, qPrintable(language + "/" + code));
+        }
+        QCOMPARE(qmlValue(targetMenu, "itemAt(0).text").toString(), "VND · " + bridge.strings().value("currencyName_VND").toString());
+        QCOMPARE(qmlValue(window, "modifiedTime(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + 1, 12).getTime() / 1000)").toString(),
+                 bridge.strings().value("launcherFutureTomorrow").toString());
+    }
     // USD is the source, so VND is the first available target.
     QTest::keyClick(window, Qt::Key_Down); QTest::keyClick(window, Qt::Key_Return);
     QTRY_COMPARE(money.currencyTarget(), "VND");
@@ -7687,6 +7911,7 @@ void WorkbenchBridgeTests::w5bQuickPanels() {
                 function shortModelName(id) { return workbench.shortModelName(id) }
                 function quickTranslateTarget(text) { return workbench.quickTranslateTarget(text) }
                 function modelSections(query,id) { return workbench.modelSections(query,id) }
+                function modelForNextRequest(session) { return workbench.modelForNextRequest(session) }
             }
         }
     )", QUrl("qrc:/w5b-quick.qml"));
@@ -7787,6 +8012,11 @@ void WorkbenchBridgeTests::w5bQuickPanels() {
     QVERIFY(QMetaObject::invokeMethod(owner.data(), "ask", Q_ARG(QVariant, "")));
     QVERIFY(owner->property("quickAI").toBool());
     QVERIFY(!owner->property("canSubmit").toBool());
+    auto *quickModel = visualItem(window->contentItem(), "quick-ai-model"); QVERIFY(quickModel && quickModel->isEnabled());
+    QVERIFY(QMetaObject::invokeMethod(quickModel, "clicked"));
+    QTRY_VERIFY(list->hasActiveFocus());
+    QTest::keyClick(window, Qt::Key_Escape);
+    QTRY_VERIFY(quickModel->hasActiveFocus());
     auto *composer = visualItem(window->contentItem(), "quick-composer"); QVERIFY(composer);
     QTRY_VERIFY2(composer->height() < 100, qPrintable(QString("composer=%1 draftWidth=%2 draftHeight=%3").arg(composer->height()).arg(draft->width()).arg(draft->property("contentHeight").toDouble())));
     proxy->setProperty("providersEmpty", false);

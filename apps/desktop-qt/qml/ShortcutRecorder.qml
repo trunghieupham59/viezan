@@ -55,7 +55,7 @@ GlassDialog {
     contentItem: ColumnLayout {
         spacing: recorder.metrics.small
         Label { text: recorder.t("shortcutRecorderHint"); wrapMode: Text.Wrap; Layout.fillWidth: true }
-        TextField {
+        Kit.GlassField {
             id: captureField
             objectName: "shortcut-capture"
             Layout.fillWidth: true
@@ -69,7 +69,7 @@ GlassDialog {
                 event.accepted = true
             }
         }
-        Label { objectName: "shortcut-error"; Accessible.role: Accessible.AlertMessage; visible: !!text; text: recorder.waiting ? recorder.t("inProgress") : recorder.failure; onTextChanged: if (text && recorder.opened) Accessible.announce(text); wrapMode: Text.Wrap; Layout.fillWidth: true }
+        Label { objectName: "shortcut-error"; color: recorder.waiting ? palette.text : recorder.appearance.colors.danger; Accessible.role: Accessible.AlertMessage; visible: !!text; text: recorder.waiting ? recorder.t("savingShortcut") : recorder.failure; onTextChanged: if (text && recorder.opened) Accessible.announce(text); wrapMode: Text.Wrap; Layout.fillWidth: true }
     }
     footer: DialogButtonBox {
         background: Item {}

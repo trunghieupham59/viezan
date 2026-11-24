@@ -42,6 +42,7 @@ ApplicationWindow {
     palette.disabled.buttonText: colors["text-disabled"]
     palette.disabled.button: colors["surface-subtle"]
     readonly property var session: root.workspace.sessions.find(item => item.id === root.workspace.active[root.workspace.feature])
+    readonly property string requestModel: (workspace.defaultModel, workbench.modelForNextRequest(session))
     readonly property var activeTask: root.workspace.tasks.find(task => task.request.sessionID === session.id && task.status === "running")
     // `resources` never changes: convert it once instead of on every binding update.
     readonly property var nativeResources: workbench.resources
@@ -351,7 +352,7 @@ ApplicationWindow {
     readonly property Item modelControl: contentLoader.item?.modelControl ?? null
     readonly property Item toolsControl: contentLoader.item?.toolsControl ?? null
     ShellAction { id: modelAction; keySequence: "Ctrl+Shift+M"; text: t("model"); enabled: !!root.modelControl?.visible && root.modelControl.enabled && !root.composing(); onTriggered: root.modelControl.clicked() }
-    ShellAction { id: toolsAction; keySequence: "Ctrl+Shift+T"; text: t("attachImage"); enabled: !!root.toolsControl?.visible && root.toolsControl.enabled && !root.composing(); onTriggered: { root.toolsControl.forceActiveFocus(Qt.ShortcutFocusReason); root.toolsControl.clicked() } }
+    ShellAction { id: toolsAction; keySequence: "Ctrl+Shift+T"; text: t("composerTools"); enabled: !!root.toolsControl?.visible && root.toolsControl.enabled && !root.composing(); onTriggered: { root.toolsControl.forceActiveFocus(Qt.ShortcutFocusReason); root.toolsControl.clicked() } }
     menuBar: MenuBar {
         objectName: "shell-menu-bar"
         visible: Qt.platform.os === "osx"
@@ -528,7 +529,7 @@ ApplicationWindow {
                         Keys.onDownPressed: event => { if (inputMethodComposing) event.accepted = false; else contentLoader.item?.focusSearchResults?.() }
                         Keys.onEscapePressed: event => { if (!inputMethodComposing) { root.settingsQuery = ""; event.accepted = true } else event.accepted = false }
                     }
-                    ShellButton { visible: root.systemRoute === "interpret"; showsLabel: !root.compact; objectName: "interpret-summary-header"; glassMaterial: enabled; iconName: "reasoning"; text: t("summarize"); enabled: !workbench.interpretation.busy && !!workbench.interpretation.current.segments?.length; onClicked: workbench.interpretation.summarize("summary") }
+                    ShellButton { visible: root.systemRoute === "interpret"; showsLabel: !root.compact; objectName: "interpret-summary-header"; glassMaterial: enabled; iconName: "reasoning"; text: t("summarize"); enabled: !workbench.interpretation.busy && !!workbench.interpretation.current.segments?.length; onClicked: workbench.interpretation.summarize("summary", root.workspace.defaultModel || "") }
                     ShellButton { id: interpretHistoryTrigger; visible: root.systemRoute === "interpret"; showsLabel: !root.compact; iconName: "history"; text: t("history"); ToolTip.visible: hovered && !root.composerPopup?.visible; enabled: !workbench.interpretation.busy; popupOpen: !!contentLoader.item?.historyOpen; onClicked: contentLoader.item?.openHistory?.(interpretHistoryTrigger) }
                     ShellButton { visible: root.systemRoute === "interpret"; showsLabel: !root.compact; primary: true; iconName: "new"; text: t("newInterpretation"); enabled: !workbench.interpretation.busy; onClicked: workbench.interpretation.clearSelection() }
                     Rectangle { visible: root.systemRoute === "interpret"; color: root.colors["border-strong"]; implicitWidth: metrics.hairline; implicitHeight: metrics.inset + metrics.hairline * 2 }
@@ -653,7 +654,7 @@ ApplicationWindow {
         readonly property alias toolsControl: attachmentButton
         readonly property var efforts: ["auto", "low", "medium", "high"]
         readonly property string effort: root.session.reasoningEffort ?? (root.session.carefulReasoning ? "high" : "auto")
-        readonly property bool adjustable: workbench.supportsEffort(root.session.model)
+        readonly property bool adjustable: workbench.supportsEffort(root.requestModel)
         function effortEnabled(level) { return adjustable || level === "auto" || level === "high" }
         function effortHint(level) { return root.t(!effortEnabled(level) ? "reasoningUnsupported" : level === "high" ? "carefulReasoningHint" : "reasoningLevelHint_" + level) }
         // Compact: icon menu inside a composer row; attachments render as chips.
@@ -662,7 +663,7 @@ ApplicationWindow {
         Kit.GlassButton {
             id: attachmentButton
             glassMaterial: !imageControls.glassChat
-            text: t("attachImage"); icon.source: root.session.feature === "translate" ? "icons/image.svg" : "icons/new.svg"
+            text: t(imageControls.glassChat ? "composerTools" : "attachImage"); icon.source: root.session.feature === "translate" ? "icons/image.svg" : "icons/new.svg"
             display: parent.compact ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
             flat: parent.compact
             implicitWidth: parent.compact ? metrics.control : implicitContentWidth + leftPadding + rightPadding
@@ -771,7 +772,7 @@ ApplicationWindow {
                     flick.contentY = top + item.height - toolsScroll.availableHeight
             }
             NamedScrollView {
-                scrollName: t("attachImage")
+                scrollName: t("composerTools")
                 id: toolsScroll
                 objectName: "chat-tools-scroll"
                 anchors.fill: parent; contentWidth: availableWidth
@@ -1005,9 +1006,9 @@ ApplicationWindow {
             RowLayout {
                 id: chatNotice
                 objectName: "chat-provider-notice"
-                readonly property string availability: (workbench.localModels, workbench.providersChecked, workbench.availability(root.session.model))
+                readonly property string availability: (workbench.localModels, workbench.providersChecked, workbench.availability(root.requestModel))
                 readonly property bool unavailable: availability !== "available" && availability !== "unknown"
-                readonly property bool imageMissing: root.session.chatMode === "image" && !(workbench.localModels, workbench.imageProvider(root.session.model))
+                readonly property bool imageMissing: root.session.chatMode === "image" && !(workbench.localModels, workbench.imageProvider(root.requestModel))
                 readonly property bool reset: workbench.resetNotice.feature === root.session.feature
                 readonly property string kind: workbench.providersEmpty ? "empty" : unavailable ? "unavailable" : imageMissing ? "image" : reset ? "reset" : ""
                 visible: !!kind
@@ -1118,6 +1119,10 @@ ApplicationWindow {
                             }
                             Keys.onReturnPressed: event => sendOnEnter(event)
                             Keys.onEnterPressed: event => sendOnEnter(event)
+                            Keys.onPressed: event => {
+                                if (event.matches(StandardKey.Paste) && !inputMethodComposing && !readOnly)
+                                    event.accepted = workbench.pasteChatImage(session.id)
+                            }
                         }
                     }
                     ImageControls { id: chatImages; compact: true; glassChat: true; Layout.row: composer.singleRow ? 1 : 2; Layout.column: 0; Layout.alignment: Qt.AlignBottom }
@@ -1159,7 +1164,7 @@ ApplicationWindow {
                         enabled: !!activeTask || (!chatDraft.inputMethodComposing
                             && (!!session.draft.trim() || (session.images || []).length > 0)
                             && !(root.workspace.disabledModules || []).includes("chat")
-                            && !(session.model.startsWith("ollama:") && workbench.localPerformance.busy)
+                            && !(root.requestModel.startsWith("ollama:") && workbench.localPerformance.busy)
                             && (session.chatMode === "image" ? !chatNotice.imageMissing : !workbench.providersEmpty && !chatNotice.unavailable))
                         Accessible.name: text
                         Accessible.description: activeTask ? "" : ToolTip.text
@@ -1263,7 +1268,7 @@ ApplicationWindow {
                     onDeletePromptRequested: promptID => { deleteSavedPrompt.promptID = promptID; deleteSavedPrompt.open() }
                 }
             }
-            Kit.ProviderNotice { model: session.model; dangerColor: root.colors.danger; Layout.fillWidth: true; onOpenRequested: section => root.openSettingsSection(section); onUseRequested: model => command("model", {value: model}) }
+            Kit.ProviderNotice { model: root.requestModel; dangerColor: root.colors.danger; Layout.fillWidth: true; onOpenRequested: section => root.openSettingsSection(section); onUseRequested: model => command("model", {value: model}) }
             Kit.AnchoredPanel {
                 id: comparePanel; shell: root; objectName: "compare-panel"
                 desiredWidth: root.width - metrics.inset * 2
@@ -1606,7 +1611,20 @@ ApplicationWindow {
     }
     Component {
         id: desktopView
-        DesktopWorkspace { snapshot: root.workspace; bridge: workbench; route: root.systemRoute; onRouteRequested: value => root.selectRoute(value); onNewTranslation: { root.selectRoute("translate"); root.command("new"); root.composerFocusEpoch++ } }
+        DesktopWorkspace {
+            snapshot: root.workspace; bridge: workbench; route: root.systemRoute
+            onRouteRequested: value => root.selectRoute(value)
+            onNewTranslation: { root.selectRoute("translate"); root.command("new"); root.composerFocusEpoch++ }
+            onChangeModel: opener => everywherePicker.togglePanel(opener)
+            SessionModelPicker {
+                id: everywherePicker
+                visible: false
+                shell: root; bridge: workbench; glassFeature: true; selectionOnly: true
+                selectedModel: root.workspace.defaultModel || root.session.model
+                onModelChosen: id => workbench.command("defaultModel", {value: id})
+                onConfigureRequested: root.openSettingsSection(["openai", "claude", "gemini"].includes(selectedModel.split(":")[0]) ? "providers" : "localModels")
+            }
+        }
     }
 
     Component {
@@ -1672,7 +1690,7 @@ ApplicationWindow {
             visible: historyList.count === 0
             IconImage { visible: !!root.historyQuery.trim(); source: "icons/search.svg"; sourceSize.width: metrics.icon; sourceSize.height: metrics.icon; color: root.colors["text-muted"]; Layout.alignment: Qt.AlignHCenter; Accessible.ignored: true }
             Label { objectName: "history-empty-message"; text: !root.historyQuery.trim() ? t(root.archivedHistory ? "historyArchivedEmpty" : "historyEmpty") : t("noHistory"); wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
-            Label { visible: !!root.historyQuery; text: t("historyNoMatchesHint"); wrapMode: Text.Wrap; color: root.colors["text-muted"]; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
+            Label { visible: !!root.historyQuery.trim(); text: t(root.archivedHistory ? "historyNoMatchesHint" : "historySearchAgainHint"); wrapMode: Text.Wrap; color: root.colors["text-muted"]; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
         }
         ScrollBar.vertical: ScrollBar { Accessible.name: t("history") }
     }

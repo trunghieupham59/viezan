@@ -41,14 +41,18 @@ import ViezanDomain
     }
 
     func show(_ text: String, key: String? = nil, error: Bool = false, level: Toast.Level? = nil,
+              announcementPriority: NSAccessibilityPriorityLevel? = nil,
               actionLabel: String? = nil, action: (() -> Void)? = nil) {
         let toast = Toast(key: key ?? UUID().uuidString, text: text, actionLabel: actionLabel,
                           action: action, level: level ?? (error ? .danger : .success))
-        var announcement = AttributedString(text)
-        if toast.level == .warning || toast.level == .danger {
-            announcement.accessibilitySpeechAnnouncementPriority = .high
+        if let announcementPriority {
+            NSAccessibility.post(element: NSApplication.shared, notification: .announcementRequested,
+                                 userInfo: [.announcement: text, .priority: announcementPriority.rawValue])
+        } else {
+            var announcement = AttributedString(text)
+            if toast.level == .warning || toast.level == .danger { announcement.accessibilitySpeechAnnouncementPriority = .high }
+            AccessibilityNotification.Announcement(announcement).post()
         }
-        AccessibilityNotification.Announcement(announcement).post()
         withAnimation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .default) {
             toasts.removeAll { $0.key == toast.key }
             if toasts.count == Self.maximum {

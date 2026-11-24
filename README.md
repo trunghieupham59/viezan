@@ -24,6 +24,7 @@ Existing GitHub releases may still be the previous app.
   automatic translation after edits; dictionary details, context and favorites.
 - Image translation with validated text regions, native overlays, original/translated
   text and image export. Source attachments and completed results survive native backups.
+- Selecting an AI model sets the app-wide default for new chats, translations, dictionary lookups and new interpretation sessions, including quick actions. Existing conversations keep their model until you change it within that chat. Running requests and retries use their original model.
 - Quick Translate on macOS translates text in a screen region you select, with on-device text recognition and no saved image (unavailable on Qt).
 - On macOS, keep up to five floating notes from the menu bar, Quick Translate or AI Chat. Viezan saves notes on this Mac and requests their exclusion from screen sharing. Notes are outside the current backup and are unavailable on Qt.
 - Search and resumable research, saved prompts, image generation/editing and OCR.
@@ -37,6 +38,8 @@ Existing GitHub releases may still be the previous app.
   category-based Settings with separate Voice, Modules and Updates sections,
   dictionary Meaning/Examples tabs, searchable interpretation history, responsive application
   details, dedicated desktop-tools pages and a recent-work Home workspace.
+  macOS Dictionary keeps overlong context in the draft and enables lookup once it fits 500 characters.
+  The macOS Dictionary lets you fold context with ⌘⇧C and keep the text for lookup. A missing entry offers Translate and Chat as separate actions.
   Background interpretation exposes Open/Stop while navigating; closing the main
   window stops capture. Latest UI edits await
   visual/runtime acceptance.
@@ -44,20 +47,39 @@ Existing GitHub releases may still be the previous app.
   panels, global shortcuts, application/file launcher, calculator, currency
   conversion with a remembered target, browser search and native window/tray
   lifecycle. On macOS the launcher asks AI in the same window and hands the
-  conversation to AI Chat. The macOS Launcher also offers Prevent sleep (until Viezan quits), Mute and system-wide Dark mode. These controls are pending on Qt.
+  conversation to AI Chat. The macOS Launcher also offers Prevent sleep (until Viezan quits), Mute and system-wide Dark mode. Prevent sleep and Mute are macOS-only.
   On macOS, Launcher searches file content through Spotlight without building its own index and prepares “Find files with AI” requests using only the typed query for the selected model (both features are pending on Qt).
+  Qt Quick AI groups each question with its reply and opens the model picker for that conversation. On Windows, Quick Translate offers Undo after reading the edited document back from its original editor.
+  On Windows/Linux, the screen-region selector announces its keyboard controls and the shortcut recorder announces when it is saving.
+  The macOS Launcher offers Retry when its application folders cannot be read. The Qt Launcher names all 30 target currencies in the app language and shows relative dates for future file modifications.
 - The sidebar identifies history stored on this device separately from live
   background services. Its storage hint explains that AI processing runs locally
   or in the cloud depending on the selected model.
+  History search offers to turn off Archive when that filter is active.
 - macOS application inventory, selected uninstall/reset plans, Trash operations,
   preference backup/reset, journals, recovery and undo (⌘Z for the latest), Quick Look
-  of plan items, drag an app in from Finder, and locked display of data the app
-  declares (bundled helpers, app groups, privileged helpers, receipts); thermal monitoring of SMC and named IOHID sensors,
-  fan profiles, calibration and helper lease restoration. Linux exposes available
+  of plan items and drag an app in from Finder. The inventory groups symbolic links
+  with their installed app. The uninstall plan lets you select shortcuts in writable
+  install folders and verified app-owned items in `/Library` individually. A second
+  installed copy still counts when checking shared data. Finder handles machine-wide items
+  and requests administrator authentication when needed. Shared items, app groups
+  and package receipts stay locked. Restoring a launch service or returning a file to a protected folder uses Finder’s Put Back.
+  The thermal workspace supports monitoring of SMC and named IOHID sensors,
+  fan profiles, calibration and helper lease restoration. Thermal distinguishes a
+  missing reader, a failed read and a device reporting no temperature sensors.
+  On macOS, CPU/GPU fan rules use the same SMC sensor groups as the temperature list. A failed fan action is announced again if a retry fails.
+  The built-in Quiet profile waits for two CPU readings before raising fan speed and lowers it gradually as the CPU cools. A reading of 100 °C or higher requests maximum speed immediately.
+  A team-signed fan helper accepts commands from the logged-in user's Viezan app only when it has the same Team ID, the expected bundle identifier and Hardened Runtime enabled.
+  When moving or restoring a broken app link, Viezan stops if the filesystem can no longer confirm the link's identity after the move.
+  In uninstall plans, long paths wrap and the Trash button moves to its own row when space is tight.
+  Retry waits for the previous reader to exit. The fan control card offers
+  registration. While approval is pending it offers removal, System Settings
+  and a permission check. Linux exposes available
   hwmon readings. Qt lists Windows/Linux applications and starts their registered
   uninstaller after one confirmation (see limits below).
 - Local Ollama management, model downloads/deletion, runtime limits, GPU/hybrid
   comparison and persistent measured profiles; optional prepared Windows runtime.
+  On macOS, an Ollama download shows bytes across the layers reported so far. Refreshing installed models updates names and sizes together. Sizes follow the app language. Measured modes are shown as GPU or CPU + GPU.
 - Glass shell: light mode layers a cyan scene, floating navigation, an ice-blue
   workspace and brighter frosted cards. Home groups real actions, recent work
   and model status into panels. Reading/composer surfaces remain opaque; native
@@ -68,10 +90,11 @@ Existing GitHub releases may still be the previous app.
   with separate attachment and Send/Stop buttons. Selected models keep a lit
   glass row and checkmark; keyboard focus stays distinct. Both native toolkits
   preserve one editor and its draft when controls move below multiline input.
+  In Qt Chat, pasting a clipboard image attaches it to the current draft, up to four images per message.
   macOS empty Chat suggests recurring actions from the last 30 days, weighted
   by recency and time of day. Its tools panel offers four reasoning levels;
   low/medium require model support, while Careful also adds prompt guidance.
-  These suggestions and reasoning controls are not yet ported to Qt.
+  Qt also offers usual actions on Home and in empty Chat, and supports reasoning levels for compatible models.
 - Qt Liquid Glass 2.0 on Windows/Linux: Home, Chat, Translate, Dictionary and
   Interpret pages, system pages, category Settings, the Launcher home and states,
   Quick Chat/Translate notices, an automatic update sheet with a 24-hour reminder,
@@ -90,7 +113,10 @@ Existing GitHub releases may still be the previous app.
 - EN/VI/JA, the Glass theme in light or dark with optional accents, reading size, module preferences, login
   startup, permission links, diagnostics and token usage with user-entered pricing.
 - Native speech adapters, session/history backup and offline legacy conversion.
-  Backups exclude provider credentials.
+  Restoring backup preferences also restores pinned models on both platforms. The macOS model picker shows the pin count and ⌘P shortcut.
+  Backups exclude provider credentials. On macOS a failed import removes only
+  images created by that import. If restoring the previous workspace also
+  fails, reload the saved workspace before editing.
 - Native installer packaging and update discovery/download with bounded transfers
   and SHA-256 verification. Each package manifest carries an Ed25519 signature
   made with Viezan's own update key, and the apps reject an update whose
@@ -104,6 +130,18 @@ Existing GitHub releases may still be the previous app.
   app cannot replace itself (a read-only or translocated macOS copy, an unpacked
   Windows build, a Linux build not started from a writable AppImage), it opens
   the package for a manual install instead.
+
+Windows 2.5.2 can upgrade directly to the latest native release. Its updater opens
+the installer only when Windows trusts its Authenticode signature. If the app shows
+a signature error, close Viezan, download the Windows x64 installer from
+[GitHub Releases](https://github.com/trunghieupham59/viezan/releases/latest), and
+install it over the existing copy in the same folder. This keeps the workspace.
+Starting with 2.6.0 the native updater verifies the Ed25519 manifest signature.
+
+On macOS, if Undo cannot return a renamed application to its original path, open
+the action history and choose Show in Finder. Move the verified bundle back to
+the displayed path and choose Restore again. Undo can also finish an interrupted
+restore recorded by 2.6.0.
 
 ## Source layout
 
@@ -169,15 +207,50 @@ is invoked by the native build helper.
 python3 scripts/native/package.py --input .native-build/macos/Viezan.app --output .native-packages/macos --identity "Developer ID Application: …" --notary-profile Viezan
 ```
 
-Windows packaging requires `windeployqt`, NSIS and an installed signing certificate
-(`--qt-bin`, `--certificate-thumbprint`); an optional `--patched-runtime` directory
+For notarized macOS distribution, packaging requires a Developer ID Application identity and an
+Apple notarization profile. It signs the helpers and app, staples Apple's tickets
+to the app and DMG, then mounts the final image read-only to check its contents.
+To repeat the distribution check on a downloaded DMG, run
+`python3 scripts/native/verify_macos_dmg.py /path/to/Viezan.dmg` on macOS 15 or later.
+Before publication, GitHub Actions tests the uploaded DMG on a fresh Mac of each
+architecture. It checks the installed window on first launch and after upgrading
+from 2.4.2, 2.5.2 and 2.6.0. The 2.6.0 test uses the native updater's DMG
+replacement code. The 2.5.2 updater opens the DMG for a manual install.
+If 2.6.0 cannot launch, install the notarized DMG over the existing app in
+Applications. See [offline transfer](docs/migration/native-implementation/legacy-data-migration.md)
+for history and settings from Electron 2.4.x.
+See the [required GitHub Actions secrets](.github/WORKFLOWS.md#macos-release-credentials).
+
+Internal Previews use one Apple Development certificate. The packager checks
+its pinned fingerprint on the app and each helper inside the mounted DMG.
+Keep this identity and bundle identifier across updates so macOS can recognize
+the app's Accessibility and Screen Recording grants. Users moving from an older
+ad hoc Preview may need to authorize the first development-signed build.
+Public releases require Developer ID and notarization. Choose `preview-arm64.dmg`
+for Apple Silicon or `preview-x64.dmg` for Intel. After dragging Viezan to
+Applications and trying to open it,
+testers who trust the build can use **Open Anyway** if macOS offers it in
+**System Settings → Privacy & Security**. Preview DMGs have no native update
+manifest.
+
+Windows packaging requires `windeployqt` and NSIS. MSVC builds include the Visual
+C++ runtime DLLs from the Visual Studio redistributable directory in both the
+installer and the portable ZIP. Rebuild both packages when Visual Studio ships a
+runtime servicing update. Supply `--certificate-thumbprint`
+to sign the app and final installer with an installed certificate. An optional `--patched-runtime` directory
 is checked against its full manifest and pinned binary hashes. Linux packaging requires a provisioned
 linuxdeploy executable and its Qt plugin (`--linuxdeploy`, `--qt-bin`). Packaging
 emits version/platform/architecture-specific artifacts and checksum manifests.
-The manual release workflow uses prepared signing runners and uploads artifacts
-for review; it does not publish or install them. Publish the matching manifest
-and its `.json.sig` signature alongside each installer for the native updater to
-discover it. The release job signs manifests with the Ed25519 private key in the
+The manual macOS Preview workflow uploads both verified DMGs as workflow artifacts.
+The release workflow runs the macOS tests and installs the Windows candidate over
+2.5.2 in a clean runner profile, opens its Qt window, and verifies that the app
+loads the bundled Visual C++ DLLs. A trusted Windows signature enables the in-app
+upgrade from 2.5.2. An unsigned candidate gets manual installation instructions.
+The workflow stops if signature verification reports an invalid or untrusted signature.
+A version change on `develop` publishes the installers, manifests and their
+`.json.sig` files. Runs from other branches prepare a draft for a new version.
+When the version is already public, those runs keep the tested packages in their workflow artifacts.
+The release job signs manifests with the Ed25519 private key in the
 `VIEZAN_UPDATE_SIGNING_KEY` secret and stops when that secret is missing or does
 not match the public key in both `NativeUpdates` sources. Windows and Linux
 x64 packaging also writes `latest.yml` and `latest-linux.yml`, which let the retired
@@ -244,8 +317,7 @@ than permanently erased.
   has not been accepted on a real Linux machine.
 - With reduced transparency or high contrast turned on, Qt Glass surfaces become
   opaque and use stronger borders; the setting follows the OS while the app runs.
-- Qt Launcher lists currencies by ISO code only, and shows file results without
-  previews.
+- Qt Launcher file results have no previews.
 - Cloud AI, speech, search and currency conversion need their external services.
   Local model availability depends on the selected runtime: Ollama (`11434`),
   LM Studio (`1234/v1`) or llama.cpp (`8080/v1`), all on `127.0.0.1`. Select a

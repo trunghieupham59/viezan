@@ -19,7 +19,9 @@ namespace NativeBackup {
 QByteArray exportData(const QVariantMap &workspace, const QVariantList &interpretation) {
     if (!Interpretation::validateArchive(interpretation)) return {};
     const auto meetingData = QJsonDocument::fromVariant(interpretation).toJson(QJsonDocument::Compact);
-    const auto snapshot = QJsonDocument::fromVariant(workspace).toJson(QJsonDocument::Compact);
+    auto exported = workspace;
+    if (exported.value("pinnedModels").isNull()) exported["pinnedModels"] = QVariantList{};
+    const auto snapshot = QJsonDocument::fromVariant(exported).toJson(QJsonDocument::Compact);
     QMap<QString, QVariantMap> attachments;
     for (const auto &value : workspace.value("sessions").toList()) for (const auto &image : images(value.toMap())) attachments[image.toMap().value("id").toString()] = image.toMap();
     for (const auto &task : workspace.value("tasks").toList()) for (const auto &image : images(task.toMap().value("request").toMap())) attachments[image.toMap().value("id").toString()] = image.toMap();
@@ -44,8 +46,11 @@ Preview preview(const QByteArray &data) {
         if (hash(bytes) != root.value("interpretationSHA256") || error.error != QJsonParseError::NoError || !meetings.isArray()) return {};
         result.interpretation = meetings.toVariant().toList(); if (!Interpretation::validateArchive(result.interpretation)) return {};
     }
-    const auto state = WorkbenchDomain::recover(QJsonDocument::fromJson(snapshot, &error).toVariant().toMap());
+    const auto original = QJsonDocument::fromJson(snapshot, &error).toVariant().toMap();
+    const auto state = WorkbenchDomain::recover(original);
     if (error.error != QJsonParseError::NoError || state.isEmpty()) return result;
+    const auto preset = original.value("appearance").toMap().value("preset");
+    result.migratedAppearance = !preset.isNull() && preset != state.value("appearance").toMap().value("preset");
     for (const auto &record : root.value("attachments").toList()) {
         const auto image = record.toMap(); const auto id = image.value("id").toString();
         const auto bytes = QByteArray::fromBase64(image.value("data").toByteArray(), QByteArray::AbortOnBase64DecodingErrors);
@@ -55,6 +60,8 @@ Preview preview(const QByteArray &data) {
     }
     for (const auto &key : {"locale", "appearance", "voice", "speechProvider", "runtime", "rates", "autoTranslate", "autoTranslateDelay"}) if (state.contains(key)) result.preferences[key] = state.value(key);
     result.tasks = state.value("tasks").toList(); result.prompts = state.value("prompts").toList();
+    if (!state.value("defaultModel").isNull()) result.preferences["defaultModel"] = state.value("defaultModel");
+    if (!state.value("pinnedModels").isNull()) result.preferences["pinnedModels"] = state.value("pinnedModels");
     result.sessions = state.value("sessions").toList();
     // Same stored file: match identity, not the optional details (width, height, generator).
     const auto known = [&result](const QVariant &value) {

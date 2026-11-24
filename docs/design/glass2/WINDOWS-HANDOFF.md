@@ -2,7 +2,9 @@
 
 Đọc file này đầu tiên khi mở repo trên máy Windows. File này cho biết việc đã làm, phần còn lại, cách dựng app và thứ tự chạy prompt.
 
-Cập nhật lần cuối: 2026-11-03, sau ba lượt backend trên máy Mac.
+Các mục 1–7 ghi kế hoạch bàn giao ban đầu ngày 03/11/2026.
+
+**Trạng thái sau 2.6.0.** Qt đã có các màn W1–W5. CI của `develop` tại `3b14b195` đã build và chạy CTest với Qt 6.8.3 trên Windows và Ubuntu. Các thay đổi cục bộ sau đó đã qua CTest với Qt 6.12 trên macOS. Còn kiểm COM với trình soạn thảo Windows, FluentWinUI3, IME, trợ năng và bộ cài thật. [Backlog nghiệm thu](../../migration/reports/native-migration-report-20261124-open-work.md) · [Các màn Qt](../../migration/native-implementation/native-code-86.md)
 
 ## 1. Bối cảnh trong một phút
 
@@ -166,7 +168,7 @@ QML chỉ cần nối các phần dưới đây, không viết lại logic. `bri
   - "Nhắc sau 24 giờ" → `bridge.snoozeUpdate()`; đóng → `bridge.dismissUpdatePrompt()`.
   - Sau khi người dùng bấm "Kiểm tra" và kiểm tra xong → gọi `bridge.presentUpdateIfAvailable()`.
 - **Launcher (#45, #32):** khi chưa gõ, `bridge.launcherHome(quickSessionID)` trả các trang Viezan `{route, title}` (theo module đang bật, Cài đặt luôn có) và `continue {id, title, fresh}` nếu phiên Quick AI còn tin nhắn. Bảng lệnh Ctrl+K: `desktopIntegration.paletteQuery(text)` trả `{kind: calculation | ask | translate | lookup, value}` cho các dòng "= …", "Hỏi AI: …", "Dịch …", "Tra …" trước danh sách lệnh (chuỗi `paletteCalc`, `paletteAsk`, `paletteTranslate`, `paletteLookup`).
-- **Chat nhanh / Dịch nhanh:** backend có `retry`, `errorCode`, `providersEmpty`, `selectionUnavailable`; `DesktopPanels.qml` hiện mới chỉ hiện lỗi vùng chọn và nút Dừng (BACKEND-GAPS #49). Vùng chọn > 5 000 ký tự: submit bị từ chối, nên báo `sourceTooLong` như macOS.
+- **Chat nhanh và Dịch nhanh.** `DesktopPanels.qml` hiển thị lỗi, cho thử lại khi đủ điều kiện và chặn gửi bản dịch quá 5.000 grapheme với `sourceTooLong`. Enter xuống dòng, Ctrl+Enter gửi. Trên Windows, bản dịch trùng vùng chọn nhận thông báo trung tính. Nút Hoàn tác chỉ bật sau khi đọc lại đúng văn bản đã thay.
 
 Làm từng bước, mỗi bước một phiên agent mới. Xong một bước, xem báo cáo rồi mới sang bước sau.
 

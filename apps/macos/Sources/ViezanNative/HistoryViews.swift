@@ -626,7 +626,7 @@ private struct DangerSolidBody: View {
 enum HistoryEmptyMessage {
     static func keys(query: String, archived: Bool) -> (title: String, hint: String?) {
         if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return (archived ? "historyArchivedEmpty" : "historyEmpty", nil) }
-        return ("noHistory", "historyNoMatchesHint")
+        return ("noHistory", archived ? "historyNoMatchesHint" : "historySearchAgainHint")
     }
 }
 

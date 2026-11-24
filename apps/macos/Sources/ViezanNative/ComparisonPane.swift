@@ -31,7 +31,7 @@ struct ComparisonPane: View {
     var body: some View {
         if choosing ?? children.isEmpty { chooser } else { results }
     }
-    private var current: String { session?.model ?? "" }
+    private var current: String { session.map(store.workspace.modelForNextRequest) ?? "" }
     private var others: [String] { selected.filter { $0 != current } }
     private func provider(_ model: String) -> String { model.split(separator: ":").first.map(String.init) ?? "" }
     private func providerName(_ model: String) -> String { nativeModelLabel(model, store: store).components(separatedBy: " · ").first ?? provider(model) }

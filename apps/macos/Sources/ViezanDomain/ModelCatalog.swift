@@ -1,6 +1,20 @@
 import Foundation
 
 public enum ModelCatalog {
+    public struct Listing: Sendable {
+        public let models: [String]
+        public let sizes: [String: Int64]
+        public init(models: [String], sizes: [String: Int64] = [:]) {
+            self.models = models; self.sizes = sizes
+        }
+    }
+    public static func listing(provider: String) async throws -> Listing {
+        if provider == "ollama" {
+            let sizes = try await LocalProvider.catalog()
+            return Listing(models: sizes.keys.sorted(), sizes: sizes)
+        }
+        return try await Listing(models: models(provider: provider))
+    }
     public static func models(provider: String) async throws -> [String] {
         if provider == "ollama" { return try await LocalProvider.models() }
         let local = ["lmstudio", "llamacpp"].contains(provider)

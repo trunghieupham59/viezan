@@ -136,9 +136,9 @@ Item {
             ColumnLayout {
                 width: parent.width
                 ResultMessage { objectName: "apps-result"; visible: root.removalBusy; text: root.t("running"); Accessible.name: text }
-                ResultMessage { objectName: "apps-unverified"; visible: !!root.removalService?.operationUnverified; text: root.message("operationUnverified") }
+                ResultMessage { objectName: "apps-unverified"; color: root.colors.danger; visible: !!root.removalService?.operationUnverified; text: root.message("operationUnverified") }
                 ResultMessage { objectName: "apps-trash-undo"; visible: root.trashUndo; text: root.message("trashUndo") }
-                Label { id: inventoryErrors; objectName: "apps-errors"; Accessible.role: Accessible.AlertMessage; visible: !!text; text: (root.removalService?.errors || []).map(code => root.message(code)).join("\n"); wrapMode: Text.Wrap; Layout.fillWidth: true }
+                Label { id: inventoryErrors; color: root.colors.danger; objectName: "apps-errors"; Accessible.role: Accessible.AlertMessage; visible: !!text; text: (root.removalService?.errors || []).map(code => root.message(code)).join("\n"); wrapMode: Text.Wrap; Layout.fillWidth: true }
             }
         }
         RowLayout {
@@ -184,7 +184,12 @@ Item {
                     implicitHeight: Math.max(root.metrics.navControl + root.metrics.small, contentItem.implicitHeight + topPadding + bottomPadding)
                     enabled: !root.busy; highlighted: root.selectedID === modelData.id
                     Accessible.role: Accessible.ListItem; Accessible.selectable: true; Accessible.name: modelData.name; Accessible.selected: highlighted
-                    background: Rectangle { radius: root.metrics.radius; color: row.highlighted ? row.palette.alternateBase : "transparent"; border.width: inventory.activeFocus && row.ListView.isCurrentItem ? root.metrics.focusRingWidth : 0; border.color: row.palette.highlight }
+                    background: Rectangle {
+                        color: "transparent"; radius: root.metrics.radius
+                        border.width: inventory.activeFocus && row.ListView.isCurrentItem ? root.metrics.focusRingWidth : 0
+                        border.color: row.palette.highlight
+                        Kit.GlassLens { visible: row.highlighted; anchors.fill: parent; anchors.margins: parent.border.width }
+                    }
                     contentItem: RowLayout {
                         IconImage { color: row.enabled ? row.palette.text : row.palette.disabled.text; source: "icons/apps.svg"; sourceSize.width: root.metrics.icon; sourceSize.height: root.metrics.icon; Accessible.ignored: true }
                         ColumnLayout {
@@ -218,7 +223,7 @@ Item {
                             Label { text: root.selected?.installLocation || ""; visible: !!text; wrapMode: Text.WrapAnywhere; Layout.fillWidth: true; font.family: "monospace" }
                             Label { text: root.selected?.estimatedBytes ? root.tpl("appsEstimatedSize", {size: (root.selected.estimatedBytes / 1048576).toLocaleString(Qt.locale(root.bridge.locale), 'f', 1)}) : ""; visible: !!text; Layout.fillWidth: true; wrapMode: Text.Wrap }
                             Label { text: root.consequence(root.selected); wrapMode: Text.Wrap; Layout.fillWidth: true }
-                            Label { objectName: "apps-blocked"; Accessible.role: Accessible.AlertMessage; text: !root.removalService?.inventoryComplete ? root.message("inventoryIncomplete") : root.selected?.reason ? root.message(root.selected.reason) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                            Label { objectName: "apps-blocked"; color: root.colors.danger; Accessible.role: Accessible.AlertMessage; text: !root.removalService?.inventoryComplete ? root.message("inventoryIncomplete") : root.selected?.reason ? root.message(root.selected.reason) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
                             Kit.GlassButton { id: uninstallButton; objectName: "apps-uninstall"; palette.buttonText: enabled ? root.colors.danger : root.colors["text-disabled"]; text: root.t(root.selected?.source === "appimage" ? "appUninstall" : "appsUninstall"); visible: root.selected?.action !== "openSettings"; enabled: root.canRemove; popupOpen: confirm.visible; onClicked: root.requestRemoval() }
                             Kit.GlassButton { objectName: "apps-settings"; text: root.t("openSystemSettings"); visible: root.selected?.action === "openSettings"; enabled: !root.busy; onClicked: if (root.selected?.action === "openSettings" && !root.busy) root.openSettings() }
                         }

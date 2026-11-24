@@ -32,6 +32,7 @@ public enum ProviderDiscovery {
     public struct Snapshot: Equatable, Sendable {
         /// provider → model IDs ("provider:model"); a provider absent here did not answer.
         public var models: [String: [String]] = [:]
+        public var ollamaSizes: [String: Int64] = [:]
         /// Cloud providers that have a saved key (listing may still have failed).
         public var keyed: Set<String> = []
         /// Speech-to-text providers (OpenAI, Gemini, Groq) with a saved key.

@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:viezan}/apps/macos",
+            "name": "Debug ViezanNative (apps/macos)",
+            "target": "ViezanNative",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug ViezanNative (apps/macos)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:viezan}/apps/macos",
+            "name": "Release ViezanNative (apps/macos)",
+            "target": "ViezanNative",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release ViezanNative (apps/macos)"
+        }
+    ]
+}

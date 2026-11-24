@@ -1,5 +1,9 @@
 # Dịch (AI Translate)
 
+## AI mặc định dùng chung (2026-11-25)
+
+Bộ chọn “AI mặc định cho toàn ứng dụng” quyết định model cho lần dịch tiếp theo và các tính năng AI khác. Bản dịch đã lưu và các cột so sánh giữ model đã dùng.
+
 ## Native hiện tại — trợ năng macOS (2026-11-08)
 
 - Nội dung so sánh theo câu và bản ghép dùng cỡ chữ đọc; hai pane có tên nhóm, kết quả có giá trị trạng thái. Nút kiểu dịch giữ tên kiểu đang nhìn thấy trong nhãn trợ năng.
@@ -121,7 +125,7 @@ Ký hiệu loại: `size · variant · appearance`. "Chọn" = trạng thái đa
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
 | R1 | "So sánh model" | `sm · neutral · ghost` rect + icon lớp (nhãn ẩn < 760 px) | Bấm | Mở hộp thoại Mô hình dịch để thêm tối đa 2 model | Hộp thoại mở, focus ô tìm | Ẩn khi đang có ảnh |
-| R2 | Dùng làm nội dung gốc ← | `md · neutral · ghost` icon | Bấm | Bản dịch thành nguồn, cặp ngôn ngữ đảo (đích → nguồn), kết quả xoá | Hai ô đổi nội dung | Ẩn khi có ảnh; footer chỉ hiện khi có kết quả, không đang dịch, không cũ, không lỗi |
+| R2 | Dùng làm nguồn ← | Nút phụ, có tên trợ năng | Bấm | Bản dịch thành bản nháp và kết quả cũ được xoá. Ngôn ngữ đích trở thành nguồn. Nếu nguồn cũ là tự động, chọn đích khác nguồn mới. | Toast có **Hoàn tác**, trả lại bản nháp và cặp ngôn ngữ của đúng phiên vừa thao tác, kể cả sau khi chuyển phiên. | Khi có ảnh hoặc kết quả chưa sẵn sàng |
 | R3 | Sao chép ⧉ | `CopyButton` `md`; sau khi chép: `primary · soft` ✓ "Đã sao chép!" trong `COPY_FEEDBACK_DURATION_MS` | Bấm | Chép bản dịch (có cách đọc thì chép bản có cách đọc) | Icon ✓, vùng `aria-live` đọc "Đã sao chép!" | Ẩn với ảnh đã sửa |
 | R4 | Viết lại ✎ | `RewriteButton` `md · neutral · ghost` | Bấm | Viết lại bản dịch; cách đọc chạy lại nếu đang bật | "Đang viết lại…" | Như R3 |
 | R5 | Đọc to 🔊 | `SpeakButton` `md` | Bấm | TTS theo ngôn ngữ đích | ■ / spinner | Như R3 |

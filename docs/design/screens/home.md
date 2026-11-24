@@ -260,3 +260,5 @@ Bản vẽ so với mã:
 11. **Phím tắt lúc mới mount.** Launcher và Dịch nhanh hiện "Chưa đặt" cho tới khi main trả lời.
 12. **Phím tắt về Trang chủ, mô tả header.** Không có phím tắt riêng để về Trang chủ, và khoá `home_subtitle` có nhưng `PageHeader` không nhận `description`. Board cũng không vẽ mô tả, nên giữ như mã; phím tắt riêng: **đề xuất**.
 13. **Tải nhiều mục mỗi tính năng.** Board và mã đều chỉ một mục mới nhất mỗi tính năng; không có "Xem tất cả". Danh sách đầy đủ thuộc lịch sử từng trang (xem `boards/Histories.dc.html`).
+
+Trên Windows/Linux, khi đủ lịch sử, Trang chủ hiển thị tối đa ba hành động thường làm dưới phần gần đây, cùng bộ gợi ý với Chat trống. Trên macOS, nhóm này ở Chat trống. Cả hai chỉ dùng các hành động của module đang bật.

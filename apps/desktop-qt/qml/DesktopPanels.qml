@@ -17,17 +17,22 @@ AuxiliaryWindow {
     // A hidden panel must not convert the whole state on every change.
     readonly property var snapshot: visible ? bridge.state : ({sessions: [], tasks: []})
     readonly property var session: snapshot.sessions.find(value => value.id === ownerID)
+    readonly property string requestModel: session ? (snapshot.defaultModel, bridge.modelForNextRequest(session)) : ""
     readonly property var task: snapshot.tasks.find(value => value.request.sessionID === ownerID && value.status === "running")
     readonly property var latestTask: snapshot.tasks.find(value => value.request.sessionID === ownerID)
     readonly property bool translating: mode === "translateSelection"
     readonly property string draftText: session?.draft || ""
     readonly property int inputLength: translating || quickAI ? bridge.graphemeCount(draftText, quickAI) : 0
     readonly property bool tooLong: translating ? inputLength > 5000 : quickAI && inputLength > 3000
-    readonly property bool missingModel: { bridge.localModels; const available = bridge.availability(session?.model || ""); return bridge.providersEmpty || (available !== "available" && available !== "unknown") }
+    function unavailable(model) {
+        const available = bridge.availability(model)
+        return bridge.providersEmpty || (available !== "available" && available !== "unknown")
+    }
+    readonly property bool missingModel: (bridge.localModels, unavailable(requestModel))
     readonly property string errorCode: latestTask?.status === "failed" ? latestTask.errorCode || "providerError" : ""
     readonly property string answer: translating ? session?.output || "" : (session?.messages || []).filter(value => value.role === "assistant").slice(-1)[0]?.text || ""
     readonly property bool canSubmit: !!session && !task && !tooLong && !missingModel && !!session.draft.trim()
-    readonly property bool canRetry: !!latestTask && !task && !tooLong && !missingModel
+    readonly property bool canRetry: !!latestTask && !task && !tooLong && !(bridge.localModels, unavailable(latestTask.request.model))
         && latestTask.request.revision === session?.revision
         && (!quickAI || bridge.graphemeCount(latestTask.request.input || "", true) <= 3000)
         && (latestTask.status === "failed" || latestTask.status === "cancelled" || (latestTask.status === "succeeded" && !translating))
@@ -38,6 +43,15 @@ AuxiliaryWindow {
     minimumHeight: metrics.editor * 2
     flags: Qt.Tool | Qt.WindowStaysOnTopHint | Qt.WindowCloseButtonHint | Qt.WindowTitleHint
     title: t(mode)
+    function messageTurns() {
+        const turns = []
+        for (const message of (translating ? [] : session?.messages || [])) {
+            if (quickAI && message.role === "assistant" && turns.length && turns[turns.length - 1].length === 1 && turns[turns.length - 1][0].role === "user")
+                turns[turns.length - 1].push(message)
+            else turns.push([message])
+        }
+        return turns
+    }
     onOwnerIDChanged: { feedback = ""; modelMenu.close() }
     onActiveChanged: if (quickAI && !active && visible && !modelMenu.visible) hide()
     function command(name, values) {
@@ -156,7 +170,7 @@ AuxiliaryWindow {
                         Layout.fillWidth: !panel.quickAI
                         Kit.QuietButton {
                             id: modelButton; objectName: "quick-model"; visible: !panel.quickAI
-                            text: panel.bridge.shortModelName(panel.session?.model || "") || panel.t("model")
+                            text: panel.bridge.shortModelName(panel.requestModel) || panel.t("model")
                             Layout.fillWidth: true
                             enabled: !panel.task
                             ToolTip.visible: hovered && !modelMenu.visible; ToolTip.text: text
@@ -209,14 +223,26 @@ AuxiliaryWindow {
                     Kit.PrimaryButton { visible: panel.missingModel; text: panel.t("quickOpenSettings"); Layout.alignment: Qt.AlignHCenter; onClicked: panel.configure() }
                     Label { visible: !panel.missingModel && !panel.translating && !(panel.session?.messages || []).length; text: panel.t("ai_chat_popup_empty_desc"); wrapMode: Text.Wrap; Layout.fillWidth: true }
                     Repeater {
-                        model: panel.translating ? [] : panel.session?.messages || []
+                        model: panel.messageTurns()
                         delegate: Pane {
+                            id: turn
                             required property var modelData
-                            Layout.fillWidth: true; padding: panel.metrics.small
-                            background: Kit.FlatCard { visible: panel.quickAI || modelData.role === "user" }
+                            readonly property bool question: modelData[0].role === "user"
+                            Layout.fillWidth: true
+                            Layout.maximumWidth: !panel.quickAI && question ? body.width * panel.metrics.bubbleFraction : body.width
+                            Layout.alignment: !panel.quickAI && question ? Qt.AlignRight : Qt.AlignLeft
+                            padding: panel.metrics.small
+                            background: Kit.FlatCard { visible: panel.quickAI || turn.question }
                             contentItem: ColumnLayout {
-                                Label { text: modelData.role === "user" ? panel.t("ai_chat_popup_question_badge") : "Viezan"; color: panel.colors["text-muted"]; font.bold: true }
-                                TextArea { objectName: "quick-message-" + modelData.role; Accessible.ignored: modelData.role === "assistant" && modelData.id === panel.task?.id; Accessible.name: panel.t(modelData.role === "user" ? "you" : "response"); text: modelData.text; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; textFormat: TextEdit.PlainText; Layout.fillWidth: true; padding: 0; background: null }
+                                Repeater {
+                                    model: turn.modelData
+                                    delegate: ColumnLayout {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        Label { text: modelData.role === "user" ? panel.t("ai_chat_popup_question_badge") : "Viezan"; color: panel.colors["text-muted"]; font.bold: true }
+                                        TextArea { objectName: "quick-message-" + modelData.role; Accessible.ignored: modelData.role === "assistant" && modelData.id === panel.task?.id; Accessible.name: panel.t(modelData.role === "user" ? "you" : "response"); text: modelData.text; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; textFormat: TextEdit.PlainText; Layout.fillWidth: true; padding: 0; background: null }
+                                    }
+                                }
                             }
                         }
                     }
@@ -240,7 +266,7 @@ AuxiliaryWindow {
                 }
             }
         }
-        Kit.GlassComboBox {
+        SettingsPicker {
             visible: panel.translating; Layout.fillWidth: true
             readonly property var codes: panel.bridge.resources.nativeLanguages
             model: codes.map(value => panel.t("lang_" + value))
@@ -256,13 +282,16 @@ AuxiliaryWindow {
             Kit.GlassButton { text: panel.t("copy"); enabled: !!panel.answer; onClicked: panel.copyAnswer() }
             Kit.PrimaryButton {
                 objectName: "quick-replace"; text: panel.t("quickPaste"); enabled: panel.canReplace
-                onClicked: if (panel.desktop.replaceSelection(panel.answer)) panel.showFeedback(panel.t("quickReplaced"))
+                onClicked: {
+                    if (panel.desktop.replaceSelection(panel.answer)) panel.showFeedback(panel.t("quickReplaced"))
+                    else if (!panel.desktop.error) panel.showFeedback(panel.t("selectionUnchanged"))
+                }
             }
             Kit.QuietButton { visible: panel.desktop.canUndoSelection; text: panel.t("undoSelection"); onClicked: panel.desktop.undoSelection() }
         }
         RowLayout {
             visible: panel.quickAI; Layout.fillWidth: true
-            Kit.QuietButton { text: panel.bridge.shortModelName(panel.session?.model || "") || panel.t("model"); Layout.fillWidth: true; onClicked: panel.configure() }
+            Kit.QuietButton { id: quickAIModel; objectName: "quick-ai-model"; text: panel.bridge.shortModelName(panel.requestModel) || panel.t("model"); Accessible.name: panel.t("model") + " · " + text; Layout.fillWidth: true; enabled: !panel.task; popupOpen: modelMenu.visible; onClicked: modelMenu.open() }
             Label { text: panel.tpl("ai_chat_popup_turns", {count: (panel.session?.messages || []).filter(value => value.role === "user").length}); color: panel.colors["text-muted"] }
             Kit.GlassButton { text: panel.t("ai_chat_popup_open_in_chat"); onClicked: panel.openMain() }
         }
@@ -282,8 +311,9 @@ AuxiliaryWindow {
         property string ownerID: ""
         onAboutToShow: ownerID = panel.ownerID
         onOpened: modelList.forceActiveFocus(Qt.PopupFocusReason)
-        onClosed: modelButton.forceActiveFocus(Qt.PopupFocusReason)
+        onClosed: if (panel.visible) (panel.quickAI ? quickAIModel : modelButton).forceActiveFocus(Qt.PopupFocusReason)
         contentItem: ColumnLayout {
+            Label { text: panel.t("appDefaultAI"); Accessible.role: Accessible.Heading; font.bold: true; wrapMode: Text.Wrap; Layout.fillWidth: true }
             ListView {
                 id: modelList; activeFocusOnTab: true; objectName: "quick-model-list"; Accessible.role: Accessible.List; Accessible.name: panel.t("model"); Layout.fillWidth: true; Layout.fillHeight: true
                 implicitHeight: Math.min(contentHeight, panel.metrics.editor * 2)
@@ -304,7 +334,7 @@ AuxiliaryWindow {
                     required property int index
                     width: modelList.width
                     text: modelData.kind === "tier" ? panel.t(({fast:"tierFast",balanced:"tierBalanced",careful:"tierCareful"})[modelData.tier]) : modelData.kind === "setup" ? (modelData.provider === "local" ? panel.t("setupLocal") : panel.tpl("setupProvider", {provider: modelNames.providerName(modelData.provider)})) : panel.bridge.shortModelName(modelData.model)
-                    selected: modelData.model === panel.session?.model
+                    selected: modelData.model === panel.requestModel
                     highlighted: modelList.activeFocus && modelList.currentIndex === index
                     onClicked: modelList.choose(modelData)
                 }

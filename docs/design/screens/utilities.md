@@ -4,6 +4,8 @@
 
 Luật chung ở [`../foundations.md`](../foundations.md). Cửa sổ Launcher nổi được đặc tả riêng ở [`launcher.md`](launcher.md).
 
+Trên Qt, bộ ghi phím tắt công bố “Đang lưu phím tắt…” trong lúc dịch vụ xử lý yêu cầu áp dụng.
+
 ## 1. Mục đích
 
 Trang này là nơi người dùng **đặt phím mở Launcher** (cửa sổ tìm/hỏi nổi trên mọi ứng dụng) và **nhìn thấy mọi phím tắt Viezan trong một danh sách**, với các phím trùng được gắn nhãn. Trên macOS, trang còn giải quyết xung đột với Spotlight (⌘Space): tắt phím Spotlight, trả lại, hoặc dùng ⌥Space. Thành công là: công tắc Launcher bật, không có thông báo xung đột, danh sách "Tất cả phím tắt" không có hàng "Trùng phím".
@@ -184,3 +186,5 @@ Cả hai nút disabled trong lúc gọi. Hộp thoại không mở khi bảng l�
 5. Board LauncherStates vẽ thông báo trùng "Không đăng ký được ⌥ Space — Launcher vẫn mở được từ thanh menu" với "Đổi phím" — mã chỉ có toast lỗi; câu "mở được từ thanh menu" chỉ đúng với khay Windows/Linux (board SmallSurfaces), chưa kiểm chứng cho macOS. Đề xuất giữ toast + focus vào ô ghi phím.
 6. Không có skeleton khi đọc cài đặt; ô ghi phím chớp "Chưa cài" rồi mới hiện phím thật.
 7. Hộp thoại Spotlight dùng lại lớp `update-notification` của popup cập nhật — hợp lệ về hình nhưng tên lớp gây hiểu nhầm.
+
+Trên Qt, nút Thử phím tắt dùng kiểu nhẹ. Hộp ghi phím dùng màu nguy hiểm khi xảy ra xung đột hoặc thao tác lưu lỗi. Thông báo đang lưu dùng màu chữ thường.

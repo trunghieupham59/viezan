@@ -344,7 +344,10 @@ void DesktopIntegration::revealFile(const QString &path) {
 }
 
 bool DesktopIntegration::replaceSelection(const QString &text) {
-    const bool success = m_selection.replace(text); m_error = success ? QString{} : QString("selectionChanged"); emit changed(); return success;
+    const auto result = m_selection.replace(text);
+    m_error = result == WindowsSelectionText::Result::Failed ? QStringLiteral("selectionChanged") : QString{};
+    emit changed();
+    return result == WindowsSelectionText::Result::Replaced;
 }
 bool DesktopIntegration::undoSelection() {
     const bool success = m_selection.undo(); m_error = success ? QString{} : QString("selectionChanged"); emit changed(); return success;

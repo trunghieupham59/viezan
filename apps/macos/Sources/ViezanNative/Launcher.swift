@@ -150,6 +150,8 @@ private struct LauncherView: View {
     @State private var query = ""
     @State private var apps: [LauncherApplication] = []
     @State private var appsLoaded = false
+    @State private var appsUnavailable = false
+    @State private var catalogAttempt = 0
     @State private var files: [LauncherFile] = []
     private enum AIFileState {
         case idle, thinking(String), searching, results(FileSearchPlan, [LauncherFile]), failure(key: String, model: String)
@@ -229,7 +231,7 @@ private struct LauncherView: View {
             let useWith = section("launcher_section_use_with", query: trimmed.count > 40 ? String(trimmed.prefix(40)) + "…" : trimmed)
             result.append(.init(id: "ai", kind: .command, section: useWith, title: t(fresh ? "launcher_ai_followup" : "launcher_ai"), detail: t("launcher_command"), symbol: "sparkles") { _ in askAI(trimmed) })
             if LauncherAIFileRow.visible(trimmed, locale: store.workspace.locale, utilities: store.moduleEnabled("utilities")) {
-                let model = (fresh ? quick?.model : nil) ?? store.detachedSessionModel
+                let model = store.workspace.defaultModel ?? (fresh ? quick?.model : nil) ?? store.appModel
                 result.append(aiFileItem(section: useWith, model: model))
             }
             if store.moduleEnabled("translate") { result.append(.init(id: "translate", kind: .command, section: useWith, title: t("launcher_translate"), detail: t("launcher_command"), symbol: "character.bubble") { _ in openFeature(.translate, trimmed) }) }
@@ -479,7 +481,17 @@ private struct LauncherView: View {
                 .background(contentColor("surface-muted", scheme))
             }
         }
-        .task { focused = true; apps = await Task.detached { LauncherCatalog.applications() }.value; appsLoaded = true }
+        .task { focused = true }
+        .task(id: catalogAttempt) {
+            appsLoaded = false; appsUnavailable = false
+            let result = await Task.detached(priority: .utility) { Result { try LauncherCatalog.catalog() } }.value
+            guard !Task.isCancelled else { return }
+            switch result {
+            case .success(let found): apps = found
+            case .failure: appsUnavailable = true
+            }
+            appsLoaded = true
+        }
         .task(id: query) {
             files = []; let input = trimmed
             do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
@@ -530,6 +542,11 @@ private struct LauncherView: View {
             noticeChip(emptyFileMessage(plan), tone: .idle)
         } else if !appsLoaded {
             noticeChip(t("launcher_loading"), tone: .busy)
+        } else if appsUnavailable {
+            HStack(spacing: metric("small")) {
+                InlineFailure(title: t("launcher_apps_unavailable"))
+                retryButton { catalogAttempt += 1 }
+            }
         }
     }
 

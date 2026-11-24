@@ -9,15 +9,15 @@ struct LocalModelSettings: View {
     @State private var confirmComparison = false
     @State private var deletion: String?
     @Environment(\.settingsConfirm) private var confirm
-    @State private var downloading: String?
     @Environment(\.colorScheme) private var scheme
     private var parallel: Int { store.workspace.runtime?.parallel ?? 1 }
     private var context: Int { store.workspace.runtime?.context ?? 4096 }
     private typealias Suggestion = NativeResources.LocalModelSuggestion
     private static var suggestions: [Suggestion] { NativeResources.shared.localModelSuggestions }
+    private func formattedBytes(_ value: Int64, style: ByteCountFormatStyle.Style = .file) -> String {
+        ByteCountFormatStyle(style: style, spellsOutZero: false, locale: Locale(identifier: store.workspace.locale)).format(value)
+    }
     private var installed: [String] { store.localModels.filter { $0.hasPrefix("ollama:") } }
-    /// Size on disk of each installed model, read from the runtime whenever the list changes.
-    @State private var sizes: [String: Int64] = [:]
     /// The measured speed each installed model's row shows (Settings-Local board), read when the
     /// list changes and after a measurement ends.
     @State private var speeds: [String: LocalMeasurement] = [:]
@@ -31,24 +31,24 @@ struct LocalModelSettings: View {
     }
     private func installedDetail(_ model: String) -> String {
         var parts: [String] = []
-        if let bytes = sizes[model], bytes > 0 { parts.append(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) }
+        if let bytes = store.providers.ollamaSizes[model], bytes > 0 { parts.append(formattedBytes(bytes)) }
         parts.append(model)
         if let speed = speeds[model], let rate = speed.tokensPerSecond {
-            parts.append(store.text("localModelMeasured").replacingOccurrences(of: "{mode}", with: speed.id).replacingOccurrences(of: "{rate}", with: rate.formatted(.number.precision(.fractionLength(1)).locale(Locale(identifier: store.workspace.locale)))))
+            parts.append(store.text("localModelMeasured").replacingOccurrences(of: "{mode}", with: modeLabel(speed.id)).replacingOccurrences(of: "{rate}", with: rate.formatted(.number.precision(.fractionLength(1)).locale(Locale(identifier: store.workspace.locale)))))
         } else { parts.append(store.text("notMeasured")) }
         return parts.joined(separator: " · ")
     }
     private var ollamaRunning: Bool { store.providers.models["ollama"] != nil }
     private var anyBusy: Bool { store.modelManager.busy || store.localPerformance.busy }
-    private func resultSummary(id: String, tokens: Double?, gpu: Double?) -> String {
-        let speed = (tokens ?? 0).formatted(.number.precision(.fractionLength(1)))
-        let percentage = (gpu ?? 0).formatted(.number.precision(.fractionLength(1)))
-        return "\(id) · \(speed) token/s · GPU \(percentage)%"
+    private func modeLabel(_ id: String) -> String {
+        switch id {
+        case "gpu": store.text("gpuShare")
+        case "hybrid": store.text("localModeHybrid")
+        default: id
+        }
     }
     private func download(_ model: String) {
-        downloading = model
         store.modelManager.run(model: model) {
-            downloading = nil
             ToastCenter.shared.show(store.text("modelDownloaded").replacingOccurrences(of: "{model}", with: model), key: "local-model")
             store.discoverProviders()
         }
@@ -93,7 +93,7 @@ struct LocalModelSettings: View {
     private var runtimeCard: some View {
         CardSection(flush: true, title: store.text("runtimeSettings")) {
             CardRow(title: store.text("thisDevice"), detail: store.text("runtimeHint")) {
-                Text(store.text("deviceProcessors").replacingOccurrences(of: "{count}", with: String(store.localRuntime.processors)) + " · " + store.text("deviceMemory").replacingOccurrences(of: "{size}", with: ByteCountFormatter.string(fromByteCount: Int64(store.localRuntime.memory), countStyle: .memory))).foregroundStyle(.secondary)
+                Text(store.text("deviceProcessors").replacingOccurrences(of: "{count}", with: String(store.localRuntime.processors)) + " · " + store.text("deviceMemory").replacingOccurrences(of: "{size}", with: formattedBytes(Int64(store.localRuntime.memory), style: .memory))).foregroundStyle(.secondary)
             }
             CardRow(title: store.text("runtimeParallel")) {
                 SettingsPicker(id: "runtime-parallel", label: store.text("runtimeParallel"), options: [1, 2, 4].map { SettingsPickerOption(id: String($0), title: String($0)) },
@@ -116,18 +116,20 @@ struct LocalModelSettings: View {
         var text = store.text(store.modelManager.status)
         // Settings-Local board: "Đang tải · 2,1 / 4,9 GB"; the bar beside it carries the proportion.
         if let bytes = store.modelManager.transferred {
-            // One unit, named once: both numbers use the unit of the total.
-            let formatter = ByteCountFormatter(); formatter.countStyle = .file
-            formatter.allowedUnits = bytes.total >= 1_000_000_000 ? .useGB : bytes.total >= 1_000_000 ? .useMB : .useKB
-            let total = formatter.string(fromByteCount: bytes.total)
-            formatter.includesUnit = false
-            text += " · " + formatter.string(fromByteCount: bytes.completed) + " / " + total
+            text += " · " + Self.transferSize(completed: bytes.completed, totalBytes: bytes.total, locale: Locale(identifier: store.workspace.locale))
         }
         return text
     }
+    static func transferSize(completed: Int64, totalBytes: Int64, locale: Locale) -> String {
+        let units: ByteCountFormatStyle.Units = totalBytes >= 1_000_000_000 ? .gb : totalBytes >= 1_000_000 ? .mb : .kb
+        let format = ByteCountFormatStyle(style: .file, allowedUnits: units, spellsOutZero: false, locale: locale)
+        let partial = format.attributed.format(completed)
+        let number = partial.runs.filter { $0.byteCount == .value }.map { String(partial[$0.range].characters) }.joined()
+        return number + " / " + format.format(totalBytes)
+    }
     private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var customDownload: String? {
-        guard store.modelManager.busy, let model = downloading else { return nil }
+        guard let model = store.modelManager.downloading else { return nil }
         return Self.suggestions.contains(where: { $0.id == model }) ? nil : model
     }
     private var suggestionsCard: some View {
@@ -140,13 +142,16 @@ struct LocalModelSettings: View {
     }
     private func suggestionRow(_ item: Suggestion) -> some View {
         let have = installed.contains("ollama:" + item.id)
-        let active = store.modelManager.busy && downloading == item.id
-        let detail = store.text(item.note) + " · " + ByteCountFormatter.string(fromByteCount: item.bytes, countStyle: .file)
-        return CardRow(title: item.name + " · " + item.id, detail: detail) {
-            if have { StatusBadge(text: store.text("modelInstalled"), tone: .ready) }
-            else if active { downloadProgress }
-            else if !ollamaRunning { Text(store.text("modelWaitingRuntime")).font(.vzn("smallScale")).foregroundStyle(.secondary) }
-            else { downloadButton(item.id).accessibilityIdentifier("download-" + item.id) }
+        let active = store.modelManager.downloading == item.id
+        let detail = store.text(item.note) + " · " + formattedBytes(item.bytes)
+        return VStack(alignment: .leading, spacing: 0) {
+            CardRow(title: item.name + " · " + item.id, detail: detail, divider: !active) {
+                if active { stopButton }
+                else if have { StatusBadge(text: store.text("modelInstalled"), tone: .ready) }
+                else if !ollamaRunning { Text(store.text("modelWaitingRuntime")).font(.vzn("smallScale")).foregroundStyle(.secondary) }
+                else { downloadButton(item.id).accessibilityIdentifier("download-" + item.id) }
+            }
+            if active { downloadProgress; CardDivider() }
         }
     }
     private func downloadButton(_ model: String) -> some View {
@@ -156,15 +161,11 @@ struct LocalModelSettings: View {
         Button(store.text("stop"), role: .destructive) { store.modelManager.cancel() }.buttonStyle(.vznQuiet)
     }
     private var downloadProgress: some View {
-        VStack(alignment: .trailing, spacing: metric("tight")) {
-            HStack(spacing: metric("small")) {
-                Text(managerProgressText).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1)
-                stopButton
-            }
-            // Named for assistive technology; the text beside it carries the bytes.
-            if let progress = store.modelManager.progress { ProgressView(value: progress).frame(width: metric("sidebar") - metric("large")).accessibilityLabel(store.text("downloadModel")).accessibilityValue(managerProgressText) }
-            else { ProgressView().controlSize(.small).accessibilityLabel(store.text("downloadModel")).accessibilityValue(managerProgressText) }
-        }
+        VStack(alignment: .leading, spacing: metric("tight")) {
+            Text(managerProgressText).font(.vzn("smallScale")).foregroundStyle(.secondary).accessibilityHidden(true)
+            ProgressView(value: store.modelManager.progress, total: 1)
+                .progressViewStyle(.linear).accessibilityLabel(store.text("downloadModel")).accessibilityValue(managerProgressText)
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, metric("inset")).padding(.bottom, metric("small"))
     }
     private var otherModelRow: some View {
         CardRow(title: store.text("otherModel"), detail: store.text("modelID"), divider: false) {
@@ -174,11 +175,10 @@ struct LocalModelSettings: View {
         }
     }
     private func customDownloadRow(_ model: String) -> some View {
-        HStack(spacing: metric("small")) {
-            Text(model + " · " + managerProgressText).font(.vzn("smallScale")).foregroundStyle(.secondary)
-            Spacer()
-            stopButton
-        }.padding(.horizontal, metric("inset")).padding(.bottom, metric("inset"))
+        VStack(alignment: .leading, spacing: 0) {
+            CardRow(title: model, divider: false) { stopButton }
+            downloadProgress
+        }
     }
     private func noteText(_ key: String) -> some View {
         Text(store.text(key)).font(.vzn("smallScale")).foregroundStyle(.secondary).padding(.horizontal, metric("inset")).padding(.bottom, metric("inset"))
@@ -208,12 +208,7 @@ struct LocalModelSettings: View {
             }.padding(.horizontal, metric("small")).padding(.vertical, metric("small"))
         }
         .onChange(of: store.localPerformance.busy) { _, busy in if !busy { refreshSpeeds() } }
-        .task(id: installed) {
-            refreshSpeeds()
-            guard !installed.isEmpty else { sizes = [:]; return }
-            // A cancelled or failed read keeps the sizes already shown.
-            if let found = try? await LocalProvider.catalog(), !Task.isCancelled { sizes = found }
-        }
+        .task(id: installed) { refreshSpeeds() }
     }
     private var performance: LocalPerformance { store.localPerformance }
     @ViewBuilder private var performanceCard: some View {
@@ -263,7 +258,7 @@ struct LocalModelSettings: View {
     private static func number(_ value: Double?, digits: Int) -> String { (value ?? 0).formatted(.number.precision(.fractionLength(digits))) }
     private func resultRow(_ result: LocalMeasurement) -> some View {
         GridRow {
-            modeCell(result.id, label: result.id)
+            modeCell(result.id, label: modeLabel(result.id))
             if let error = result.error {
                 Text(store.text(error)).foregroundStyle(contentColor("danger", scheme)).gridCellColumns(3)
                 Text("")

@@ -6,6 +6,55 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+- The macOS Quiet fan profile ignores isolated CPU temperature spikes, ramps up under sustained load and slows down gradually. A CPU reading of 100 °C or higher still requests maximum fan speed immediately.
+- Choosing an AI model updates the default across features and quick actions. Existing chats remember their model, and running requests and retries keep the model they started with.
+
+- macOS uninstall plans let you select verified app-owned files in `/Library` and move them to the Trash with Finder authentication.
+- macOS groups app shortcuts with their target and lets you select the shortcut during uninstall. This fixes OpenVPN Connect’s own LaunchAgent appearing as shared when a shortcut points to the same installation.
+
+- macOS Applications gives the uninstall plan more room, wraps long paths and shows the full Trash button label in narrow windows.
+- Team-signed macOS development builds enable Hardened Runtime. The team-signed fan helper also checks it on the running Viezan client.
+- When the macOS file helper loses track of a broken app link after moving it, it reports failure and leaves the destination alone.
+- On Windows, replacing a selection with identical text gives neutral feedback. Undo is offered after the editor confirms the change.
+
+- Qt Settings adds a chat appearance preview, consistent form controls and grouped benchmark results. Importing preferences on either platform explains when a legacy appearance will change to Glass.
+- Qt Launcher groups Quick AI turns and opens the session's model picker. Quick Translate links to the active model. Application selection, shortcut errors and thermal readings use their Glass states.
+- Chat's tools button and panel announce “Composer tools” on both platforms. macOS Local AI sizes follow the app language.
+
+- History search suggests disabling Archive only while that filter is active.
+- macOS Dictionary adds the context command to the menu, preserves folded context and adapts entry actions to narrower windows.
+- macOS Launcher can retry an unavailable application catalog. The Qt currency picker shows localized names and file results describe future modification dates.
+- Windows/Linux screen capture announces its keyboard controls. The shortcut recorder announces when it is saving a shortcut.
+- Measured local models show GPU or CPU + GPU in Settings on both platforms.
+- macOS fan rules and the temperature list agree on the CPU/GPU group of an SMC sensor. Tied readings keep a stable order. Each failed fan action issues its own VoiceOver announcement.
+- macOS Settings shows cumulative Ollama download progress with localized phases and updates installed model sizes on refresh.
+- Restoring backup preferences on macOS and Qt now restores pinned models in order. Older backups without a pin list preserve local pins.
+- The macOS model picker shows the pin shortcut and count, keeps the selection mark on the right and allows unpinning at the eight-model limit.
+- On macOS, a failed backup import rolls back newly added images. If the previous workspace cannot be restored, Viezan keeps the images it references and prompts for a reload.
+- macOS Thermal distinguishes missing readers, read errors and empty sensor readings. Retry waits for the previous reader to exit. The fan control card offers registration when the service is not registered.
+- macOS Applications can resume an interrupted Undo from 2.6.0. If restoring
+  the original bundle name requires Finder, the journal can reveal the bundle
+  and verify it after you put it back.
+- Windows release notes give 2.5.2 users the upgrade instructions for the
+  actual installer's Authenticode status.
+- The Windows installer and portable ZIP include the Visual C++ runtime needed
+  to launch Viezan on a clean system.
+- Qt Chat accepts pasted clipboard images, including PNG data copied without a file.
+- macOS Dictionary keeps pasted context over 500 characters and shows how to shorten it before lookup.
+- macOS Thermal provides removal, System Settings and a permission check in the fan helper approval notice.
+
+## [2.6.1]
+
+- The macOS app loads its resources from the installed bundle so a GitHub-built
+  DMG opens on a machine without the Swift build directory.
+
+- Internal macOS Previews now use one pinned Apple Development certificate across
+  builds so macOS can match prior Accessibility and Screen Recording grants.
+- Public macOS updates require notarized Apple Silicon and Intel disk images.
+  The release workflow checks a visible window after a fresh install and upgrades
+  from 2.4.2, 2.5.2 and 2.6.0. Electron's fallback download name points to the
+  same verified disk image. Draft builds can still produce manual-install Previews.
+
 ## [2.6.0]
 
 - Translate: "Use as source" can be undone, restoring the draft and the

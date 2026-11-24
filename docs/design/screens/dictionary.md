@@ -1,7 +1,13 @@
 # Từ điển
 
-- Qt (2026-11-24): Ctrl+Shift+C cùng hành vi (qt-parity-11).
-- macOS (2026-11-24): ⌘⇧C bật / tắt ô ngữ cảnh; bật thì focus vào ô ngữ cảnh, tắt thì về ô từ; ngữ cảnh đang có chữ vẫn hiện ([native-code-68](../../migration/native-implementation/native-code-68.md)).
+## AI mặc định dùng chung (2026-11-25)
+
+Mỗi lượt tra mới dùng AI mặc định của ứng dụng. Chọn model ngay trong Từ điển cũng đổi mặc định cho các tính năng khác. Mục từ đã lưu giữ thông tin model của lượt tra.
+
+- Qt dùng Ctrl+Shift+C để bật/tắt ngữ cảnh. Khi đang chọn chữ, phím giữ thao tác với vùng chọn. Enter chỉ tra gợi ý khi nó còn thuộc đúng từ đang nhập.
+- Trên macOS, ⌘⇧C trong menu Lệnh và nút ngữ cảnh mở hoặc gập ô. Bản nháp giữ nguyên chữ đã gập cho lần tra tiếp theo. Dấu × xoá ngữ cảnh. Mở đưa con trỏ vào ô ngữ cảnh, gập trả về ô từ. Màn trống hiển thị gợi ý ↩, ⌘⇧C và ⌘V. Khi IME đang ghép chữ, lệnh giữ nguyên ô hiện tại.
+- Khi cột Từ điển trên macOS hẹp hơn cột đọc chuẩn, ô tra cao 44 pt, bộ chọn ngôn ngữ rút gọn và các nút model, lưu, dịch, hỏi AI dùng biểu tượng có tên trợ năng. Số từ đã lưu tính toàn bộ mục từ đủ điều kiện, danh sách gợi ý hiện tối đa năm. Chân mục từ ghi “Lưu trên thiết bị” khi lưu thành công. Lỗi tra cho thử lại. Khi không tìm thấy, hai hàng riêng đưa cụm từ sang Dịch hoặc Chat.
+- Trên macOS, khi nhập hoặc dán quá 500 ký tự, bản nháp của phiên giữ toàn bộ ngữ cảnh. Bộ đếm và lời nhắc dưới ô cho biết cần rút ngắn. Nút Tra cứu và phím Enter hoạt động lại khi ngữ cảnh còn tối đa 500 ký tự và từ cần tra hợp lệ. Một cụm ký tự người dùng nhìn thấy, kể cả emoji ghép, được tính là một ký tự.
 
 ## Native hiện tại — trợ năng macOS (2026-11-08)
 

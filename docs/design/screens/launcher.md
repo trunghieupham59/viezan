@@ -6,6 +6,8 @@ Luật chung ở [`../foundations.md`](../foundations.md). Cách đặt phím m�
 
 ## Native hiện tại (2026-11-24)
 
+- Trên macOS, nếu không đọc được thư mục ứng dụng nào, Launcher báo danh mục chưa khả dụng và có nút Thử lại. Ô tìm vẫn giữ chữ và các lệnh AI, web vẫn hoạt động. Thư mục đọc được nhưng trống là danh mục hợp lệ.
+- Bộ chọn tiền đích Qt hiện mã ISO và tên theo ngôn ngữ ứng dụng. Với tệp có ngày sửa trong tương lai, Qt hiện thời gian tương đối, tính “ngày mai” theo lịch địa phương.
 - Chỉ trên macOS, từ hai ký tự khớp tên hoặc từ khoá, nhóm Hệ thống hiện các hàng khớp theo thứ tự Ngăn máy ngủ, Tắt tiếng, Chế độ tối. Nhấn ↵ hoặc bấm hàng để bật/tắt và tiếp tục gõ trong Launcher. Chế độ tối đổi giao diện của hệ thống và cần quyền Tự động hóa cho System Events ở lần dùng đầu tiên. Thanh menu cũng có Ngăn máy ngủ và hiện biểu tượng cốc khi bật. Thoát Viezan sẽ kết thúc việc ngăn máy ngủ.
 - macOS nhận tiền tố "t …", "d …", "? …" như Qt và ghi gợi ý tiền tố ở chân khi chưa gõ (native-code-68).
 - Hàng tệp: nhãn "Tệp" / "Thư mục" ở mép phải, dòng phụ "~/Documents · hôm qua"; gói ứng dụng đọc là tệp; không liệt kê mục ẩn và thư mục build (macOS native-code-65, Qt qt-parity-4).
@@ -168,7 +170,7 @@ Máy tính (`evaluateQuickCalc`) chỉ trả lời khi câu rõ ràng là phép 
 | Thiếu khoá / model | Nhà cung cấp đang chọn chưa có khoá (trừ `local`) | Thân: logo + "Chưa có API key. Vào Cài đặt để thêm." + "Mở Cài đặt"; nút Gửi disabled | A11 |
 | Nội dung quá dài | Vượt `MAX_CHAT_INPUT_CHARS` | "{n} / {max}" + "Nội dung quá dài. Rút gọn để gửi." | Sửa chữ |
 | Module tắt | Module Launcher tắt | Phím không được đăng ký nên cửa sổ không mở (xem utilities.md) | — |
-| Không có quyền hệ thống | Không áp dụng; tìm tệp không có trên Linux (trả `UNAVAILABLE`, nhóm Tệp không xuất hiện) | — | — |
+| Tìm tệp trên Linux (Qt) | Từ hai ký tự, tìm theo tên trong Documents, Desktop và Downloads chuẩn | Hiện các mục tìm được trong giới hạn 20.000 mục, 2 giây và 50 kết quả | Mở tệp hoặc thư mục |
 
 ## 6. Luồng tương tác chính
 
@@ -262,7 +264,7 @@ Cửa sổ rộng cố định 760 px; không có ngưỡng bề rộng.
 6. **Tìm web cố định Google** (`launcher_web` = "Tìm trên Google", URL Google trong `electron/ipc/launcher.ts`); chọn công cụ tìm là **đề xuất**.
 7. Kích thước nút trong header AI: "Tìm kiếm", logo và Gửi là `md`, nút xoá trong ô là `xs` (nằm trong ô nên chấp nhận được). Footer dùng `xs` thống nhất.
 8. Khi Hỏi AI từ ô **trống** bằng Tab, chế độ AI mở với câu hỏi rỗng (không gửi) — đúng, nhưng footer chế độ tìm không nói Tab làm gì khi ô trống.
-9. Tìm tệp chỉ có trên macOS và Windows; trên Linux nhóm Tệp không bao giờ xuất hiện và không có thông báo.
+9. Qt tìm tệp cục bộ trên Windows/Linux. Ca thư mục chuyển hướng dùng fixture; giao diện desktop Linux thật và junction trên Windows thật cần kiểm riêng.
 
 ## Native implementation follow-up — 2026-10-28
 
@@ -286,3 +288,5 @@ Qt: `Launcher.qml` là cửa sổ riêng cùng hành vi (không viền, 22%, ẩ
 Shift+↵ Ctrl/⌘+↵ Tab Esc, chọn theo id); `LauncherTools::rank` xếp ứng dụng, ứng dụng mở gần đây lưu trong
 QSettings. Đã chạy trên Mac (máy tính, "Dùng … với", Dịch mở trang chính); danh sách ứng dụng Windows/Linux chưa
 chạy thật.
+
+Trên Qt, Launcher và cửa sổ phụ dùng góc bo 20 px. Chân Launcher tách khỏi danh sách bằng một vạch và hiện từng phím tắt bên cạnh hành động. Trong Quick AI, chip model mở bộ chọn của chính phiên đang hỏi.

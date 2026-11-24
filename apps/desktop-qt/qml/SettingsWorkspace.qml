@@ -50,7 +50,8 @@ Item {
     }
     Kit.AnchoredPanel {
         id: results; objectName: "settings-search-results"
-        desiredWidth: metrics.sidebar + metrics.editor
+        desiredWidth: metrics.dialogSmall
+        background: Kit.ReadingPanelSurface { radius: settings.metrics.controlRadius + settings.metrics.tight }
         focus: false
         // Keep Escape with the editing field so active IME composition is not dismissed.
         closePolicy: Popup.CloseOnPressOutside
@@ -133,12 +134,12 @@ Item {
                                 contentItem: RowLayout {
                                     spacing: metrics.small
                                     IconImage { source: "icons/" + settings.sectionIcons[sectionButton.modelData.id] + ".svg"; color: sectionButton.checked ? palette.link : palette.buttonText; sourceSize.width: metrics.icon; sourceSize.height: metrics.icon; Layout.preferredWidth: metrics.icon; Layout.preferredHeight: metrics.icon; Accessible.ignored: true }
-                                    Label { text: sectionButton.text; font.bold: sectionButton.checked; font.pointSize: Qt.application.font.pointSize * metrics.labelScale; color: palette.buttonText; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
+                                    Label { text: sectionButton.text; font.weight: sectionButton.checked ? Font.DemiBold : Font.Normal; font.pointSize: Qt.application.font.pointSize * metrics.labelScale; color: palette.buttonText; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
                                 }
                                 background: Rectangle {
                                     radius: metrics.radius
                                     color: !sectionButton.checked && sectionButton.hovered ? palette.alternateBase : "transparent"
-                                    Kit.ControlGlassSurface { anchors.fill: parent; visible: sectionButton.checked; radius: metrics.radius }
+                                    Kit.GlassLens { anchors.fill: parent; anchors.margins: sectionButton.visualFocus ? metrics.focusRingWidth : 0; visible: sectionButton.checked }
                                     border.width: sectionButton.visualFocus ? metrics.focusRingWidth : 0
                                     border.color: palette.highlight
                                 }
@@ -310,7 +311,6 @@ Item {
                         Kit.FilterGroup {
                             objectName: "settings-theme"
                             readonly property var keys: ["light", "dark", "system"]
-                            Layout.preferredWidth: metrics.sidebar + metrics.large
                             currentIndex: keys.indexOf(preferences.mode)
                             onSelectionChanged: index => { if (keys[index] !== preferences.mode) bridge.command("appearance", {mode: keys[index]}) }
                             Accessible.name: t("themeMode")
@@ -328,7 +328,6 @@ Item {
                         Kit.FilterGroup {
                             objectName: "settings-text-size"
                             readonly property var keys: ["small", "medium", "large"]
-                            Layout.preferredWidth: metrics.sidebar + metrics.large
                             currentIndex: keys.indexOf(preferences.textSize)
                             onSelectionChanged: index => { if (keys[index] !== preferences.textSize) bridge.command("appearance", {textSize: keys[index]}) }
                             Accessible.name: t("readingSize")
@@ -342,11 +341,27 @@ Item {
             Kit.CardBox {
                 title: t("previewHeading")
                 Layout.fillWidth: true
-                ColumnLayout {
-                    anchors.fill: parent
-                    spacing: metrics.inset
-                    Label { text: t("previewUser"); font.pointSize: settings.readingPointSize; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                    Label { text: t("previewAssistant"); font.pointSize: settings.readingPointSize; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                Item {
+                    width: parent.width
+                    implicitHeight: sample.implicitHeight + metrics.inset * 2
+                    Kit.AppBackdrop { anchors.fill: parent }
+                    ColumnLayout {
+                        id: sample
+                        anchors.fill: parent; anchors.margins: metrics.inset
+                        spacing: metrics.small
+                        Repeater {
+                            model: ["previewUser", "previewAssistant"]
+                            delegate: Pane {
+                                required property string modelData
+                                readonly property bool userMessage: modelData === "previewUser"
+                                Layout.alignment: userMessage ? Qt.AlignRight : Qt.AlignLeft
+                                Layout.maximumWidth: sample.width * metrics.bubbleFraction
+                                padding: metrics.small
+                                background: Kit.FlatCard { selected: parent.userMessage }
+                                contentItem: Label { text: settings.t(modelData); font.pointSize: settings.readingPointSize; wrapMode: Text.Wrap }
+                            }
+                        }
+                    }
                 }
             }
         }
