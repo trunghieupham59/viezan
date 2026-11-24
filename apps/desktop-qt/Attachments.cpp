@@ -11,6 +11,18 @@
 #include <QUuid>
 namespace {
 QString directory() { return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/attachments"; }
+bool validRestore(const QString &id, const QByteArray &bytes) {
+    return !QUuid(id).isNull() && !id.contains('/') && !id.contains('\\') && !bytes.isEmpty() && bytes.size() <= 20000000;
+}
+bool writeNew(const QString &path, const QByteArray &bytes) {
+    QFile output(path);
+    if (!output.open(QIODevice::WriteOnly | QIODevice::NewOnly)) return false;
+    output.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    const bool success = output.write(bytes) == bytes.size() && output.flush();
+    output.close();
+    if (!success) output.remove();
+    return success;
+}
 }
 namespace Attachments {
 QVariantMap ingest(const QUrl &source) {
@@ -35,15 +47,49 @@ QVariantMap ingest(const QUrl &source) {
 }
 bool restore(const QVariantMap &attachment, const QByteArray &bytes) {
     const auto id = attachment.value("id").toString();
-    if (QUuid(id).isNull() || id.contains('/') || id.contains('\\') || bytes.isEmpty() || bytes.size() > 20000000 || !QDir().mkpath(directory())) return false;
+    if (!validRestore(id, bytes) || !QDir().mkpath(directory())) return false;
     QFile::setPermissions(directory(), QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
-    QFile output(directory() + '/' + id);
-    if (QFileInfo::exists(output.fileName())) return data(attachment) == bytes;
-    if (!output.open(QIODevice::WriteOnly | QIODevice::NewOnly)) return false;
-    output.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
-    const bool success = output.write(bytes) == bytes.size() && output.flush(); output.close();
-    if (!success) output.remove();
-    return success;
+    const auto path = directory() + '/' + id;
+    if (QFileInfo::exists(path)) return data(attachment) == bytes;
+    return writeNew(path, bytes);
+}
+
+std::shared_ptr<RestoreBatch> RestoreBatch::prepare(const QVariantList &images, const QMap<QString, QByteArray> &bytes) {
+    auto batch = std::make_shared<RestoreBatch>();
+    if (images.isEmpty()) return batch;
+    if (!QDir().mkpath(directory())) return {};
+    QFile::setPermissions(directory(), QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+    batch->staged = std::make_unique<QTemporaryDir>(directory() + "/.import-XXXXXX");
+    if (!batch->staged->isValid()) return {};
+    for (const auto &image : images) {
+        const auto id = image.toMap().value("id").toString();
+        const auto contents = bytes.value(id);
+        if (!validRestore(id, contents) || !writeNew(batch->staged->filePath(id), contents)) return {};
+    }
+    batch->images = images;
+    batch->bytes = bytes;
+    return batch;
+}
+bool RestoreBatch::install() {
+    for (const auto &value : images) {
+        const auto image = value.toMap();
+        const auto id = image.value("id").toString();
+        const auto path = directory() + '/' + id;
+        if (QFileInfo::exists(path)) {
+            if (data(image) != bytes.value(id)) return false;
+        } else {
+            if (!QFile::rename(staged->filePath(id), path)) return false;
+            installed.append(path);
+        }
+    }
+    return true;
+}
+RestoreBatch::~RestoreBatch() {
+    rollback();
+}
+void RestoreBatch::rollback() {
+    for (const auto &path : installed) QFile::remove(path);
+    installed.clear();
 }
 QByteArray data(const QVariantMap &attachment) {
     const auto id = attachment.value("id").toString();

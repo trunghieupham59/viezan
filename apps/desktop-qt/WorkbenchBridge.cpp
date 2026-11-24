@@ -1,9 +1,12 @@
 #include "WorkbenchBridge.h"
+#include "HabitSuggestions.h"
+#include "HistoryStorage.h"
 #include "ModelLineup.h"
 #include "TextLanguage.h"
 #include "ImageTranslation.h"
 #include "LanguageSegments.h"
 #include "MarkdownDocument.h"
+#include <algorithm>
 #include <QDesktopServices>
 #include <QRegularExpression>
 #include <cmath>
@@ -45,7 +48,7 @@
 static QString freshID() { return QUuid::createUuid().toString(QUuid::WithoutBraces); }
 static void applyAppearance(const QVariantMap &state) {
     const auto appearance = state.value("appearance").toMap();
-    const auto mode = appearance.value("preset") == "midnight" ? QString("dark") : appearance.value("mode").toString();
+    const auto mode = appearance.value("mode").toString();
     auto *hints = QGuiApplication::styleHints();
     if (mode == "light") hints->setColorScheme(Qt::ColorScheme::Light);
     else if (mode == "dark") hints->setColorScheme(Qt::ColorScheme::Dark);
@@ -58,8 +61,25 @@ QJSValue WorkbenchBridge::scriptResources() {
     return m_scriptResources;
 }
 
+namespace {
+class DictionaryContextValidator final : public QValidator {
+public:
+    using QValidator::QValidator;
+    State validate(QString &text, int &) const override {
+        return WorkbenchDomain::graphemeCount(text) <= WorkbenchDomain::dictionaryContextLimit ? Acceptable : Invalid;
+    }
+};
+}
+
+qsizetype WorkbenchBridge::graphemeCount(const QString &text, bool trimmed) const {
+    return WorkbenchDomain::graphemeCount(trimmed ? text.trimmed() : text);
+}
+
 WorkbenchBridge::WorkbenchBridge(QObject *parent, const QString &storageFile, bool automaticProvider)
-    : QObject(parent), m_automaticProvider(automaticProvider) {
+    : QObject(parent), m_dictionaryContextValidator(new DictionaryContextValidator(this)), m_automaticProvider(automaticProvider) {
+    connect(&m_interpretation, &Interpretation::storageReloaded, this, [this] {
+        if (m_storageError == "interpretStorageError") { m_storageError.clear(); emit changed(); }
+    });
     connect(&m_ocrProvider, &LocalProvider::received, this, [this](const QVariantMap &event) {
         if (event.value("taskID") != m_ocrID) return;
         m_ocrText += event.value("chunk").toString();
@@ -111,13 +131,18 @@ WorkbenchBridge::WorkbenchBridge(QObject *parent, const QString &storageFile, bo
         m_pendingTranscript += (m_pendingTranscript.isEmpty() ? "" : "\n") + text; emit changed();
     });
     connect(&m_provider, &LocalProvider::received, this, [this](const QVariantMap &event) { command("receive", event); });
-    connect(&m_provider, &LocalProvider::modelsReady, this, [this](const QStringList &models, bool success) {
+    connect(&m_provider, &LocalProvider::modelsReady, this, [this](const QStringList &models, bool success, const QVariantMap &ollamaSizes) {
         m_loadingModels = false;
         // Say why a listing failed: a local runtime that does not answer, or a missing key.
         m_modelError = success ? QString() : ProviderDiscovery::localProviders.contains(m_catalogProvider) ? QString("providerOffline") : CredentialStore::has(m_catalogProvider) ? QString("providerError") : QString("providerMissingKey");
         if (success) {
+            if (m_catalogProvider == "ollama") {
+                m_providers.ollamaSizes = ollamaSizes;
+                m_localPerformance.setInstalledModels(models);
+            }
             m_localModels.removeIf([this](const QString &model) { return model.startsWith(m_catalogProvider + ":"); }); m_localModels.append(models); m_localModels.removeDuplicates(); m_localModels.sort();
             if (m_providers.checked) { m_providers.models[m_catalogProvider] = models; adoptAvailableModels(); }
+            invalidateCatalog();
         }
         emit changed();
     });
@@ -159,6 +184,8 @@ void WorkbenchBridge::reload() {
         m_state = recovered;
     }
     m_loadBlocked = false; m_storageError.clear(); applyAppearance(m_state); applyVoice(); emit changed();
+    invalidateHistory();
+    invalidateCatalog();
     // Quitting recorded when the current feature was left; reopening applies the same rule.
     command("launch");
 }
@@ -204,40 +231,80 @@ void WorkbenchBridge::applyVoice() {
     const auto rate = voice.value("rate", 1.0).toDouble();
     m_audio.configureVoice(provider, id, rate); m_interpretation.configureVoice(provider, id, rate);
 }
-void WorkbenchBridge::save() {
-    applyVoice();
-    m_saveTimer.stop();
-    if (m_loadBlocked) return;
+QString WorkbenchBridge::writeWorkspace(const QVariantMap &state, QSaveFile *transcripts) {
     const QFileInfo destination(m_file);
-    if (!WorkbenchDomain::validate(m_state) || destination.isSymLink() || (destination.exists() && !destination.isFile())) { m_storageError = "storageError"; emit changed(); return; }
+    if (!WorkbenchDomain::validate(state) || destination.isSymLink() || (destination.exists() && !destination.isFile())) return QStringLiteral("storageError");
     const QString directory = destination.absolutePath();
     QDir().mkpath(directory);
     QFile::setPermissions(directory, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
     QSaveFile file(m_file);
-    const auto data = QJsonDocument::fromVariant(m_state).toJson(QJsonDocument::Compact);
-    if (data.size() > 134217728 || !file.open(QIODevice::WriteOnly) || file.write(data) != data.size() || !file.commit()) m_storageError = "storageError";
-    else { QFile::setPermissions(m_file, QFileDevice::ReadOwner | QFileDevice::WriteOwner); m_storageError.clear(); }
+    const auto data = QJsonDocument::fromVariant(state).toJson(QJsonDocument::Compact);
+    if (data.size() > 134217728 || !file.open(QIODevice::WriteOnly) || file.write(data) != data.size()) return QStringLiteral("storageError");
+
+    if (transcripts) {
+        const auto error = HistoryStorage::commit(file, *transcripts);
+        if (error == "storageLoadError") { m_loadBlocked = true; m_storageError = error; }
+        if (!error.isEmpty()) return error;
+    } else if (!file.commit()) {
+        return QStringLiteral("storageError");
+    }
+    QFile::setPermissions(m_file, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    m_state = state;
+    return {};
+}
+void WorkbenchBridge::save() {
+    applyVoice();
+    m_saveTimer.stop();
+    if (m_loadBlocked) return;
+    m_storageError = writeWorkspace(m_state);
     emit changed();
 }
 bool WorkbenchBridge::moduleEnabled(const QString &route) const { return !m_state.value("disabledModules").toStringList().contains(route == "everywhere" ? "translate" : route); }
 void WorkbenchBridge::command(const QString &name, const QVariantMap &payload) {
     if (m_loadBlocked || m_shuttingDown) return;
     if (name == "clearHistory" && m_interpretation.busy()) return;
+    if (name == "clearHistory" && m_interpretation.blocked()) {
+        m_storageError = "interpretStorageError";
+        emit changed();
+        return;
+    }
     if (QStringList{"submit", "cancel", "retry", "select", "feature", "new", "module", "archive", "autoTranslate"}.contains(name)) ++m_autoTranslationEpoch;
     if (name == "submit" && m_localPerformance.busy()) for (const auto &session : m_state.value("sessions").toList()) if (session.toMap().value("id") == payload.value("sessionID") && session.toMap().value("model").toString().startsWith("ollama:")) return;
     if (name == "archive" && payload.value("value").toBool() && m_audio.owner() == payload.value("sessionID").toString()) m_audio.cancel();
     const auto before = m_state;
     auto stamped = payload; stamped["_updated"] = QDateTime::currentMSecsSinceEpoch() / 1000.0;
-    auto state = WorkbenchDomain::command(m_state, name, stamped, freshID(), freshID());
+    bool clearedOutput = false;
+    auto state = WorkbenchDomain::command(m_state, name, stamped, freshID(), freshID(), &clearedOutput);
     // Smart reset's notice is transient UI state: lift it out before the snapshot is kept or saved.
     const auto noticeBefore = m_resetNotice;
     if (QStringList{"new", "select", "reopenPrevious", "navigate"}.contains(name)) m_resetNotice.clear();
     if (state.contains("_resetNotice")) { m_resetNotice = state.value("_resetNotice").toMap(); state.remove("_resetNotice"); }
     if (state == m_state) { if (m_resetNotice != noticeBefore) emit changed(); return; }
+    // Deletion is visible (and undoable) only after its snapshot has been committed.
     const auto oldAppearance = m_state.value("appearance");
-    m_state = state;
+    const bool removesHistory = name == "removeSession" || name == "deleteArchived" || name == "trimHistory" || name == "clearHistory";
+    if (removesHistory) {
+        if (name == "clearHistory") {
+            QString error = "interpretStorageError";
+            const bool cleared = m_interpretation.clearAll([&](QSaveFile &transcripts) {
+                error = writeWorkspace(state, &transcripts);
+                return error.isEmpty();
+            });
+            if (!cleared) { m_storageError = error; emit changed(); return; }
+            m_resetNotice.clear();
+        } else {
+            m_storageError = writeWorkspace(state);
+            if (!m_storageError.isEmpty()) { emit changed(); return; }
+        }
+    } else {
+        m_state = state;
+    }
     if (m_state.value("appearance") != oldAppearance) applyAppearance(m_state);
-    if (name == "receive" && !payload.contains("terminal")) {
+    if (removesHistory) {
+        m_saveTimer.stop();
+        m_storageError.clear();
+        emit changed();
+    } else if (name == "receive" && !payload.contains("terminal")) {
         if (!m_saveTimer.isActive()) m_saveTimer.start();
         if (!m_notifyTimer.isActive()) m_notifyTimer.start();
     } else if (name == "draft") {
@@ -258,11 +325,17 @@ void WorkbenchBridge::command(const QString &name, const QVariantMap &payload) {
         if (interrupted) { m_state["tasks"] = tasks; emit changed(); }
     }
     if (name == "trimHistory" || name == "clearHistory") {
-        if (!m_storageError.isEmpty()) { m_state = before; emit changed(); return; }
         if (!Attachments::quarantineUnreferenced(m_state)) { m_storageError = "dataOperationError"; emit changed(); }
-        // Interpretation transcripts go after the workspace is saved, so a failure there loses nothing else.
-        if (name == "clearHistory") { m_resetNotice.clear(); if (!m_interpretation.clearAll()) m_storageError = "dataOperationError"; emit changed(); }
     }
+    // Suggestions and model sections reflect completed history edits. Draft saves
+    // and partial replies may notify the composer many times per second.
+    if (name == "draft" || name == "receive") {
+        if (clearedOutput || (name == "receive" && payload.contains("terminal"))) invalidateHistory();
+    } else if (name == "cancel" || before.value("sessions") != m_state.value("sessions") ||
+               before.value("active") != m_state.value("active") || before.value("disabledModules") != m_state.value("disabledModules")) {
+        invalidateHistory();
+    }
+    if (before.value("pinnedModels") != m_state.value("pinnedModels")) invalidateCatalog();
     if (name == "module" && !payload.value("enabled").toBool()) {
         const auto module = payload.value("id").toString();
         if (module == "interpret") m_interpretation.cancel();
@@ -287,6 +360,7 @@ void WorkbenchBridge::discoverProviders() {
     m_credentials.clear();
     for (const auto &provider : {"openai", "claude", "gemini", "groq", "tavily", "brave", "jina", "elevenlabs"}) if (CredentialStore::has(provider)) m_credentials.insert(provider);
     for (const auto &provider : ProviderDiscovery::cloudProviders) if (m_credentials.contains(provider)) next->keyed.insert(provider);
+    for (const auto &provider : {"openai", "gemini", "groq"}) if (m_credentials.contains(provider)) next->speechKeyed.insert(provider);
     auto probe = [this, epoch, next](const QStringList &providers, std::function<void()> done) {
         auto pending = std::make_shared<int>(providers.size());
         if (providers.isEmpty()) { done(); return; }
@@ -297,6 +371,7 @@ void WorkbenchBridge::discoverProviders() {
                 if (epoch != m_discoveryEpoch) return;
                 if (result.success) next->models[provider] = result.models;
                 else if (!ProviderDiscovery::localProviders.contains(provider)) next->failures[provider] = result.error;
+                if (provider == "ollama") next->ollamaSizes = result.ollamaSizes;
                 if (next->checked) publishProviders(*next);
                 if (--*pending == 0) done();
             });
@@ -311,9 +386,12 @@ void WorkbenchBridge::discoverProviders() {
     });
 }
 void WorkbenchBridge::publishProviders(const ProviderDiscovery::Snapshot &snapshot) {
-    m_providers = snapshot; m_localModels = snapshot.all(); adoptAvailableModels();
+    m_providers = snapshot; m_localModels = snapshot.all();
+    m_localPerformance.setInstalledModels(snapshot.models.value("ollama"));
+    adoptAvailableModels();
     // Speech-to-text picks the best transcription model the account lists.
     m_audio.setAvailableModels(m_localModels); m_interpretation.setAvailableModels(m_localModels);
+    invalidateCatalog();
     emit changed();
 }
 // Sessions that have produced nothing follow the device; sessions with work keep their
@@ -377,7 +455,7 @@ void WorkbenchBridge::shutdown() {
     m_audio.cancel();
     m_networkWorkers.clear(); m_provider.cancelAll();
     if (!m_loadBlocked) m_state = WorkbenchDomain::command(m_state, "leave", {{"_updated", QDateTime::currentMSecsSinceEpoch() / 1000.0}}, freshID(), freshID());
-    const auto recovered = WorkbenchDomain::recover(m_state);
+    const auto recovered = WorkbenchDomain::recover(m_state, false);
     if (!recovered.isEmpty()) m_state = recovered;
     save();
 }
@@ -388,6 +466,7 @@ bool WorkbenchBridge::copyImage(const QVariantMap &image) {
     QGuiApplication::clipboard()->setImage(picture); return true;
 }
 int WorkbenchBridge::clearableHistoryCount() const { return WorkbenchDomain::clearableHistory(m_state) + int(m_interpretation.sessions().size()); }
+QVariant WorkbenchBridge::dictionaryEntry(const QString &output) const { return WorkbenchDomain::dictionaryEntry(output); }
 QVariant WorkbenchBridge::dictionarySuggestions(const QString &output) const { return WorkbenchDomain::dictionarySuggestions(output); }
 QVariantMap WorkbenchBridge::removeSession(const QString &sessionID) {
     if (m_loadBlocked || m_shuttingDown) return {};
@@ -412,7 +491,11 @@ QVariantMap WorkbenchBridge::modelTiers(const QString &sessionID) const {
 void WorkbenchBridge::applyModelTier(const QString &sessionID, const QString &tier) {
     const auto model = modelTiers(sessionID).value(tier).toString(); if (model.isEmpty()) return;
     command("model", {{"sessionID", sessionID}, {"value", model}});
-    for (const auto &value : m_state.value("sessions").toList()) if (value.toMap().value("id") == sessionID && value.toMap().value("feature") == "chat") command("carefulReasoning", {{"sessionID", sessionID}, {"value", tier == "careful"}});
+    command("chatReasoning", {{"sessionID", sessionID}, {"value", tier == "careful" ? "high" : "auto"}});
+}
+bool WorkbenchBridge::canPinModel(const QString &model) const {
+    const auto pins = m_state.value("pinnedModels").toStringList();
+    return !m_loadBlocked && (pins.size() < WorkbenchDomain::pinnedModelLimit || pins.contains(model));
 }
 QStringList WorkbenchBridge::recentPicks() const {
     auto sessions = m_state.value("sessions").toList();
@@ -421,10 +504,42 @@ QStringList WorkbenchBridge::recentPicks() const {
     QStringList models; for (const auto &value : sessions) models << value.toMap().value("model").toString();
     return ModelLineup::recent(models);
 }
+QVariantList WorkbenchBridge::habitSuggestions(const QString &sessionID) const {
+    return HabitSuggestions::suggest(m_state, sessionID, QDateTime::currentDateTime());
+}
+bool WorkbenchBridge::supportsEffort(const QString &id) const { return !ModelLineup::effortFamily(id).isEmpty(); }
 QString WorkbenchBridge::shortModelName(const QString &id) const { return ModelLineup::shortName(id); }
 QVariantList WorkbenchBridge::modelSections(const QString &query, const QString &sessionID) const {
-    return ModelLineup::sections(query, modelTiers(sessionID), recentPicks(), m_providers.models, ProviderDiscovery::cloudProviders, ProviderDiscovery::localProviders);
+    return ModelLineup::sections(query, modelTiers(sessionID), recentPicks(), m_providers.models, ProviderDiscovery::cloudProviders, ProviderDiscovery::localProviders, m_state.value("pinnedModels").toStringList());
 }
+QVariantList WorkbenchBridge::settingsJump(const QString &query, const QString &locale, const QVariantList &sections) const {
+    const auto fold = [](const QString &value) {
+        static const QRegularExpression accents(QStringLiteral("[\\x{0300}-\\x{036f}]"));
+        return value.toCaseFolded().normalized(QString::NormalizationForm_D).remove(accents)
+            .replace(u'đ', u'd').normalized(QString::NormalizationForm_C);
+    };
+    const auto needle = fold(query.trimmed());
+    if (graphemeCount(needle) < 2) return {};
+    const auto locales = m_resources.value("locales").toMap();
+    const auto strings = locales.value(locale).toMap();
+    const auto english = locales.value("en").toMap();
+    const auto namesSection = [&](const QString &key) {
+        const auto label = fold(strings.value(key, english.value(key, key)).toString());
+        return graphemeCount(label) <= 40 && (label.startsWith(needle) || label.contains(u' ' + needle));
+    };
+    QVariantList titled, byTerm;
+    for (const auto &value : sections) {
+        const auto section = value.toMap();
+        if (namesSection(section.value("title").toString())) {
+            titled.append(value);
+        } else {
+            const auto terms = section.value("terms").toStringList();
+            if (std::any_of(terms.cbegin(), terms.cend(), namesSection)) byTerm.append(value);
+        }
+    }
+    return (titled + byTerm).mid(0, 3);
+}
+
 QVariantMap WorkbenchBridge::launcherHome(const QString &quickSessionID) const {
     static const QList<QPair<QString, QString>> pages{{"translate", "launcher_translate"}, {"dictionary", "launcher_dictionary"}, {"interpret", "launcher_live"}, {"chat", "ai_chat_popup_open_in_chat"}, {"settings", "quickOpenSettings"}};
     QVariantList list; for (const auto &[route, title] : pages) if (route == "settings" || moduleEnabled(route)) list.append(QVariantMap{{"route", route}, {"title", title}});
@@ -490,7 +605,7 @@ void WorkbenchBridge::attachImage(const QUrl &url, const QString &sessionID) {
     auto *watcher = new QFutureWatcher<QVariantMap>(this);
     connect(watcher, &QFutureWatcher<QVariantMap>::finished, this, [this, watcher, sessionID] {
         const auto image = watcher->result(); watcher->deleteLater();
-        if (image.isEmpty()) { m_storageError = "imageError"; emit changed(); return; }
+        if (image.isEmpty()) { emit actionFailed("imageError"); return; }
         command("addImage", {{"sessionID", sessionID}, {"image", image}});
     });
     watcher->setFuture(QtConcurrent::run([url] { return Attachments::ingest(url); }));
@@ -501,7 +616,7 @@ void WorkbenchBridge::exportSession(const QUrl &url, const QString &sessionID) {
     for (const auto &value : m_state.value("sessions").toList()) {
         if (value.toMap().value("id") != sessionID) continue;
         QSaveFile file(url.toLocalFile()); const auto data = QJsonDocument::fromVariant(value).toJson(QJsonDocument::Indented);
-        if (!file.open(QIODevice::WriteOnly) || file.write(data) != data.size() || !file.commit()) { m_storageError = "exportError"; emit changed(); }
+        if (!file.open(QIODevice::WriteOnly) || file.write(data) != data.size() || !file.commit()) { emit actionFailed("exportError"); }
         return;
     }
 }
@@ -541,12 +656,14 @@ void WorkbenchBridge::inspectBackup(const QUrl &url) {
 }
 void WorkbenchBridge::confirmBackup(bool restorePreferences) {
     ++m_autoTranslationEpoch;
-    if (m_loadBlocked || m_backupBusy || !m_backupPreview.valid) return;
+    if (m_loadBlocked || m_shuttingDown || m_backupBusy || !m_backupPreview.valid) return;
     m_backupBusy = true; m_backupStatus.clear(); emit changed(); const auto preview = m_backupPreview;
-    auto *watcher = new QFutureWatcher<bool>(this);
-    connect(watcher, &QFutureWatcher<bool>::finished, this, [this, watcher, preview, restorePreferences] {
-        bool success = watcher->result(); watcher->deleteLater();
-        if (success && !preview.interpretation.isEmpty()) success = m_interpretation.importArchive(preview.interpretation);
+    using Batch = std::shared_ptr<Attachments::RestoreBatch>;
+    auto *watcher = new QFutureWatcher<Batch>(this);
+    connect(watcher, &QFutureWatcher<Batch>::finished, this, [this, watcher, preview, restorePreferences] {
+        const auto batch = watcher->result();
+        watcher->deleteLater();
+        bool success = batch && !m_loadBlocked && !m_shuttingDown;
         if (success) {
             auto candidate = m_state; auto sessions = candidate.value("sessions").toList(); QSet<QString> known;
             for (const auto &item : sessions) known.insert(item.toMap().value("id").toString());
@@ -560,14 +677,26 @@ void WorkbenchBridge::confirmBackup(bool restorePreferences) {
             candidate["tasks"] = tasks; candidate["prompts"] = prompts;
             candidate["sessions"] = sessions;
             if (restorePreferences) for (auto it = preview.preferences.begin(); it != preview.preferences.end(); ++it) candidate[it.key()] = it.value();
-            QSaveFile file(m_file); const auto data = QJsonDocument::fromVariant(candidate).toJson(QJsonDocument::Compact);
-            QDir().mkpath(QFileInfo(m_file).absolutePath());
-            success = WorkbenchDomain::validate(candidate) && file.open(QIODevice::WriteOnly) && file.write(data) == data.size() && file.commit();
-            if (success) { m_state = candidate; applyVoice(); applyAppearance(m_state); QFile::setPermissions(m_file, QFileDevice::ReadOwner | QFileDevice::WriteOwner); m_backupPreview = {}; }
+            const auto commit = [&](QSaveFile *transcripts) {
+                if (!batch->install() || !writeWorkspace(candidate, transcripts).isEmpty()) {
+                    batch->rollback();
+                    return false;
+                }
+                batch->accept();
+                return true;
+            };
+            success = preview.interpretation.isEmpty() ? commit(nullptr) :
+                m_interpretation.importArchive(preview.interpretation, [&](QSaveFile &file) { return commit(&file); });
+            if (success) {
+                applyVoice(); applyAppearance(m_state);
+                m_backupPreview = {};
+                invalidateHistory();
+                invalidateCatalog();
+            }
         }
         m_backupBusy = false; m_backupStatus = success ? "succeeded" : "backupError"; emit changed();
     });
-    watcher->setFuture(QtConcurrent::run([preview] { return NativeBackup::materialize(preview); }));
+    watcher->setFuture(QtConcurrent::run([preview] { return NativeBackup::prepareAttachments(preview); }));
 }
 
 void WorkbenchBridge::cancelOCR() {
@@ -612,18 +741,18 @@ void WorkbenchBridge::captureImage(const QString &sessionID) {
             auto bus = QDBusConnection::sessionBus(); auto sender = bus.baseService(); sender.remove(0,1); sender.replace('.', '_');
             const auto token = "viezan_" + QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-');
             m_capturePortal = "/org/freedesktop/portal/desktop/request/" + sender + '/' + token;
-            if (!bus.connect("org.freedesktop.portal.Desktop", m_capturePortal, "org.freedesktop.portal.Request", "Response", this, SLOT(screenshotResponse(uint,QVariantMap)))) { m_storageError = "captureError"; cancelCapture(); emit changed(); return; }
+            if (!bus.connect("org.freedesktop.portal.Desktop", m_capturePortal, "org.freedesktop.portal.Request", "Response", this, SLOT(screenshotResponse(uint,QVariantMap)))) { emit actionFailed("captureError"); cancelCapture(); emit changed(); return; }
             QDBusInterface portal("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Screenshot", bus);
             auto *watcher = new QDBusPendingCallWatcher(portal.asyncCall("Screenshot", QString{}, QVariantMap{{"handle_token", token}, {"interactive", true}, {"modal", true}}), this);
-            connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, generation](QDBusPendingCallWatcher *call) { const QDBusPendingReply<QDBusObjectPath> reply = *call; call->deleteLater(); if (generation != m_captureGeneration) return; if (reply.isError() || reply.value().path() != m_capturePortal) { m_storageError = "captureError"; cancelCapture(); emit changed(); } });
+            connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, generation](QDBusPendingCallWatcher *call) { const QDBusPendingReply<QDBusObjectPath> reply = *call; call->deleteLater(); if (generation != m_captureGeneration) return; if (reply.isError() || reply.value().path() != m_capturePortal) { emit actionFailed("captureError"); cancelCapture(); emit changed(); } });
             QTimer::singleShot(120000, this, [this, generation] { if (generation == m_captureGeneration) cancelCapture(); }); return;
         }
 #endif
         auto *screen = QGuiApplication::screenAt(QCursor::pos()); if (!screen) screen = QGuiApplication::primaryScreen();
-        if (!screen) { m_storageError = "captureError"; cancelCapture(); emit changed(); return; }
+        if (!screen) { emit actionFailed("captureError"); cancelCapture(); emit changed(); return; }
         m_captureImage = screen->grabWindow(0).toImage();
         m_captureTemp = std::make_unique<QTemporaryFile>(QDir::tempPath() + "/viezan-region-XXXXXX.png");
-        if (m_captureImage.isNull() || qint64(m_captureImage.width())*m_captureImage.height() > 40000000 || !m_captureTemp->open() || !m_captureImage.save(m_captureTemp.get(), "PNG")) { m_storageError = "captureError"; cancelCapture(); emit changed(); return; }
+        if (m_captureImage.isNull() || qint64(m_captureImage.width())*m_captureImage.height() > 40000000 || !m_captureTemp->open() || !m_captureImage.save(m_captureTemp.get(), "PNG")) { emit actionFailed("captureError"); cancelCapture(); emit changed(); return; }
         m_captureTemp->flush(); const auto rect = screen->geometry();
         emit captureReady(QUrl::fromLocalFile(m_captureTemp->fileName()), rect.x(), rect.y(), rect.width(), rect.height());
     });
@@ -632,17 +761,17 @@ void WorkbenchBridge::finishCapture(double x, double y, double width, double hei
     if (m_captureOwner.isEmpty() || m_captureImage.isNull() || !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(width) || !std::isfinite(height) || x < 0 || y < 0 || width <= 0 || height <= 0 || x+width > 1.00001 || y+height > 1.00001) { cancelCapture(); return; }
     const auto rectangle = QRect(qRound(x*m_captureImage.width()), qRound(y*m_captureImage.height()), qRound(width*m_captureImage.width()), qRound(height*m_captureImage.height())).intersected(m_captureImage.rect());
     QTemporaryFile file(QDir::tempPath() + "/viezan-crop-XXXXXX.png");
-    if (rectangle.isEmpty() || !file.open() || !m_captureImage.copy(rectangle).save(&file, "PNG")) { m_storageError = "captureError"; cancelCapture(); emit changed(); return; }
+    if (rectangle.isEmpty() || !file.open() || !m_captureImage.copy(rectangle).save(&file, "PNG")) { emit actionFailed("captureError"); cancelCapture(); emit changed(); return; }
     file.flush(); const auto attachment = Attachments::ingest(QUrl::fromLocalFile(file.fileName()));
-    if (attachment.isEmpty()) m_storageError = "captureError"; else command("addImage", {{"sessionID", m_captureOwner}, {"image", attachment}});
+    if (attachment.isEmpty()) emit actionFailed("captureError"); else command("addImage", {{"sessionID", m_captureOwner}, {"image", attachment}});
     cancelCapture(); emit changed();
 }
 void WorkbenchBridge::screenshotResponse(uint code, const QVariantMap &results) {
     if (m_captureOwner.isEmpty() || m_capturePortal.isEmpty()) return;
     if (code == 0) {
         const QUrl url(results.value("uri").toString()); const auto attachment = url.isLocalFile() ? Attachments::ingest(url) : QVariantMap{};
-        if (attachment.isEmpty()) m_storageError = "captureError"; else command("addImage", {{"sessionID", m_captureOwner}, {"image", attachment}});
-    } else if (code != 1) m_storageError = "captureError";
+        if (attachment.isEmpty()) emit actionFailed("captureError"); else command("addImage", {{"sessionID", m_captureOwner}, {"image", attachment}});
+    } else if (code != 1) emit actionFailed("captureError");
     cancelCapture(); emit changed();
 }
 
@@ -654,7 +783,11 @@ QVariantMap WorkbenchBridge::quickTranslate() const {
 QString WorkbenchBridge::quickTranslateTarget(const QString &text) const { return TextLanguage::target(quickTranslate(), TextLanguage::detect(text)); }
 QString WorkbenchBridge::createDetachedSession(const QString &feature, const QString &draft) {
     if (m_loadBlocked || !moduleEnabled(feature) || !QStringList{"chat", "translate", "dictionary"}.contains(feature)) return {};
-    const auto id = freshID(); m_state = WorkbenchDomain::command(m_state, "newDetached", {{"feature", feature}, {"draft", draft}}, id, freshID()); save(); return id;
+    const auto id = freshID();
+    m_state = WorkbenchDomain::command(m_state, "newDetached", {{"feature", feature}, {"draft", draft}}, id, freshID());
+    save();
+    invalidateHistory();
+    return id;
 }
 
 QStringList WorkbenchBridge::sentences(const QString &text) const { return LanguageSegments::sentences(text); }
@@ -693,7 +826,7 @@ QVariantList WorkbenchBridge::chartArtifacts(const QString &text) const {
 
 void WorkbenchBridge::exportImage(const QUrl &url, const QVariantMap &image) {
     if (!url.isLocalFile()) return; const auto bytes = Attachments::data(image); QSaveFile file(url.toLocalFile());
-    if (bytes.isEmpty() || !file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) { m_storageError = "exportError"; emit changed(); }
+    if (bytes.isEmpty() || !file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) { emit actionFailed("exportError"); }
 }
 void WorkbenchBridge::reuseImage(const QString &sessionID, const QVariantMap &image) {
     if (Attachments::data(image).isEmpty()) return;
@@ -708,12 +841,15 @@ QString WorkbenchBridge::imageTranslationText(const QString &output) { return Im
 void WorkbenchBridge::exportTranslatedImage(const QUrl &url, const QVariantMap &image, const QString &output) {
     if (!url.isLocalFile()) return;
     const auto bytes = ImageTranslation::render(image, output); QSaveFile file(url.toLocalFile());
-    if (bytes.isEmpty() || !file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) { m_storageError = "exportError"; emit changed(); }
+    if (bytes.isEmpty() || !file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) { emit actionFailed("exportError"); }
 }
 
 void WorkbenchBridge::scheduleTranslation(const QString &id) {
+    const auto feature = m_state.value("feature").toString();
+    // Undo in a background session must leave the active editor's pending translation alone.
+    if (m_state.value("active").toMap().value(feature) != id) return;
     const auto epoch = ++m_autoTranslationEpoch;
-    if (!m_state.value("autoTranslate").toBool() || m_loadBlocked || m_shuttingDown || !m_storageError.isEmpty() || m_state.value("feature") != "translate" || m_state.value("active").toMap().value("translate") != id) return;
+    if (!m_state.value("autoTranslate").toBool() || m_loadBlocked || m_shuttingDown || !m_storageError.isEmpty() || feature != "translate") return;
     QVariantMap owner;
     for (const auto &value : m_state.value("sessions").toList()) { const auto session=value.toMap(); if (session.value("comparisonParent")==id) return; if (session.value("id")==id) owner=session; }
     if (owner.isEmpty() || owner.value("archived").toBool() || (owner.value("draft").toString().trimmed().isEmpty() && owner.value("images").toList().isEmpty())) return;

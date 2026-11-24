@@ -30,22 +30,22 @@ ColumnLayout {
             }
             Kit.CardRow {
                 title: data.t("trimHistory"); detail: data.t("trimHistoryConfirm")
-                SettingsDangerButton { objectName: "settings-trim-history"; text: data.t("trimHistory"); enabled: !data.blocked; onClicked: trim.open() }
+                SettingsDangerButton { objectName: "settings-trim-history"; text: data.t("trimHistory"); enabled: !data.blocked; popupOpen: trim.visible; onClicked: trim.openFrom(this) }
             }
             Kit.CardRow {
                 title: data.t("clearHistory"); detail: data.t("clearHistoryDetail"); divider: false
-                SettingsDangerButton { objectName: "settings-clear-history"; text: data.t("clearHistoryAction"); enabled: !data.blocked && data.historyCount > 0; onClicked: clearAll.open() }
+                SettingsDangerButton { objectName: "settings-clear-history"; text: data.t("clearHistoryAction"); enabled: !data.blocked && data.historyCount > 0; popupOpen: clearAll.visible; onClicked: clearAll.openFrom(this) }
             }
         }
     }
     SettingsConfirm {
-        id: trim; objectName: "settings-trim-dialog"; bridge: data.bridge
+        id: trim; fallbackFocusItem: keep; objectName: "settings-trim-dialog"; bridge: data.bridge
         title: data.t("trimHistory"); message: data.t("trimHistoryConfirm"); actionText: data.t("trimHistory")
         actionEnabled: !data.blocked
         onAccepted: data.runHistory("trimHistory")
     }
     SettingsConfirm {
-        id: clearAll; objectName: "settings-clear-dialog"; bridge: data.bridge
+        id: clearAll; fallbackFocusItem: keep; objectName: "settings-clear-dialog"; bridge: data.bridge
         title: data.t("clearHistory"); message: data.t("clearHistoryConfirm").replace("{count}", data.historyCount)
         actionText: data.t("clearHistoryAction"); actionEnabled: !data.blocked && data.historyCount > 0
         onAccepted: data.runHistory("clearHistory")
@@ -60,13 +60,13 @@ ColumnLayout {
             width: parent.width; spacing: data.metrics.small
             Kit.CardRow {
                 title: data.t("exportBackup")
-                Kit.GlassButton { text: data.t("exportBackup"); enabled: !data.bridge.backupBusy && !data.bridge.loadBlocked; onClicked: exportPicker.open() }
+                Kit.GlassButton { text: data.t("exportBackup"); enabled: !data.bridge.backupBusy && !data.bridge.loadBlocked; popupOpen: exportPicker.visible; onClicked: exportPicker.open() }
             }
             Kit.CardRow {
                 title: data.t("importBackup"); divider: data.bridge.backupPreview.newSessions !== undefined
-                Kit.GlassButton { text: data.t("importBackup"); enabled: !data.bridge.backupBusy && !data.bridge.loadBlocked; onClicked: importPicker.open() }
+                Kit.GlassButton { text: data.t("importBackup"); enabled: !data.bridge.backupBusy && !data.bridge.loadBlocked; popupOpen: importPicker.visible; onClicked: importPicker.open() }
             }
-            BusyIndicator { running: data.bridge.backupBusy; visible: running }
+            BusyIndicator { objectName: "backup-busy"; Accessible.name: data.t("backupTitle"); running: data.bridge.backupBusy; visible: running }
             ColumnLayout {
                 visible: data.bridge.backupPreview.newSessions !== undefined
                 Layout.fillWidth: true

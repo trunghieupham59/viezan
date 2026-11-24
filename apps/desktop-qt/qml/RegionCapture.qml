@@ -36,7 +36,29 @@ Window {
         }
     }
     Item {
-        id: keys; anchors.fill: parent; focus: true
+        id: keys; anchors.fill: parent; focus: true; activeFocusOnTab: true
+        // Arrows position the rectangle. Shift + arrows resize its trailing edges.
+        // Enter retains the existing full-screen shortcut, Space accepts the region.
+        Keys.onPressed: event => {
+            const dx = event.key === Qt.Key_Left ? -1 : event.key === Qt.Key_Right ? 1 : 0
+            const dy = event.key === Qt.Key_Up ? -1 : event.key === Qt.Key_Down ? 1 : 0
+            if ((!dx && !dy) || width < 1 || height < 1) return
+            const r = capture.selection.width > 0 && capture.selection.height > 0 ? capture.selection
+                    : Qt.rect(Math.floor(width / 4), Math.floor(height / 4), Math.max(1, Math.floor(width / 2)), Math.max(1, Math.floor(height / 2)))
+            if (event.modifiers & Qt.ShiftModifier) {
+                capture.selection = Qt.rect(r.x, r.y, Math.max(1, Math.min(width - r.x, r.width + dx)),
+                                            Math.max(1, Math.min(height - r.y, r.height + dy)))
+            } else {
+                capture.selection = Qt.rect(Math.max(0, Math.min(width - r.width, r.x + dx)),
+                                            Math.max(0, Math.min(height - r.height, r.y + dy)), r.width, r.height)
+            }
+            event.accepted = true
+        }
+        Keys.onSpacePressed: event => {
+            const r = capture.selection
+            event.accepted = r.width > 0 && r.height > 0
+            if (event.accepted) capture.bridge.finishCapture(r.x / width, r.y / height, r.width / width, r.height / height)
+        }
         Accessible.name: capture.t("captureRegionHint")
         Keys.onEscapePressed: capture.bridge.cancelCapture()
         Keys.onReturnPressed: capture.bridge.finishCapture(0,0,1,1)

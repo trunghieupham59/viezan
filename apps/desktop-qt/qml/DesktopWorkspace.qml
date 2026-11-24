@@ -2,7 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-ScrollView {
+NamedScrollView {
+    scrollName: page.t(page.route === "everywhere" ? "qtEverywhereTitle" : "utilitiesTitle")
     id: page
     required property var bridge
     // One conversion of the bridge state per change, shared by every binding below.
@@ -31,14 +32,15 @@ ScrollView {
         Kit.Columns {
             // Windows/Linux Everywhere (Review 18): how text comes in, and verified permissions.
             Kit.Card {
+                Accessible.name: page.t("translateSelection")
                 visible: page.route === "everywhere"
                 Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
                 ColumnLayout {
                     anchors.fill: parent; spacing: 0
-                    Label { text: page.t("translateSelection"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale; Layout.bottomMargin: page.metrics.small }
+                    Label { text: page.t("translateSelection"); Accessible.role: Accessible.Heading; font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale; Layout.bottomMargin: page.metrics.small }
                     Kit.CardRow {
                         title: page.t("replaceSelection"); detail: page.t("selectionReplacementHint")
-                        Kit.StatusBadge { objectName: "selection-capability"; idle: !page.desktop.canReplaceSelection; text: page.t(page.desktop.canReplaceSelection ? "selectionReplacementAvailable" : "selectionReplacementUnavailable") }
+                        Kit.StatusBadge { objectName: "selection-capability"; idle: !page.desktop.canReplaceSelection; tone: "success"; text: page.t(page.desktop.canReplaceSelection ? "selectionReplacementAvailable" : "selectionReplacementUnavailable") }
                     }
                     DesktopSettings { bridge: page.bridge; desktop: page.desktop; route: "everywhere"; Layout.fillWidth: true }
                     // Quick translate's own pair and the model it uses (the app's current choice).
@@ -78,6 +80,7 @@ ScrollView {
                     implicitHeight: previewCard.implicitHeight + page.metrics.gutter * 2
                     Kit.AppBackdrop { anchors.fill: parent }
                     Kit.Card {
+                        Accessible.name: page.t("quickPreview")
                         id: previewCard
                         x: page.metrics.gutter; y: page.metrics.gutter
                         width: parent.width - page.metrics.gutter * 2
@@ -94,22 +97,24 @@ ScrollView {
                 Kit.GlassButton { text: page.t("openInTranslate"); onClicked: page.newTranslation() }
             }
             Kit.Card {
+                Accessible.name: page.t("allShortcuts")
                 visible: page.route === "utilities"
                 Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
                 ColumnLayout {
                     anchors.fill: parent; spacing: 0
-                    Label { text: page.t("allShortcuts"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale; Layout.bottomMargin: page.metrics.small }
+                    Label { text: page.t("allShortcuts"); Accessible.role: Accessible.Heading; font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale; Layout.bottomMargin: page.metrics.small }
                     DesktopSettings { Layout.fillWidth: true; bridge: page.bridge; desktop: page.desktop; route: page.route }
                     Kit.CardRow { title: page.t("commands"); detail: page.t("shortcutDetail_commands"); divider: false; Kit.KeyCap { text: Qt.platform.os === "osx" ? "⌘ K" : "Ctrl + K" } }
                 }
             }
             Kit.Card {
+                Accessible.name: page.t("launcherPitch")
                 visible: page.route === "utilities"
                 padding: page.metrics.gutter
                 Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
                 ColumnLayout {
                     anchors.fill: parent; spacing: page.metrics.inset
-                    Label { text: page.t("launcherPitch"); Layout.fillWidth: true; wrapMode: Text.Wrap; font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.titleScale }
+                    Label { text: page.t("launcherPitch"); Accessible.role: Accessible.Heading; Layout.fillWidth: true; wrapMode: Text.Wrap; font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.titleScale }
                     Label { text: page.t("launcherPitchDetail"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
                     Kit.PrimaryButton { text: page.t("openLauncher"); icon.source: "icons/search.svg"; onClicked: page.bridge.desktopIntegration.trigger("launcher") }
                 }

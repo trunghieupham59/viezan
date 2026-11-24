@@ -13,7 +13,7 @@ Item {
         anchors.centerIn: parent
         width: Math.max(0, Math.min(state.metrics.reading, state.width - state.metrics.inset * 2))
         spacing: state.metrics.small
-        Label { text: state.heading; font.bold: true; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
+        Label { Accessible.role: Accessible.Heading; text: state.heading; font.bold: true; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
         Label { text: state.detail; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; color: palette.placeholderText; Layout.fillWidth: true }
     }
 }

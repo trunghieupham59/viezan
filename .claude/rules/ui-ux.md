@@ -108,6 +108,12 @@ Apply these decisions to SwiftUI/AppKit and Qt Quick controls.
 - Errors that belong to a field appear under that field with `aria-invalid`
   and `aria-describedby`; errors about a whole action or pair (e.g. same
   source and target language) use a toast.
+- A toast reports an event (one action's result or failure). A condition that
+  holds until it is fixed (blocked storage, missing permission, a stopped
+  sensor reader, recording in progress) stays in the page or the shell band,
+  with its control (retry, stop). Do not tint a whole toast or failure band
+  red: the level reads from the icon shape and colour. Error toasts stay until
+  closed or replaced.
 - Async results announce politely (`aria-live="polite"`), with `aria-busy`
   while streaming so partial text is not read word by word.
 

@@ -75,6 +75,8 @@ forced termination can still lose unsaved changes.
 presentations. `demo.failure` fails the first attempt and succeeds on retry;
 `demo.slow` streams slowly so independent cancellation can be exercised.
 `recovery-fixture.json` is decoded/recovered by both Swift and Node contract tests.
+`update-signature-fixture.json` is an update manifest with its Ed25519 signature and
+a throwaway public key; the Swift and Qt update checks must accept it and reject any change.
 No fixture is an actual AI answer or translation. The deterministic fixture path accesses no keys, network, system capture,
 Electron storage or cloud service. The new Ollama adapter is a separate network path.
 

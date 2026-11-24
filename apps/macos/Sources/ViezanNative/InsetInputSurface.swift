@@ -9,18 +9,16 @@ struct InsetInputSurface: View {
     var baseRole = "surface-subtle"
     var enabled = true
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.solidSurfaces) private var solidSurfaces
 
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
-    private var solid: Bool { reduceTransparency || contrast == .increased }
+    private var solid: Bool { solidSurfaces }
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius, style: .continuous) }
     private var editing: Bool { enabled && focused }
 
     var body: some View {
         shape.fill(contentColor(enabled ? baseRole : "surface-subtle", scheme))
             .overlay {
-                if glass && !solid && enabled {
+                if !solid && enabled {
                     // `.field`: an inner shade along the top edge reads as a
                     // recess, distinct from the raised action lenses.
                     shape.inset(by: metric("hairline"))
@@ -33,7 +31,7 @@ struct InsetInputSurface: View {
             .overlay {
                 // A hairline at rest, the stronger neutral edge while editing;
                 // the caret is the main focus cue, never an accent ring.
-                shape.strokeBorder(contentColor(contrast == .increased ? "text-muted" : editing || solid ? "border-strong" : "border", scheme),
+                shape.strokeBorder(contentColor(editing || solid ? "border-strong" : "border", scheme),
                                    lineWidth: metric("hairline"))
             }
             .allowsHitTesting(false)

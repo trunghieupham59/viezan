@@ -1,5 +1,14 @@
 # Cài đặt
 
+## Native hiện tại — Model AI local (2026-11-24)
+
+- Khi tải model: "Đang tải · 2,1 / 4,9 GB", hai số chung một đơn vị; runtime không báo kích thước thì giữ phần trăm hoặc không ghi số (macOS native-code-65, Qt qt-parity-4).
+- Model đã cài: dòng phụ "2,6 GB · ID · <chế độ> · 48,2 token/giây" (kết quả của cấu hình đang áp dụng, không có thì nhanh nhất) hoặc "Chưa đo được"; không có dung lượng thì bỏ phần đó (macOS native-code-66, Qt qt-parity-5 và qt-parity-7).
+
+## Native hiện tại — trợ năng macOS (2026-11-08)
+
+- Danh sách mục và từng section là nhóm trợ năng có tên; picker đang mở báo trạng thái chọn. Hàng điều hướng giữ vòng focus riêng với lens chọn.
+
 ## Liquid Glass 2.0 trên macOS (2026-11-03, Đợt 5)
 
 Nguồn hình: `docs/design/glass2/boards/Settings-*.png` và `Overlays-Settings.png`.
@@ -16,7 +25,7 @@ Nguồn hình: `docs/design/glass2/boards/Settings-*.png` và `Overlays-Settings
 - **Picker là lớp nổi của shell** (`SettingsPicker`). Nút dạng pill kính, bấm vào thì
   mở danh sách `.float` neo dưới nút. Hàng cao 40; mục đang dùng là lens kèm ✓.
   Giọng hệ thống được nhóm theo ngôn ngữ. ↑↓ để di chuyển, Return để chọn, Escape
-  hoặc bấm ra ngoài để đóng. Các preset khác vẫn dùng popup hệ thống.
+  hoặc bấm ra ngoài để đóng.
 - **Hộp thoại xác nhận** dùng `BlockingDialog`, nằm giữa trang, chỉ cho việc không
   hoàn tác được: xoá khoá, dọn lịch sử, xoá model. Nút nguy hiểm đỏ đặc. Đo hiệu
   năng hỏi trước bằng nút chính "Bắt đầu", rồi hiện thẻ kết quả như cũ.
@@ -25,7 +34,7 @@ Nguồn hình: `docs/design/glass2/boards/Settings-*.png` và `Overlays-Settings
   từ khoá. Không có mục nào khớp thì hiện "Không có mục cài đặt nào khớp."
 - **Dưới 760.** Cột mục thay bằng một picker "icon · tên mục ⌄", danh sách vẫn chia
   theo nhóm.
-- **Qt (Windows/Linux), preset Glass.** Cột mục rộng 204 (`sidebar − large`) và đổi
+- **Qt (Windows/Linux).** Cột mục rộng 204 (`sidebar − large`) và đổi
   sang picker khi vùng Cài đặt dưới 672, để cửa sổ mặc định (1044) vẫn giữ hai cột
   khi sidebar ứng dụng đang mở.
 
@@ -141,15 +150,13 @@ Một thẻ không tiêu đề (`.ui-settings-card`), tiêu đề mục "Chung" 
 
 ### 4.2 Giao diện (`AppearanceSection.tsx`)
 
-Hai cột: các thẻ (`.appearance-cards`) bên trái, xem trước (`.appearance-preview`, 300) bên phải. Ba trục độc lập theo `AGENTS.md` và `foundations.md` §2.
+Một cột thẻ, thứ tự hàng: Chế độ → Màu nhấn → Cỡ chữ. Glass là giao diện duy nhất (2026-11-24): không còn hàng chọn phong cách và không còn khung xem trước. Chế độ và màu nhấn độc lập theo `AGENTS.md`.
 
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
-| A1 | Chế độ: Sáng · Tối · Hệ thống | `ButtonGroup sm` ở `aside` của thẻ "Chế độ" | Chọn | `setTheme('light' | 'dark' | 'system')` | Cả cửa sổ đổi ngay; "Hệ thống" theo `prefers-color-scheme` (bắt sự kiện thay đổi) | **Bị khoá** khi phong cách đang lưu là `darkOnly` (Midnight): mô tả đổi thành "Phong cách đang chọn chỉ có bản tối" |
-| A2 | Phong cách: Graphite · Glass · Paper · Corporate · Midnight | `ThemePresetPicker` — `role="radiogroup"`, mỗi ô `role="radio"` `aria-checked`, `Button size="lg"`; Midnight có nhãn "Luôn tối" | Bấm / phím mũi tên | `setThemePreset` | Di chuột hoặc focus vào ô → xem trước đổi theo ô đó (`onPreview`), cửa sổ vẫn giữ lựa chọn đã lưu; dòng ghi chú `aria-live="polite"` đọc "Tên · mô tả" của ô đang xem | — |
-| A3 | Màu nhấn: Theo phong cách · Tím · Hồng · Xanh ngọc · Xanh lá · Hổ phách · Đỏ | `AccentPicker` — `role="radiogroup"`, chấm tròn `role="radio"` `aria-label` | Bấm / phím mũi tên | `setThemeAccent` (`'auto'` không đặt `data-accent`) | Hover/focus → xem trước màu; chấm vẽ theo chế độ thật của cửa sổ | — |
+| A1 | Chế độ: Sáng · Tối · Hệ thống | `ButtonGroup sm` ở `aside` của thẻ "Chế độ" | Chọn | `setTheme('light' | 'dark' | 'system')` | Cả cửa sổ đổi ngay; "Hệ thống" theo `prefers-color-scheme` (bắt sự kiện thay đổi) | — |
+| A3 | Màu nhấn: Mặc định · Tím · Hồng · Xanh ngọc · Xanh lá · Hổ phách · Đỏ | `AccentPicker` — `role="radiogroup"`, chấm tròn `role="radio"` `aria-label` | Bấm / phím mũi tên | `setThemeAccent` (`'auto'` không đặt `data-accent`) | Chấm vẽ theo chế độ thật của cửa sổ | — |
 | A4 | Cỡ chữ: Nhỏ · Vừa · Lớn | `FontSizePicker` → `ButtonGroup sm` ở `aside` thẻ "Cỡ chữ" | Chọn | `setFontSize` → `html[data-text-size]`, mọi token cỡ chữ nhân `--vzn-text-scale` (0,9 / 1 / 1,15) | Cả ứng dụng đổi cỡ chữ ngay; nút, khoảng cách và bố cục giữ nguyên | — |
-| A5 | Xem trước | `ThemePreview` (`aside aria-label="Xem trước"`) | Theo hover/focus của A2/A3 | Vẽ một cảnh AI Chat thu nhỏ (tiêu đề, tin trợ lý, tin người dùng, ô soạn) bằng persona đang xem | Tối nếu persona `darkOnly` hoặc cửa sổ đang tối | — |
 
 ### 4.3 Mô hình AI (`ApiKeysSection.tsx`)
 
@@ -266,7 +273,7 @@ Một danh sách: năm module không gian làm việc theo `APP_MODULES` (AI Cha
 | U3 | Thông báo cập nhật | Công tắc | Bật/tắt | `updater.setNotificationPreferences({ enabled })` — chỉ ảnh hưởng cửa sổ thông báo tự phát hiện; kiểm tra thủ công vẫn chạy | Công tắc tắt khi lưu; lỗi → toast đỏ `update_notification_action_error` (khoá `settings-update-preference`) | Hàng ẩn đến khi đọc được giá trị |
 | U4 | Hàng Trạng thái — có bản mới | Chữ `role="status"` "Có bản cập nhật: v{version}" + nút "Tải bản cập nhật" / "Tải bản cài đặt" (khi có `downloadUrl`) `sm · primary · solid` | Bấm | `updater.download()` | — | — |
 | U5 | Đang tải | "Đang tải… {percent}%" + `Meter` dưới hàng | — | — | Cập nhật theo sự kiện `onStatus` | U2 tắt |
-| U6 | Đã tải | "Sẵn sàng cài đặt: v{version}" + "Cài đặt & khởi động lại" `sm · primary · solid` (hoặc "Mở bộ cài thủ công" khi `installMode: 'open-installer'`); với `installMode: 'restart'` có thêm "Mở bộ cài thủ công" `sm · neutral · outline` | Bấm | `updater.install()` / `updater.openInstaller()` | — | — |
+| U6 | Đã tải | "Sẵn sàng cài đặt: v{version}" + "Cài đặt và khởi động lại" `sm · primary · solid` khi app tự thay được chính nó (`canInstall`: bundle macOS ghi được, bản Windows đã cài bằng trình cài, AppImage Linux ghi được); nếu không, hoặc sau khi tự cài lỗi, nút đó là "Mở gói đã tải" | Bấm | Lưu trạng thái, rồi `install()`: thay app, thoát và mở lại bản mới; lỗi lưu thì không cài. Đường thủ công: `openInstaller()` | "Đang cài đặt bản cập nhật…", nút tắt trong lúc cài; lỗi: "Không tự cài được bản cập nhật. Mở gói đã tải để cài thủ công." | Tắt khi đang cài (macOS: cả khi đang đo hiệu năng AI local) |
 | U7 | Đã mới nhất | "Bạn đang dùng phiên bản mới nhất (v{version})" | — | — | — | — |
 | U8 | Lỗi | Không có hàng; toast (khoá `settings-update-error`): đỏ "Kiểm tra cập nhật thất bại: …"; vàng khi `error-codesign`; đỏ `update_notification_action_error` khi tải lỗi trong lúc vẫn còn bản mới | — | Store giữ trạng thái `available`/`downloaded` khi lỗi đến sau, nên nút U4 vẫn dùng để thử lại | Toast rời đi khi rời Cài đặt và hiện lại khi mở lại | — |
 
@@ -297,7 +304,6 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 | Thiếu khoá / model | Không có khoá đám mây, runtime chưa chạy, engine STT thiếu khoá | "Chưa có khoá" (xám), "Chưa chạy", "Cần … key" (vàng); hàng "Thiết lập runtime local" với nút chính | Thêm khoá, Mở trang tải runtime |
 | Module tắt | Một module bị tắt | Trong Cài đặt chỉ thấy công tắc tắt; trang/lệnh của module ẩn ở nơi khác. Module cuối bị khoá | Bật lại |
 | Không có quyền hệ thống | — | Trang Cài đặt không có hàng xin quyền (quyền Trợ năng/Ghi màn hình nằm ở `HotkeySection`, trang Launcher & phím tắt) | — |
-| Phong cách luôn tối | Midnight đang được lưu | Nhóm Chế độ bị tắt, mô tả đổi; xem trước tối | Chọn phong cách khác |
 
 ## 6. Luồng tương tác chính
 
@@ -322,11 +328,9 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 ### 6.3 Đổi giao diện
 
 1. Vào Giao diện (từ điều hướng mục hoặc liên kết sâu `appearance`).
-2. Rê chuột qua ô "Paper" → khung xem trước bên phải đổi sang Paper (bề mặt ngà, chữ đọc serif), dòng ghi chú đọc "Paper · Giấy ngà và chữ serif…"; cửa sổ chưa đổi.
-3. Bấm "Paper" → `setThemePreset('paper')`, cả cửa sổ đổi persona ngay; ô có dấu ✓ và `aria-checked="true"`.
-4. Rê qua các chấm màu nhấn → xem trước đổi màu; bấm "Xanh ngọc" → `html[data-accent="teal"]`.
-5. Chọn "Midnight" → cửa sổ luôn tối, nhóm Chế độ bị khoá với mô tả "Phong cách đang chọn chỉ có bản tối". Chọn lại phong cách khác → nhóm Chế độ mở lại và chế độ đã lưu được áp dụng.
-6. Chọn cỡ chữ "Lớn" → toàn ứng dụng đổi cỡ.
+2. Chọn chế độ Sáng, Tối hoặc Hệ thống → cả cửa sổ đổi ngay.
+3. Bấm chấm màu nhấn "Xanh ngọc" → nút, liên kết và vùng chọn đổi màu; "Mặc định" trả về màu lavender của Glass.
+4. Chọn cỡ chữ "Lớn" → toàn ứng dụng đổi cỡ.
 
 ### 6.4 Thiết lập giọng nói
 
@@ -397,13 +401,11 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 | `settings_delay_short` · `_medium` · `_long` | Ngắn · Vừa · Dài |
 | `settings_furigana` | Phiên âm |
 | `settings_image_provider_fallback` | Dự phòng khi dịch ảnh |
-| `settings_appearance` / `settings_appearance_desc` | Giao diện / Chế độ sáng/tối, phong cách hiển thị và cỡ chữ. |
+| `settings_appearance` / `settings_appearance_desc` | Giao diện / Chế độ sáng/tối, màu nhấn và cỡ chữ. |
 | `settings_theme_mode` · `settings_theme_light` · `_dark` · `_system` | Chế độ · Sáng · Tối · Hệ thống |
-| `settings_theme_dark_only_hint` / `settings_theme_dark_only_badge` | Phong cách đang chọn chỉ có bản tối / Luôn tối |
-| `settings_theme_palette` / `settings_theme_accent` | Phong cách / Màu nhấn |
-| `settings_theme_accent_auto` | Theo phong cách |
+| `settings_theme_accent` | Màu nhấn |
+| `settings_theme_accent_auto` | Mặc định |
 | `settings_font_size` · `_small` · `_medium` · `_large` | Cỡ chữ · Nhỏ · Vừa · Lớn |
-| `settings_theme_preview_heading` | Xem trước |
 | `settings_api_keys` / `settings_api_keys_desc` | Mô hình AI / Model chạy trên máy và khoá của nhà cung cấp đám mây. Từng tính năng chọn model riêng ngay tại trang của nó. |
 | `settings_local_ai_title` · `_running` · `_not_running` | AI local · Đang chạy · Chưa chạy |
 | `settings_local_ai_install_runtime_title` / `settings_local_ai_install_ollama` | Thiết lập runtime local / Mở trang tải runtime |

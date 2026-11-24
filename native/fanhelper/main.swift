@@ -11,7 +11,7 @@
 //   only that uid, and exits a while after its client leaves.
 //
 // A helper signed with a Team ID (the Developer ID release, path B) also checks that its
-// client is signed by the same team; an ad-hoc build cannot tell code apart and skips it.
+// client is the Viezan app signed by the same team; an ad-hoc build cannot tell code apart and skips it.
 //
 // Either way it serves exactly one client over a Unix socket, understands a fixed set
 // of commands (docs/plans/module-platform-and-privileged-helper.md §4.3), clamps every
@@ -42,56 +42,6 @@ let messageSystemHasPoweredOn: UInt32 = 0xE000_0300
 let socketPathPrefix = "/var/run/viezan-fan-helper"
 let daemonSocketPath = "/var/run/viezan-fan-helper.sock"
 let logPath = "/var/log/viezan-fan-helper.log"
-/// The log is rotated to `<path>.1` past this size; a daemon would otherwise grow it forever.
-let logMaxBytes: UInt64 = 1_000_000
-
-// MARK: - Logging
-
-final class Log {
-  private let path: String
-  private var handle: FileHandle?
-  private let queue = DispatchQueue(label: "viezan.fanhelper.log")
-  private let formatter: ISO8601DateFormatter = {
-    let f = ISO8601DateFormatter()
-    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    return f
-  }()
-
-  init(path: String) {
-    self.path = path
-    handle = Log.open(path)
-  }
-
-  private static func open(_ path: String) -> FileHandle? {
-    if !FileManager.default.fileExists(atPath: path) {
-      FileManager.default.createFile(atPath: path, contents: nil, attributes: [.posixPermissions: 0o644])
-    }
-    let handle = FileHandle(forWritingAtPath: path)
-    handle?.seekToEndOfFile()
-    return handle
-  }
-
-  /// Keep one previous file: `<path>.1` is replaced each time the log passes `logMaxBytes`.
-  private func rotateIfNeeded() {
-    guard let current = handle, let size = try? current.offset(), size > logMaxBytes else { return }
-    try? current.close()
-    let previous = path + ".1"
-    try? FileManager.default.removeItem(atPath: previous)
-    try? FileManager.default.moveItem(atPath: path, toPath: previous)
-    handle = Log.open(path)
-  }
-
-  func write(_ message: String) {
-    let line = "\(formatter.string(from: Date())) [\(getpid())] \(message)\n"
-    queue.sync {
-      rotateIfNeeded()
-      guard let data = line.data(using: .utf8) else { return }
-      // The throwing form: a full disk must cost a log line, not crash-loop the daemon.
-      if let handle, (try? handle.write(contentsOf: data)) != nil { return }
-      try? FileHandle.standardError.write(contentsOf: data)
-    }
-  }
-}
 
 // MARK: - Identity
 
@@ -115,11 +65,14 @@ let ownTeamId: String? = {
   return row[kSecCodeInfoTeamIdentifier as String] as? String
 }()
 
-/// What a client must satisfy when this helper is team-signed: code signed by the same team.
+/// The only program that may drive the fans: the Viezan app (`scripts/native/build.py` signs it with this identifier).
+let clientIdentifier = "com.viezan.native.preview"
+
+/// What a client must satisfy when this helper is team-signed: the Viezan app, signed by the same team.
 let clientRequirement: SecRequirement? = {
   guard let team = ownTeamId else { return nil }
   var requirement: SecRequirement?
-  let text = "anchor apple generic and certificate leaf[subject.OU] = \"\(team)\"" as CFString
+  let text = "anchor apple generic and certificate leaf[subject.OU] = \"\(team)\" and identifier \"\(clientIdentifier)\"" as CFString
   return SecRequirementCreateWithString(text, [], &requirement) == errSecSuccess ? requirement : nil
 }()
 
@@ -138,15 +91,6 @@ func peerIsTrustedCode(_ fd: Int32) -> Bool {
 }
 
 // MARK: - Arguments
-
-struct Options {
-  var daemon = false
-  var socketPath = ""
-  var uid: uid_t = 0
-  var watchdogSeconds = 15.0
-  var idleExitSeconds = 60.0
-  var ceilingCelsius = 105.0
-}
 
 func parseOptions(_ arguments: [String]) -> Options? {
   var options = Options()
@@ -176,285 +120,6 @@ func parseOptions(_ arguments: [String]) -> Options? {
   guard options.socketPath.hasPrefix(socketPathPrefix), options.socketPath != daemonSocketPath,
         !options.socketPath.contains(".."), options.uid != 0 else { return nil }
   return options
-}
-
-// MARK: - Fan model
-
-struct Fan {
-  let index: Int
-  let actual: SensorKey
-  let min: SensorKey?
-  let max: SensorKey?
-  let target: SensorKey?
-  /// Per-fan mode key (`F0Md`, Apple Silicon and recent Intel). Absent on older Intel Macs.
-  let mode: SensorKey?
-
-  var id: String { "fan\(index)" }
-}
-
-struct HelperError: Error {
-  let code: String
-  let message: String
-}
-
-/// Owns the SMC connection and the override state. Every method runs on `queue`.
-final class FanController {
-  let smc: SMC
-  let log: Log
-  let ceilingCelsius: Double
-  let queue = DispatchQueue(label: "viezan.fanhelper.smc")
-  private(set) var fans: [Fan] = []
-  /// `FS! ` bitmask of forced fans, the mode key on Intel Macs without `F%dMd`.
-  private let forceBits: SensorKey?
-  private var temperatureKeys: [SensorKey] = []
-  /// Fan index → target RPM for every fan currently under manual control.
-  private(set) var overrides: [Int: Double] = [:]
-  private(set) var lastCommandAt = Date()
-  private(set) var lastError: String?
-  private(set) var lastRestoreReason: String?
-  /// Counts every restore, so a client can tell a new restore from an old one with the same reason.
-  private(set) var restoreSeq = 0
-  /// The connected client, set and cleared by the accept loop (on `queue`).
-  var client: (fd: Int32, uid: uid_t)?
-  let startedAt = Date()
-
-  init(log: Log, ceilingCelsius: Double) throws {
-    self.log = log
-    self.ceilingCelsius = ceilingCelsius
-    smc = try SMC()
-    forceBits = lookupKey(smc, "FS! ", allowedTypes: ["ui16", "ui8 "])
-    try discover()
-  }
-
-  private func discover() throws {
-    var list: [Fan] = []
-    if let countKey = lookupKey(smc, "FNum", allowedTypes: ["ui8 ", "ui16", "ui32"]), let count = readNumber(smc, countKey) {
-      for index in 0..<Int(Swift.min(count, 16)) {
-        guard let actual = lookupKey(smc, "F\(index)Ac", allowedTypes: fanTypes) else { continue }
-        list.append(Fan(
-          index: index,
-          actual: actual,
-          min: lookupKey(smc, "F\(index)Mn", allowedTypes: fanTypes),
-          max: lookupKey(smc, "F\(index)Mx", allowedTypes: fanTypes),
-          target: lookupKey(smc, "F\(index)Tg", allowedTypes: fanTypes),
-          mode: lookupKey(smc, "F\(index)Md", allowedTypes: ["ui8 "])
-        ))
-      }
-    }
-    fans = list
-
-    // Temperature keys for the ceiling rule: everything "T..." with a numeric type and a
-    // plausible value, like the reader does. Enumerated once.
-    var temps: [SensorKey] = []
-    let count = try smc.keyCount()
-    for index in 0..<count {
-      guard let key = try? smc.key(at: index) else { continue }
-      let name = fourCCString(key)
-      guard name.hasPrefix("T"), name.count == 4, let info = try? smc.keyInfo(key) else { continue }
-      let type = fourCCString(info.dataType)
-      guard temperatureTypes.contains(type) else { continue }
-      let sensor = SensorKey(key: key, name: name, type: type, info: info)
-      guard let value = readNumber(smc, sensor), value > 0, value < 150 else { continue }
-      temps.append(sensor)
-    }
-    temperatureKeys = temps
-    log.write("ready: \(fans.count) fan(s), \(temps.count) temperature key(s), mode key \(fans.first?.mode != nil ? "F%dMd" : forceBits != nil ? "FS! " : "none")")
-  }
-
-  func touch() { lastCommandAt = Date() }
-
-  func fan(withId id: String) throws -> Fan {
-    guard let fan = fans.first(where: { $0.id == id }) else { throw HelperError(code: "unknown-fan", message: "No fan \(id).") }
-    return fan
-  }
-
-  func range(of fan: Fan) -> (min: Double, max: Double) {
-    let min = readNumber(smc, fan.min) ?? 0
-    let max = readNumber(smc, fan.max) ?? 0
-    return (min, max)
-  }
-
-  func listFans() -> [[String: Any]] {
-    fans.map { fan in
-      let (min, max) = range(of: fan)
-      var row: [String: Any] = [
-        "id": fan.id,
-        "index": fan.index,
-        "minRpm": min.rounded(),
-        "maxRpm": max.rounded(),
-        "currentRpm": (readNumber(smc, fan.actual) ?? 0).rounded(),
-        "mode": overrides[fan.index] != nil ? "manual" : "auto",
-      ]
-      if let target = readNumber(smc, fan.target) { row["targetRpm"] = target.rounded() }
-      return row
-    }
-  }
-
-  private func write(_ key: SensorKey, _ value: Double) throws {
-    guard let bytes = encodeNumber(type: key.type, value: value, size: Int(key.info.dataSize)) else {
-      throw HelperError(code: "smc-error", message: "Cannot encode type \(key.type) for \(key.name).")
-    }
-    do {
-      try smc.writeKey(key.key, info: key.info, bytes: bytes)
-    } catch {
-      lastError = "\(error)"
-      throw HelperError(code: "smc-error", message: "\(error)")
-    }
-  }
-
-  private func setManual(_ fan: Fan, _ manual: Bool) throws {
-    if let mode = fan.mode {
-      try write(mode, manual ? 1 : 0)
-      return
-    }
-    if let forceBits {
-      let current = UInt16(readNumber(smc, forceBits) ?? 0)
-      let bit = UInt16(1) << UInt16(fan.index)
-      try write(forceBits, Double(manual ? current | bit : current & ~bit))
-      return
-    }
-    throw HelperError(code: "unsupported", message: "This Mac exposes no fan mode key; manual control is not possible.")
-  }
-
-  func setTarget(id: String, rpm: Double) throws -> [String: Any] {
-    let fan = try fan(withId: id)
-    let (min, max) = range(of: fan)
-    guard max > min else { throw HelperError(code: "unsupported", message: "Fan \(id) reports no speed range.") }
-    guard rpm.isFinite, rpm >= min, rpm <= max else {
-      throw HelperError(code: "out-of-range", message: "Target \(Int(rpm)) RPM is outside \(Int(min))–\(Int(max)) RPM.")
-    }
-    guard let target = fan.target else { throw HelperError(code: "unsupported", message: "Fan \(id) has no target key.") }
-    try setManual(fan, true)
-    try write(target, rpm.rounded())
-    overrides[fan.index] = rpm.rounded()
-    touch()
-    log.write("set \(fan.id) target=\(Int(rpm.rounded())) rpm")
-    return ["id": fan.id, "targetRpm": rpm.rounded(), "mode": "manual"]
-  }
-
-  func setAuto(id: String) throws -> [String: Any] {
-    let fan = try fan(withId: id)
-    try setManual(fan, false)
-    overrides[fan.index] = nil
-    touch()
-    log.write("auto \(fan.id)")
-    return ["id": fan.id, "mode": "auto"]
-  }
-
-  /// Every fan back to automatic control. Never throws: each fan is attempted, failures logged.
-  @discardableResult
-  func restoreAll(reason: String) -> Bool {
-    var ok = true
-    for fan in fans {
-      do {
-        try setManual(fan, false)
-      } catch {
-        ok = false
-        log.write("restore \(fan.id) failed: \(error)")
-      }
-    }
-    if !overrides.isEmpty || reason != "disconnect-idle" {
-      log.write("restoreAll (\(reason)) → \(ok ? "ok" : "partial")")
-    }
-    overrides = [:]
-    lastRestoreReason = reason
-    restoreSeq += 1
-    return ok
-  }
-
-  func hottestCelsius() -> Double? {
-    var hottest: Double?
-    for key in temperatureKeys {
-      guard let value = readNumber(smc, key), value > 0, value < 150 else { continue }
-      if hottest == nil || value > hottest! { hottest = value }
-    }
-    return hottest
-  }
-
-  func status() -> [String: Any] {
-    var row: [String: Any] = [
-      "uptime": Date().timeIntervalSince(startedAt),
-      "activeOverrides": overrides.keys.sorted().map { ["id": "fan\($0)", "rpm": overrides[$0]!] },
-      "restoreSeq": restoreSeq,
-    ]
-    if let lastError { row["lastError"] = lastError }
-    if let lastRestoreReason { row["lastRestoreReason"] = lastRestoreReason }
-    return row
-  }
-}
-
-// MARK: - Request handling
-
-/// Set once the process is up (`shutdown` captures globals declared later in this file).
-var requestExit: () -> Void = {}
-
-func jsonLine(_ object: [String: Any]) -> Data {
-  var data = (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data("{}".utf8)
-  data.append(0x0A)
-  return data
-}
-
-func reply(_ id: Any, result: Any) -> Data { jsonLine(["id": id, "ok": true, "result": result]) }
-func replyError(_ id: Any, _ code: String, _ message: String) -> Data { jsonLine(["id": id, "ok": false, "error": ["code": code, "message": message]]) }
-
-func handle(_ line: Data, controller: FanController, options: Options) -> Data {
-  guard let raw = try? JSONSerialization.jsonObject(with: line), let request = raw as? [String: Any] else {
-    return replyError(NSNull(), "bad-request", "Not a JSON object.")
-  }
-  let id: Any = request["id"] ?? NSNull()
-  guard let op = request["op"] as? String else { return replyError(id, "bad-request", "Missing op.") }
-  let args = request["args"] as? [String: Any] ?? [:]
-
-  return controller.queue.sync {
-    controller.touch()
-    do {
-      switch op {
-      case "hello":
-        var hello: [String: Any] = [
-          "protocol": protocolVersion,
-          "helperVersion": helperVersion,
-          "platform": "darwin",
-          "mode": options.daemon ? "daemon" : "session",
-          "pid": Int(getpid()),
-          "watchdogSeconds": options.watchdogSeconds,
-          "ceilingCelsius": options.ceilingCelsius,
-          "capabilities": ["fans.write"],
-          "teamSigned": ownTeamId != nil,
-        ]
-        if let executableSha256 { hello["binarySha256"] = executableSha256 }
-        return reply(id, result: hello)
-      case "status":
-        return reply(id, result: controller.status())
-      case "fans.list":
-        return reply(id, result: controller.listFans())
-      case "fans.setMode":
-        guard let fanId = args["id"] as? String, let mode = args["mode"] as? String else {
-          return replyError(id, "bad-request", "fans.setMode needs id and mode.")
-        }
-        guard mode == "auto" else { return replyError(id, "bad-request", "Only mode \"auto\" is settable; use fans.setTarget for manual.") }
-        return reply(id, result: try controller.setAuto(id: fanId))
-      case "fans.setTarget":
-        guard let fanId = args["id"] as? String, let rpm = (args["rpm"] as? NSNumber)?.doubleValue else {
-          return replyError(id, "bad-request", "fans.setTarget needs id and a numeric rpm.")
-        }
-        return reply(id, result: try controller.setTarget(id: fanId, rpm: rpm))
-      case "fans.restoreAll":
-        let ok = controller.restoreAll(reason: "client")
-        return reply(id, result: ["restored": ok])
-      case "helper.exit":
-        // Restore and leave once the reply is out; launchd starts the daemon again from the
-        // (possibly updated) binary.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { requestExit() }
-        return reply(id, result: ["exiting": true])
-      default:
-        return replyError(id, "bad-request", "Unknown op \(op).")
-      }
-    } catch let error as HelperError {
-      return replyError(id, error.code, error.message)
-    } catch {
-      return replyError(id, "smc-error", "\(error)")
-    }
-  }
 }
 
 // MARK: - Socket server
@@ -523,7 +188,7 @@ func writeAll(_ fd: Int32, _ data: Data) -> Bool {
 let clientIdleSeconds = 30
 
 /// Serve one client until it disconnects or goes quiet. Lines longer than 64 KiB end the session.
-func serve(client: Int32, controller: FanController, options: Options, log: Log) {
+func serve(client: Int32, controller: FanController, options: Options, environment: CommandEnvironment) {
   var buffer = Data()
   var chunk = [UInt8](repeating: 0, count: 4096)
   while true {
@@ -531,14 +196,15 @@ func serve(client: Int32, controller: FanController, options: Options, log: Log)
     if count <= 0 { break }
     buffer.append(contentsOf: chunk[0..<count])
     if buffer.count > 65536 {
-      log.write("client sent an oversized line; closing")
+      environment.writeLog("client sent an oversized line; closing")
       break
     }
     while let newline = buffer.firstIndex(of: 0x0A) {
       let line = buffer.subdata(in: buffer.startIndex..<newline)
       buffer.removeSubrange(buffer.startIndex...newline)
       if line.isEmpty { continue }
-      if !writeAll(client, handle(line, controller: controller, options: options)) { return }
+      guard let response = handle(line, from: client, controller: controller, options: options, environment: environment),
+            writeAll(client, response) else { return }
     }
   }
 }
@@ -559,7 +225,7 @@ signal(SIGPIPE, SIG_IGN)
 
 let controller: FanController
 do {
-  controller = try FanController(log: log, ceilingCelsius: options.ceilingCelsius)
+  controller = try FanController(smc: SMC(), log: log, ceilingCelsius: options.ceilingCelsius)
 } catch {
   log.write("startup failed: \(error)")
   exit(1)
@@ -580,14 +246,27 @@ log.write(options.daemon
   ? "daemon \(helperVersion) listening on \(options.socketPath) for the console user; watchdog \(Int(options.watchdogSeconds)) s, ceiling \(Int(options.ceilingCelsius)) °C"
   : "listening on \(options.socketPath) for uid \(options.uid); watchdog \(Int(options.watchdogSeconds)) s, idle exit \(Int(options.idleExitSeconds)) s, ceiling \(Int(options.ceilingCelsius)) °C")
 
-func shutdown(_ reason: String, code: Int32) -> Never {
-  _ = controller.queue.sync { controller.restoreAll(reason: reason) }
+func finishShutdown(_ reason: String, code: Int32) -> Never {
   unlink(options.socketPath)
   log.write("exit (\(reason))")
   exit(code)
 }
 
-requestExit = { shutdown("client-exit", code: 0) }
+func shutdown(_ reason: String, code: Int32) -> Never {
+  // Leave from inside the queue, so no client command can set a fan manual after the restore.
+  controller.queue.sync {
+    controller.restoreBeforeExit(reason: reason)
+    finishShutdown(reason, code: code)
+  }
+}
+
+let commandEnvironment = CommandEnvironment(
+  protocolVersion: protocolVersion, helperVersion: helperVersion,
+  teamSigned: ownTeamId != nil, executableSha256: executableSha256,
+  isAllowedPeer: isAllowedPeer, writeLog: log.write,
+  shutdownSocket: { Darwin.shutdown($0, SHUT_RDWR) },
+  requestExit: { shutdown("client-exit", code: 0) }
+)
 
 // Stop signals: restore, then leave.
 for sig in [SIGTERM, SIGINT, SIGHUP] {
@@ -601,24 +280,18 @@ for sig in [SIGTERM, SIGINT, SIGHUP] {
 
 // Every second: the daemon drops a client whose user left the console (fast user
 // switching, logout); then watchdog and temperature ceiling while any fan is overridden.
+var idleExitAfterRestore = false // Accessed on controller.queue.
 let watchdog = DispatchSource.makeTimerSource(queue: controller.queue)
 watchdog.schedule(deadline: .now() + 1, repeating: 1)
 watchdog.setEventHandler {
   if options.daemon, let client = controller.client, !isAllowedPeer(client.uid, options: options) {
     log.write("uid \(client.uid) is no longer the console user; dropping the client")
-    controller.restoreAll(reason: "console-user")
+    controller.disconnect(client.fd, reason: "console-user")
     Darwin.shutdown(client.fd, SHUT_RDWR)
-    controller.client = nil
-  }
-  guard !controller.overrides.isEmpty else { return }
-  if Date().timeIntervalSince(controller.lastCommandAt) > options.watchdogSeconds {
-    controller.restoreAll(reason: "watchdog")
     return
   }
-  if let hottest = controller.hottestCelsius(), hottest >= options.ceilingCelsius {
-    log.write("temperature \(hottest) °C reached the ceiling")
-    controller.restoreAll(reason: "ceiling")
-  }
+  controller.tick(now: monotonicSeconds(), watchdogSeconds: options.watchdogSeconds)
+  if idleExitAfterRestore, controller.pendingRestore.isEmpty { finishShutdown("idle", code: 0) }
 }
 watchdog.resume()
 
@@ -665,21 +338,24 @@ DispatchQueue.global(qos: .userInitiated).async {
     idleExit?.cancel()
     idleExit = nil
     log.write("client connected (uid \(uid))")
-    controller.queue.sync { controller.client = (client, uid) }
-    serve(client: client, controller: controller, options: options, log: log)
-    _ = controller.queue.sync {
-      controller.client = nil
-      return controller.restoreAll(reason: "disconnect")
+    controller.queue.sync {
+      idleExitAfterRestore = false
+      controller.client = (client, uid)
     }
+    serve(client: client, controller: controller, options: options, environment: commandEnvironment)
+    controller.queue.sync { controller.disconnect(client, reason: "disconnect") }
     close(client)
     if options.daemon {
       log.write("client disconnected")
       continue
     }
     log.write("client disconnected; exiting in \(Int(options.idleExitSeconds)) s unless a client returns")
-    let work = DispatchWorkItem { shutdown("idle", code: 0) }
+    let work = DispatchWorkItem {
+      if controller.restoreAll(reason: "idle") { finishShutdown("idle", code: 0) }
+      idleExitAfterRestore = true
+    }
     idleExit = work
-    DispatchQueue.main.asyncAfter(deadline: .now() + options.idleExitSeconds, execute: work)
+    controller.queue.asyncAfter(deadline: .now() + options.idleExitSeconds, execute: work)
   }
 }
 

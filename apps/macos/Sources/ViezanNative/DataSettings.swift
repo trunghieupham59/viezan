@@ -12,9 +12,8 @@ struct DataSettings: View {
     @Environment(\.settingsConfirm) private var confirm
     private func done() { ToastCenter.shared.show(store.text("succeeded"), key: "data") }
     private func fail(_ key: String) { ToastCenter.shared.show(store.text(key), key: "data", error: true) }
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
-        if glass { glassBody } else { classicBody }
+        glassBody
     }
     private func trimAction() {
         if let confirm {
@@ -75,40 +74,6 @@ struct DataSettings: View {
                 }
             }
         }.disabled(store.loadBlocked)
-    }
-    private var classicBody: some View {
-        VStack(alignment: .leading, spacing: metric("inset")) {
-            UsageSettings(store: store)
-            HStack(spacing: metric("small")) {
-                Text(store.text("historyKeep"))
-                SettingsPicker(id: "history-keep", label: store.text("historyKeep"), options: [20, 100, 500, 1000].map { SettingsPickerOption(id: String($0), title: String($0)) },
-                               selection: String(keep)) { keep = Int($0) ?? 100 }
-            }
-            Button(store.text("trimHistory"), role: .destructive, action: trimAction).disabled(busy || store.loadBlocked || store.workspace.tasks.contains { $0.status == .running })
-                .confirmationDialog(store.text("trimHistoryConfirm"), isPresented: $trim) {
-                    Button(store.text("trimHistory"), role: .destructive) { do { try store.trimHistory(keeping: keep); done() } catch { fail("dataOperationError") } }
-                }
-            Button(store.text("clearHistoryAction"), role: .destructive, action: clearAction).disabled(clearDisabled)
-                .confirmationDialog(clearConfirm, isPresented: $clearAll) { Button(store.text("clearHistoryAction"), role: .destructive, action: runClear) }
-            Divider()
-            HStack {
-                Button(store.text("exportBackup"), action: export).disabled(busy || store.loadBlocked)
-                Button(store.text("importBackup"), action: inspect).disabled(busy || store.loadBlocked)
-                if busy { ProgressView().controlSize(.small) }
-            }
-            if let preview {
-                let known = Set(store.workspace.sessions.map(\.id))
-                Text(store.text("newSessions") + ": " + String(preview.sessions.filter { !known.contains($0.id) }.count))
-                Text(store.text("interpretation") + ": " + String(preview.interpretation.count))
-                Text(store.text("existingSessions") + ": " + String(preview.sessions.filter { known.contains($0.id) }.count))
-                Toggle(store.text("restorePreferences"), isOn: $restorePreferences)
-                Button(store.text("confirmImport")) {
-                    do { try store.importBackup(preview, restorePreferences: restorePreferences); self.preview = nil; done() }
-                    catch { fail("backupError") }
-                }
-                Button(store.text("close")) { self.preview = nil }
-            }
-        }
     }
     private func export() {
         let panel = NSSavePanel(); panel.allowedContentTypes = [.json]; panel.nameFieldStringValue = "viezan-native-backup.json"

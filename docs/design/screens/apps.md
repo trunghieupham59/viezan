@@ -42,11 +42,14 @@ Spacing, radius, màu, chữ và border dùng tokens. Không đổi trạng thá
 
 | Điều khiển | Kiểu | Kết quả | Khi tắt |
 | --- | --- | --- | --- |
+| Mở Quyền truy cập toàn bộ ổ đĩa (macOS) | `sm neutral outline`, biểu tượng `lock.shield` | Hiện ở thẻ quét khi quét gặp thư mục không đọc được, và cạnh dòng "Không đọc được mọi vị trí" của kế hoạch khi một thư mục Library bị từ chối quyền (tooltip nêu thư mục). Mở trang quyền tương ứng trong Cài đặt hệ thống để người dùng tự bật quyền rồi bấm Quét lại | Đang xử lý |
 | Quét lại | `sm neutral outline` | Đọc kho app, làm hết hiệu lực plan cũ, đọc nhật ký | Đang xử lý |
 | Hàng app | `sm neutral ghost`; chọn là `primary soft` | Quét dữ liệu theo app | Đang xử lý |
 | Gỡ / Đặt lại | `sm`, `aria-pressed` | Đặt lại giữ bundle; chọn lại các mục exact đủ điều kiện | Đang xử lý |
 | Checkbox | Native, label chứa đường dẫn | Chọn mục; dữ liệu/cài đặt lâu dài không tích sẵn; vendor/name/prefix bị khoá | Bundle theo chế độ; Containers, launch agents, shared, protected, needs-admin, unreadable |
+| Xem nhanh (macOS) | Nút biểu tượng mắt, cùng cỡ với Hiện trong Finder | Mở Quick Look cho mục trong kế hoạch. Nhãn trợ năng và chú giải chứa đường dẫn rút gọn | Đang xử lý hoặc mục chưa có snapshot |
 | Hiện trong Finder | `sm neutral ghost` | Mở vị trí của mục đã quét | Đang xử lý |
+| Chuyển vào Thùng rác | Nút phụ destructive sau Hiện trong Finder | Xác nhận tên, đường dẫn và phạm vi cho bundle hỏng, thư mục `.app` rỗng hoặc liên kết `.app` hỏng. Huỷ là mặc định | Đang xử lý. Chỉ hiện trong gốc cài đặt cho phép. Liên kết phải nằm ngay dưới gốc |
 | Xem xác nhận / Thoát rồi tiếp tục | `md danger outline` | Hộp thoại native liệt kê các mục được chọn; Huỷ nhận focus mặc định | Không chọn, app bị chặn, thiếu native binary, quét chưa đủ, đang xử lý |
 | Hoàn tác | `sm neutral outline` | Khôi phục từng mục còn có thể trả về, không ghi đè | Không còn mục có thể khôi phục hoặc đang xử lý |
 
@@ -57,7 +60,10 @@ Spacing, radius, màu, chữ và border dùng tokens. Không đổi trạng thá
 - Có plan: mỗi mục có dung lượng trên đĩa hoặc `Chưa đo được`, bằng chứng, hệ quả.
 - App đang chạy: giải thích yêu cầu thoát bình thường; không force quit.
 - Plan cũ, mục thay đổi, đang dùng, thiếu quyền: giữ mục và báo lỗi có thể hành động.
+- Khi Gỡ, Đặt lại hoặc Chuyển vào Thùng rác phát hiện mục đang được sử dụng, Viezan báo `appInUse` và ghi cùng lý do cho mục `failed` nếu đã lưu ý định vào nhật ký.
 - Quét không đầy đủ: không kết luận đã sạch. Nhật ký giữ cả mục bỏ chọn/bị chặn/lỗi.
+- Có mục chặn Gỡ/Đặt lại, thẻ cảnh báo hiển thị tổng số mục chặn. Nếu chỉ có thư mục `.app` không chứa ứng dụng, thẻ thông tin hiển thị số đường dẫn đã lưu cùng nút Quét lại.
+- Sau khi chuyển một thư mục hoặc liên kết, kho tự quét lại. Toast kết quả có nút Hoàn tác. Nếu thư mục đã thành ứng dụng hợp lệ hoặc liên kết nay trỏ tới ứng dụng hợp lệ, Viezan dừng thao tác, báo lỗi và quét lại.
 - Thiếu binary: xem trước được; không gỡ để tránh tạo giao dịch không có khả năng Hoàn tác.
 - Module tắt / nền tảng khác: handler trả mã lỗi có bản dịch; trang ẩn khi module tắt.
 
@@ -65,7 +71,10 @@ Spacing, radius, màu, chữ và border dùng tokens. Không đổi trạng thá
 
 1. Mở trang: đọc metadata app và nhật ký local, không yêu cầu mạng.
 2. Chọn app: quét các gốc hỗ trợ; chỉ bundle và cache/log/saved state exact được chọn sẵn, tối đa 5 phút cho plan.
+   Mục có bằng chứng “Do ứng dụng khai báo” từ ID bundle con, app group trong chữ ký hoặc khoá `SMPrivilegedExecutables` của app chính luôn bị khoá và không được chọn sẵn.
+   Trên macOS, `Application Scripts`, `SyncedPreferences`, `Cookies`, `Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments` trong `~/Library` và `/private/var/db/receipts` chỉ nhận ID khớp chính xác của app chính hoặc bundle con. Recent Documents dùng ID viết thường. Tệp cookie và lịch sử tài liệu của app chính cho phép chọn thủ công khi thuộc riêng app.
 3. Chọn Gỡ hoặc Đặt lại và các mục. Xem xác nhận native, mặc định Huỷ.
+   Khi đã chọn ít nhất một mục dữ liệu cá nhân, hộp xác nhận hiển thị “Đã chọn {count} mục dữ liệu cá nhân; hãy chắc chắn trước khi chuyển vào Thùng rác.” ngay trước danh sách đường dẫn.
 4. Main kiểm tra kho app lại (dữ liệu dùng chung có thể đổi), yêu cầu thoát nếu cần.
 5. Ghi ý định trước thao tác; kiểm tra metadata cây, symlink, danh sách cấm và tệp đang mở.
 6. Tệp vào Thùng rác; preferences được export rồi defaults delete; Containers và launch agents được giữ nguyên. Preferences có checksum backup và
@@ -77,12 +86,17 @@ Spacing, radius, màu, chữ và border dùng tokens. Không đổi trạng thá
 
 Hai cột tự xếp dọc theo kích thước vùng nội dung. Đường dẫn dài xuống dòng;
 toolbar được wrap. QA ở ba cỡ chữ và cửa sổ 1200/820/560 px, sáng/tối, VI/EN/JA.
+Trên thẻ quét macOS, khi thiếu chỗ, **Quét lại** xuống dưới phần mô tả cùng với **Mở Quyền truy cập toàn bộ ổ đĩa** nếu nút này đang hiện. **Hiện trong Finder** và **Chuyển vào Thùng rác** xuống cùng một hàng bên dưới đường dẫn và lý do, căn phải.
 
 ## 8. Bàn phím và trợ năng
 
 Button/checkbox/input native hỗ trợ Tab, Space, Enter. Nhãn checkbox chứa đường
 dẫn. Chế độ có `aria-pressed`. Lỗi dùng `role=alert`, tiến trình/kết quả dùng
 `role=status`. Nhật ký là `details/summary`; hộp xác nhận do hệ điều hành quản lý.
+Hộp xác nhận chuyển vào Thùng rác của Classic hiển thị tên, đường dẫn đầy đủ và phạm vi thao tác. Escape và Return đều chọn **Huỷ** khi mở hộp. Cả hai giao diện đóng hộp nếu kết quả quét mất mục đó hoặc lý do thay đổi.
+
+- Trên macOS, **⌘Z** khôi phục lần gỡ gần nhất còn bật nút **Khôi phục** trong nhật ký. Chú giải của **Nhật ký & hoàn tác** cho biết tên ứng dụng và phím tắt. Khi đang sửa văn bản, ⌘Z hoàn tác văn bản. Khi đang xử lý, đang xác nhận hoặc đã hết mục có thể khôi phục, ⌘Z bỏ qua nhật ký. Space giữ hành vi của checkbox.
+- Có thể kéo từ Finder vào vùng danh sách, kể cả khi tìm kiếm cho kết quả rỗng. Viền nhấn bo góc đánh dấu vùng thả. Viezan xét mục `.app` đầu tiên, bỏ bộ lọc nếu nó đang ẩn ứng dụng rồi chọn ứng dụng và mở kế hoạch như khi bấm hàng. Ứng dụng bị chặn chỉ được chọn. Mục ngoài kho hiện toast cảnh báo. Khi đang xử lý hoặc có hộp thoại mở, danh sách bỏ qua thao tác thả.
 
 ## 9. Nội dung chữ (vi)
 
@@ -92,9 +106,13 @@ bằng chứng và trạng thái nhật ký. EN/JA cùng shape; số/ngày theo 
 ## 10. Phạm vi chưa triển khai
 
 - Gỡ nhiều app trong một phiên; kho app có icon/nguồn và bộ lọc nâng cao.
-- Receipt/pkg, helper/daemon toàn máy, Dock/TCC, container dùng chung và ByHost:
-  chưa xử lý. Không tự nâng quyền, không xin Full Disk Access.
+- Receipt `.bom` và `.plist` khớp chính xác ID của app chính hoặc bundle con được hiển thị nhưng luôn khoá. Gỡ gói pkg, xử lý helper/daemon toàn máy, Dock/TCC, container dùng chung và ByHost vẫn ngoài phạm vi. Viezan không chạy mã quyền quản trị và không tự xin Full Disk Access; riêng gói ứng dụng cần quyền quản trị được chuyển qua Finder với xác thực của macOS. Chỉ khi gặp thư mục không đọc được mới hiện nút mở trang quyền này trong Cài đặt hệ thống (2026-11-24).
 - Thiết bị MDM: chặn gỡ toàn bộ thay vì suy đoán app nào được quản lý.
+- Trên macOS, kho quét `/Applications`, `~/Applications`, `/Users/Shared/Riot Games`
+  và đọc `/System/Applications` để nhận diện ứng dụng hệ thống. Trong gốc Riot,
+  bộ quét chỉ xét các mục `.app` ngay dưới gốc. Tệp và thư mục anh em như
+  `RiotClientInstalls.json` và `Metadata` nằm ngoài phạm vi quét và gỡ.
+  Dữ liệu Riot trong Library không khớp chính xác bundle ID được giữ lại.
 - Bộ dò chỉ kiểm tra các gốc đã khai báo; không tìm bundle con bằng Spotlight
   hay symlink ngoài các gốc đó. Không khẳng định đã gỡ sạch toàn máy.
 - P2 tệp sót/khởi động độc lập, P3 cập nhật và P4 root còn ở kế hoạch.
@@ -111,7 +129,7 @@ bằng chứng và trạng thái nhật ký. EN/JA cùng shape; số/ngày theo 
 - Phiên chưa xác minh sau gián đoạn chặn lần gỡ mới. Không hiển thị số mục còn lại cũ sau Undo.
 - Bản draft chưa được duyệt cho dữ liệu thật; chưa kiểm chứng ma trận MDM/TCC/ổ ngoài hoặc ngắt nguồn.
 
-- Inventory đọc các layout Contents/Info.plist, Info.plist và Wrapper một app; plist có kiểu không chuyển được sang JSON được đọc theo từng trường cần thiết. App iOS bọc và app Apple vẫn bị bảo vệ. Thư mục dữ liệu chỉ trùng đuôi `.app` ngoài gốc cài app không được coi là app. Bundle hỏng trong gốc cài đặt vẫn chặn thay đổi.
+- Inventory đọc các layout Contents/Info.plist, Info.plist và Wrapper một app; plist có kiểu không chuyển được sang JSON được đọc theo từng trường cần thiết. App iOS bọc và app Apple vẫn bị bảo vệ. Thư mục dữ liệu chỉ trùng đuôi `.app` ngoài gốc cài app không được coi là app. Trong gốc cài đặt, ngoại lệ duy nhất là thư mục `.app` thật, đọc được, có đường dẫn trùng với đường dẫn chính tắc và xác minh được cả `Contents/Info.plist`, `Info.plist` ở gốc và `Wrapper` đều vắng mặt. Thư mục đó không có bundle ID để sở hữu hoặc dùng chung dữ liệu khớp theo ID, nên kho vẫn cho phép thay đổi.
 - Đã kiểm thử runtime thật từ inventory đến xác nhận, quét lại, gỡ, restart và Undo trên fixture riêng; callback xác nhận khoá đúng hai đường dẫn fixture. Không gỡ ứng dụng thật để thử.
 
 ## Native implementation follow-up — 2026-10-28
@@ -124,6 +142,46 @@ bằng chứng và trạng thái nhật ký. EN/JA cùng shape; số/ngày theo 
   mục · {size}"; đường dẫn trong nhà hiện `~/…`; lọc tìm thì khung chi tiết theo kết quả đầu tiên.
 - Đã chạy thật trên ứng dụng giả riêng (`~/Applications`, cache, Application Support): xem trước → Thùng rác
   → Hoàn tác, tệp về đúng chỗ, mục không chọn được giữ. Không gỡ ứng dụng thật.
+
+## Thông báo — macOS, 2026-11-24
+
+Thay cho "dòng kết quả … ngay tại chỗ" ở mục 2026-10-28 và dải kết quả của `Apps-States`.
+
+- Kết quả Gỡ, Đặt lại hoặc chuyển một mục vào Thùng rác là toast "Đã chuyển {count} mục vào Thùng rác." / "Đã đặt lại {count} mục." kèm Hoàn tác trong 8 giây. Sau đó Hoàn tác vẫn nằm trong "Nhật ký & hoàn tác"; khôi phục từ toast hay từ nhật ký đều báo toast "Đã khôi phục {count} mục." khi lần khôi phục và lần quét lại sau đó không để lại lỗi.
+- Lỗi của một thao tác (`appActionError`, `appInUse`, `appHelperMissing`) là toast lỗi, ở lại đến khi đóng; lần Gỡ, Đặt lại, chuyển vào Thùng rác hoặc Hoàn tác kế tiếp chạy sạch thì toast lỗi cũ được gỡ (Quét lại thì không). Toast này chỉ có nút đóng, không có nút hành động, vì nó còn hiện khi người dùng đã sang màn khác.
+- Lỗi còn hiệu lực vẫn là dải trong trang, nền trung tính với icon đỏ: `appJournalError` (còn nguyên sau khi quét lại thành công; nếu lần quét lại lỗi thì dải đổi sang `appIncomplete` dù thay đổi vẫn bị khoá) và `appIncomplete`.
+
+Qt (Windows/Linux), cùng ngày: kết quả của một lần gỡ là toast (thành công đã xác minh mức success, còn lại mức danger, cùng khoá nên lần sau thay lần trước); lần quét không phát toast kết quả. Thẻ trong trang chỉ hiện khi đang gỡ, thao tác chưa xác minh, có hướng dẫn Thùng rác hoặc còn lỗi kiểm kê.
+
+## Follow-up macOS — 2026-11-24
+
+Kho nhận diện `Riot Client.app` tại `/Users/Shared/Riot Games`. Gốc này có thể
+vắng mặt. Gốc là symlink được bỏ qua. Nếu gốc là thư mục đáng tin nhưng có tổ tiên
+là symlink, kho ghi một mục chặn tại gốc. Trong gốc hợp lệ, thư mục bundle hoặc chính
+liên kết hỏng phải thuộc người dùng hiện tại mới được chuyển vào Thùng rác. Bundle hợp lệ
+của người dùng khác có lý do `appNeedsAdmin`. Ở mọi gốc cài đặt, bundle mà tài khoản
+hiện tại không ghi được vào thư mục gói (ví dụ ứng dụng App Store thuộc root) không bị
+khoá: nó đi qua xem trước và xác nhận như ứng dụng thường. Mục gói trong kế hoạch ghi
+“cần xác thực qua Finder” và hộp xác nhận có dải thông báo trung tính với biểu tượng chìa
+khoá. Khi áp dụng, Viezan nhờ Finder chuyển gói vào Thùng rác trước mọi mục dữ liệu, để
+macOS tự hỏi mật khẩu hoặc Touch ID; Viezan không chạy mã quyền root cho việc này. Sau khi
+Finder chuyển xong, gói trong Thùng rác phải khớp snapshot đã xem trước thì mới ghi là đã
+chuyển. Huỷ ở hộp thoại xác thực không phải lỗi và không để lại dòng nhật ký. Hoàn tác
+cũng đi qua Finder và hỏi xác thực lần nữa. Nếu Viezan chưa được phép điều khiển Finder,
+thao tác dừng với hướng dẫn mở Cài đặt hệ thống › Quyền riêng tư & Bảo mật › Tự động hoá.
+Đặt lại dữ liệu của các ứng dụng này không cần xác thực. Symlink `.app` trỏ đến ứng dụng
+hợp lệ vẫn được bảo vệ. Gỡ và Đặt lại dùng các quy tắc khớp bundle ID, nhà cung
+cấp và tên ứng dụng hiện có.
+
+Glass và Classic dùng thẻ cảnh báo có biểu tượng tam giác khi có mục chặn Gỡ/Đặt lại. Plist hỏng, bundle ID thiếu hoặc không có dấu chấm, layout `Wrapper` chưa nhận diện được, đường dẫn không xác minh được, symlink hỏng, lỗi quyền và vượt giới hạn quét đều chặn thay đổi. Ngoại lệ: symlink hỏng mà tên đích vắng mặt trong một thư mục cha còn tồn tại và đọc được thì không chặn, vì ứng dụng đã bị gỡ và không còn sở hữu dữ liệu dùng chung nào. Thư mục cha vắng mặt (ổ chưa gắn) hoặc không đọc được vẫn chặn. Khi chỉ gặp thư mục `.app` không chứa ứng dụng hoặc liên kết tới ứng dụng đã gỡ, thẻ dùng biểu tượng thông tin, màu trung tính và tiêu đề “{count} mục .app không chứa ứng dụng”. Các ứng dụng thường vẫn cho phép Gỡ/Đặt lại.
+
+Tiêu đề thẻ và lý do khoá ở chi tiết ứng dụng thường đếm tất cả các mục chặn, kể cả khi vượt giới hạn lưu 50 đường dẫn. Thẻ hiển thị tối đa ba dòng, ưu tiên mục chặn trước thư mục `.app` không chứa ứng dụng, rồi cho biết số đường dẫn đã lưu còn lại. Người dùng có thể hiện từng mục trong Finder và bấm **Quét lại**. Ứng dụng được bảo vệ vẫn hiển thị lý do bảo vệ riêng.
+
+Với `invalidBundle`, `notAnApp` và `brokenLink` trong phạm vi được phép, người dùng có thể chọn **Chuyển vào Thùng rác** ngay trên dòng. Sau xác nhận, Viezan kiểm lại lý do, ghi ý định vào nhật ký và chuyển mục đã chọn. Với `brokenLink`, Glass và Classic giải thích rằng chỉ chính liên kết được chuyển. Liên kết phải nằm ngay dưới gốc cài đặt có đường dẫn chính tắc. Đích và dữ liệu liên quan được giữ nguyên. Khi quét lại không còn mục chặn, các ứng dụng thường mở lại Gỡ/Đặt lại. Có thể khôi phục từ toast kết quả hoặc **Nhật ký & hoàn tác**. Các dòng `unreadable` và `scanLimit` chỉ có hành động Hiện trong Finder.
+
+`notAnApp` chỉ dành cho thư mục `.app` thật, đọc được và hoàn toàn rỗng (bỏ qua `.DS_Store`). Thư mục còn bất kỳ nội dung nào, kể cả một app lồng bên trong, là `invalidBundle` và vẫn chặn Gỡ/Đặt lại cho tới khi được chuyển vào Thùng rác hoặc cài lại.
+
+Gốc launcher `/Users/Shared/Riot Games` chỉ được dùng khi là thư mục thật thuộc người dùng hiện tại hoặc root và nhóm/người khác không ghi được; nếu không, gốc bị bỏ qua và không sinh issue. Kiểm tra đang-dùng bỏ qua descriptor theo dõi thư mục của tiến trình hệ thống (ví dụ `UserEventAgent`); tệp đang mở, thư mục làm việc và mã đã ánh xạ vẫn chặn thao tác.
 
 ## 11. Dịch vụ Qt Windows/Linux — B1, 2026-11-08
 

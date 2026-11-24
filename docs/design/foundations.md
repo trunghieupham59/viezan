@@ -16,11 +16,11 @@ Nguồn sự thật duy nhất cho mọi giá trị hình ảnh là `resources/t
 | Trục | Thuộc tính | Lựa chọn | Mặc định |
 | --- | --- | --- | --- |
 | Chế độ | `html.dark` (từ `theme`) | Sáng · Tối · Theo hệ thống | Theo hệ thống |
-| Phong cách (persona) | `html[data-theme]` (từ `themePreset`) | Graphite · Glass · Paper · Corporate · Midnight | Graphite |
+| Phong cách | `html[data-theme]` | Glass (duy nhất từ 2026-11-24; Graphite, Paper, Corporate, Midnight đã gỡ) | Glass |
 | Màu nhấn | `html[data-accent]` (từ `themeAccent`) | Tự động · Tím · Hồng · Xanh ngọc · Xanh lá · Hổ phách · Đỏ | Tự động |
 
-- Mọi bản vẽ trong `boards/` và `specs/` vẽ ở **Graphite + Tự động** (nhấn xanh). Một persona khác đổi bề mặt, bo góc, bóng, chữ đọc; không đổi bố cục hay hành động.
-- Midnight luôn tối. Glass để lộ vật liệu cửa sổ macOS (vibrancy) ở mọi chế độ.
+- Các bản vẽ cũ trong `boards/` và `specs/` vẽ ở Graphite + Tự động (nhấn xanh) chỉ còn giá trị về bố cục và hành động; bề mặt, bo góc, bóng theo Glass trong `docs/design/glass2/`.
+- Glass để lộ vật liệu cửa sổ macOS (vibrancy) ở mọi chế độ.
 - Màu nhấn chỉ thay họ màu `--vzn-action-*`, không đổi bề mặt.
 
 ## 3. Bậc bề mặt (Graphite)

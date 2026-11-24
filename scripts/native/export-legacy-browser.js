@@ -7,11 +7,13 @@
   if (!original || !Array.isArray(original.chatSessions)) throw new Error('Unsupported Viezan profile')
   const fields = ['chatSessions', 'history', 'dictionaryEntries', 'liveSessions', 'systemPromptPresets',
     'chatPendingDraft', 'activeChatSessionId', 'chatSystemPrompt', 'locale', 'sourceLang', 'targetLang',
-    'autoTranslate', 'autoTranslateDelay', 'localAiEngine', 'translationReasoningEffort', 'selectedProvider', 'selectedModels', 'translationModels', 'translationStyle', 'theme', 'themePreset',
+    'autoTranslate', 'autoTranslateDelay', 'localAiEngine', 'translationReasoningEffort', 'selectedProvider', 'selectedModels', 'translationModels', 'translationStyle', 'theme',
     'themeAccent', 'fontSize', 'sidebarCollapsed', 'aiChatSidebarCollapsed', 'sttProvider', 'ttsMode',
     'ttsVoice', 'pinnedLanguagePairs', 'recentLanguagePairs', 'languagePairDirections', 'costCurrency',
     'langUsage', 'apiKeyUsageTotals', 'recentModels']
   const state = Object.fromEntries(fields.filter(key => Object.hasOwn(original, key)).map(key => [key, original[key]]))
+  if (original.themePreset === 'midnight') state.theme = 'dark'
+  state.themePreset = 'glass'
   const databases = await indexedDB.databases()
   async function read(name, store, key) {
     if (!databases.some(db => db.name === name)) return undefined

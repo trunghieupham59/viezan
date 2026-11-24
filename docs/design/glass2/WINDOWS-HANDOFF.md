@@ -82,7 +82,7 @@ QML chỉ cần nối các phần dưới đây, không viết lại logic. `bri
 ### W1 · AI Chat, lớp nổi shell, thư viện Lịch sử
 
 - **Board:** Chat-*, Overlays, History*, Shell-States, Nav-Overlay.
-- **Gợi ý thói quen và mức suy luận (macOS native-code-62):** C++ chưa có; port `HabitSuggestions.swift` sang `WorkbenchDomain`/bridge rồi nối QML.
+- **Gợi ý thói quen và mức suy luận (macOS native-code-62):** đã port 2026-11-24 ([qt-parity-1](../../migration/reports/native-migration-report-20261124-qt-parity-1.md)): `bridge.habitSuggestions(sessionID)`, lệnh `chatReasoning`, `bridge.supportsEffort(model)`.
 - **Lịch sử:**
   - `bridge.history(query, archived, features)`: lọc nhiều tính năng, bỏ dấu, bỏ phiên rỗng; kho lưu trữ sắp theo `archivedAt`.
   - Nhóm theo `updated` (kho lưu trữ: theo `archivedAt ?? updated`) như `HistoryBucket` của macOS: hôm nay / hôm qua / tuần này / trước đó.
@@ -135,7 +135,7 @@ QML chỉ cần nối các phần dưới đây, không viết lại logic. `bri
   - Lỗi lưu (#68): `interpretation.blocked`; nút "Thử lại" gọi `interpretation.reload()`.
   - Xuất / sao chép "Chỉ bản dịch" (#66): `interpretation.exportText(srt, translatedOnly)` / `exportFile(url, srt, translatedOnly)` theo công tắc Song ngữ / Chỉ bản dịch.
 - **Lớp Nghe, thêm (#8):** `audio.voiceFor(language)` cho tên giọng đọc ngôn ngữ đó ("Tiếng Nhật · Kyoko"); giọng đã chọn chỉ đọc đúng ngôn ngữ của nó, ngôn ngữ khác dùng giọng mặc định. `audio.voiceList` có `{name, language}` để nhóm theo ngôn ngữ ở Cài đặt › Giọng nói.
-- **Hạn chế đã biết:** trạng thái đọc từng câu riêng của Phiên dịch (#36) chưa có trên C++ (trình phát của Phiên dịch là private). Dùng `bridge.audio` cho nút loa từng câu hoặc ghi chênh lệch; không tự sửa C++.
+- **Đọc từng câu (#36, xong 2026-11-24):** `interpretation.speak(text, source)`, `interpretation.speakingSource` và `interpretation.preparing` cho nút loa từng câu.
 
 ### W3 · Trang hệ thống
 
@@ -225,7 +225,6 @@ Không chặn W0–W5. Vẽ trạng thái gần nhất mà backend hiện có v�
 | Nhóm | Mục | Ghi chú cho đợt Windows |
 | --- | --- | --- |
 | Âm thanh | #48 giọng có giới tính | Nhóm giọng theo ngôn ngữ (đã có `voiceList`), không ghi giới tính |
-| Phiên dịch | #36 trạng thái đọc từng câu (C++) | Xem "Hạn chế đã biết" ở W2 |
 | Hoãn | #13 So sánh 4 model, #17 Full Disk Access, #20 logo nhà cung cấp, #67 nghe tiếp cùng phiên, #69 tổng hợp cả 4 | — |
-| Qt kém macOS | #44 tiền tệ Launcher, #19 / #33 OCR trên máy, #34 mặt đặc | #34 đã có dịch vụ B2; còn nhánh QML và nghiệm thu W5 |
+| Qt kém macOS | #19 / #33 OCR trên máy, #34 mặt đặc (#44 tiền tệ Launcher xong 2026-11-24) | #34 đã có dịch vụ B2; còn nhánh QML và nghiệm thu W5 |
 | Cả hai | #62 bytes khi tải model, #65 tệp trên Launcher, #11 / #14 / #71 chỉ còn phần hiển thị | — |

@@ -36,6 +36,18 @@ public struct LocalMeasurement: Codable, Identifiable, Sendable {
     public nonisolated static func options(_ model: String) -> [String: Int] {
         guard let selected = load()[model]?.selected, selected.valid else { return [:] }; return ["num_gpu": selected.layers, "num_ctx": selected.context]
     }
+    /// The measurement a model's row shows: the applied profile's result, otherwise the fastest
+    /// one; nil when nothing usable was measured.
+    nonisolated static func headline(_ results: [LocalMeasurement], selected: LocalProfile?) -> LocalMeasurement? {
+        let usable = results.filter { $0.error == nil && ($0.tokensPerSecond ?? 0) > 0 && ($0.tokensPerSecond ?? 0).isFinite }
+        if let selected, let applied = usable.first(where: { $0.profile == selected }) { return applied }
+        return usable.max { ($0.tokensPerSecond ?? 0) < ($1.tokensPerSecond ?? 0) }
+    }
+    /// Stored headline measurements for these models, read from disk once.
+    public nonisolated static func measured(_ models: [String]) -> [String: LocalMeasurement] {
+        let stored = load()
+        return Dictionary(uniqueKeysWithValues: Set(models).compactMap { model in stored[model].flatMap { headline($0.results, selected: $0.selected) }.map { (model, $0) } })
+    }
     private static func save(_ values: [String: Record]) throws {
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         try JSONEncoder().encode(values).write(to: file, options: .atomic); try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)

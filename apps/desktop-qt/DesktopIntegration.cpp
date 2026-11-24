@@ -4,7 +4,7 @@
 #include <QThread>
 #include "DesktopIntegration.h"
 #include "LauncherTools.h"
-#include "CurrencyRates.h"
+#include <QDateTime>
 #include <QTimer>
 #include <QGuiApplication>
 #include <QClipboard>
@@ -55,7 +55,13 @@ bool registerShortcut(int index, const QVariantMap &value) {
 
 #endif
 }
-DesktopIntegration::DesktopIntegration(QObject *parent) : QObject(parent) {
+DesktopIntegration::DesktopIntegration(QObject *parent, QNetworkAccessManager *ratesNetwork)
+    : QObject(parent), m_rates(this, ratesNetwork), m_currencyTarget(QSettings().value("launcher/currencyTarget").toString()) {
+    connect(&m_rates, &CurrencyRates::Loader::loaded, this, [this](const QJsonObject &snapshot) {
+        if (!snapshot.isEmpty()) m_currencySnapshot = snapshot;
+        m_currencyStatus = m_currencySnapshot.isEmpty() ? "unavailable" : "ready";
+        emit currencyChanged();
+    });
     m_shortcuts = {QVariantMap{{"id", "quickChat"}, {"key", "Ctrl+Alt+Space"}, {"enabled", false}}, QVariantMap{{"id", "translateSelection"}, {"key", "Alt+T"}, {"enabled", false}}, QVariantMap{{"id", "launcher"}, {"key", "Alt+Space"}, {"enabled", false}}};
     m_file = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/shortcuts.json";
     QFile file(m_file); if (file.open(QIODevice::ReadOnly) && file.size() <= 65536) {
@@ -108,6 +114,12 @@ void DesktopIntegration::apply(const QVariantList &values) {
     emit changed();
 }
 void DesktopIntegration::shutdown() {
+    m_shuttingDown = true;
+    m_rates.cancel();
+    if (m_currencyStatus == "loading") {
+        m_currencyStatus = m_currencySnapshot.isEmpty() ? "idle" : "ready";
+        emit currencyChanged();
+    }
     m_selection.clear();
 #ifdef Q_OS_WIN
     for (int i = 0; i < m_shortcuts.size(); ++i) UnregisterHotKey(nullptr, 0x5100 + i);
@@ -228,15 +240,33 @@ void DesktopIntegration::openApplicationSettings() {
 QString DesktopIntegration::calculate(const QString &input) const { return LauncherTools::calculate(input); }
 QVariantMap DesktopIntegration::paletteQuery(const QString &input) const { return LauncherTools::paletteQuery(input); }
 void DesktopIntegration::searchFiles(const QString &input) {
-    const auto generation = ++m_fileSearchGeneration; m_files.clear(); m_currency.clear(); emit changed();
+    const auto generation = ++m_fileSearchGeneration; m_files.clear(); emit changed();
     if (input.trimmed().size() < 2) return;
     auto *watcher = new QFutureWatcher<QVariantList>(this);
     connect(watcher, &QFutureWatcher<QVariantList>::finished, this, [this, watcher, generation] { const auto values = watcher->result(); watcher->deleteLater(); if (generation == m_fileSearchGeneration) { m_files = values; emit changed(); } });
     watcher->setFuture(QtConcurrent::run([input] { return LauncherTools::files(input); }));
-    const auto cache = QFileInfo(m_file).absolutePath() + "/currency.json";
-    auto *rates = new QFutureWatcher<QString>(this);
-    connect(rates, &QFutureWatcher<QString>::finished, this, [this, rates, generation] { const auto result = rates->result(); rates->deleteLater(); if (generation == m_fileSearchGeneration) { m_currency = result; emit changed(); } });
-    rates->setFuture(QtConcurrent::run([input, cache] { return CurrencyRates::convert(input, cache); }));
+}
+
+void DesktopIntegration::setCurrencyTarget(const QString &target) {
+    if (!CurrencyRates::codes().contains(target) || target == m_currencyTarget) return;
+    m_currencyTarget = target;
+    QSettings().setValue("launcher/currencyTarget", target);
+    emit currencyChanged();
+}
+
+QVariantMap DesktopIntegration::currencyQuote(const QString &input, const QString &locale) const {
+    const auto query = CurrencyRates::parse(input, locale);
+    return query ? CurrencyRates::quote(*query, locale, m_currencyTarget, m_currencySnapshot) : QVariantMap{};
+}
+
+void DesktopIntegration::loadCurrencyRates(bool retry) {
+    const auto now = QDateTime::currentSecsSinceEpoch();
+    if (m_shuttingDown || m_currencyStatus == "loading") return;
+    if (!retry && (now < m_currencyRetryAfter || now - m_currencySnapshot.value("fetched").toDouble() < 86400)) return;
+    m_currencyStatus = "loading";
+    m_currencyRetryAfter = now + 300;
+    emit currencyChanged();
+    if (!m_shuttingDown) m_rates.load(QFileInfo(m_file).absolutePath() + "/currency.json", retry);
 }
 void DesktopIntegration::openFile(const QString &path) {
     bool known = false; for (const auto &value : m_files) if (value.toMap().value("id") == path) known = true;

@@ -1,8 +1,8 @@
 #include "CloudProtocol.h"
 #include "CredentialStore.h"
 #include "Attachments.h"
+#include "ModelLineup.h"
 #include <QJsonDocument>
-#include <QFile>
 #include <QJsonObject>
 #include <QRegularExpression>
 namespace CloudProtocol {
@@ -66,15 +66,13 @@ Call prepare(const QVariantMap &input, const QJsonArray &messages) {
     }
     const auto effort = input.value("reasoningEffort", "auto").toString();
     if (QStringList{"low", "medium", "high"}.contains(effort)) {
-        QFile resource(":/qml/native.json"); resource.open(QIODevice::ReadOnly);
-        const auto policy = QJsonDocument::fromJson(resource.readAll()).object().value("reasoningPolicy").toObject();
-        const auto supports = [&](const QString &family) { const auto pattern=policy.value(family).toString(); return !pattern.isEmpty() && QRegularExpression(pattern, QRegularExpression::CaseInsensitiveOption).match(model).hasMatch(); };
-        if (provider == "openai" && supports("openai")) body["reasoning_effort"] = effort;
-        if (provider == "claude" && supports("claude")) { body["thinking"] = QJsonObject{{"type", "adaptive"}}; body["output_config"] = QJsonObject{{"effort", effort}}; }
+        const auto family = ModelLineup::effortFamily(modelID);
+        if (family == "openai") body["reasoning_effort"] = effort;
+        if (family == "claude") { body["thinking"] = QJsonObject{{"type", "adaptive"}}; body["output_config"] = QJsonObject{{"effort", effort}}; }
         if (provider == "gemini") {
             QJsonObject thinking;
-            if (supports("geminiLevel")) thinking["thinkingLevel"] = effort;
-            else if (supports("geminiBudget")) thinking["thinkingBudget"] = effort == "low" ? 1024 : effort == "medium" ? 8192 : 24576;
+            if (family == "geminiLevel") thinking["thinkingLevel"] = effort;
+            else if (family == "geminiBudget") thinking["thinkingBudget"] = effort == "low" ? 1024 : effort == "medium" ? 8192 : 24576;
             if (!thinking.isEmpty()) body["generationConfig"] = QJsonObject{{"thinkingConfig", thinking}};
         }
     }

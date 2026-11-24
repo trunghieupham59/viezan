@@ -10,6 +10,10 @@ name: Package Native Release
 # Development signatures do not satisfy Gatekeeper or SmartScreen; Developer ID,
 # notarization and a trusted Windows certificate remain on provisioned machines.
 #
+# Updates are trusted through Viezan's own key instead: VIEZAN_UPDATE_SIGNING_KEY
+# (Ed25519 private key, PEM) signs each package manifest, and the apps check that
+# signature against the public key they embed before installing an update.
+#
 # Runs automatically when a push to develop changes the version in package.json,
 # and on demand. Other package.json edits (dependency bumps) do not build.
 on:
@@ -176,6 +180,22 @@ jobs:
         with:
           path: assets
           merge-multiple: true
+      - name: Sign the update manifests
+        shell: bash
+        env:
+          KEY: ${{ secrets.VIEZAN_UPDATE_SIGNING_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then echo "::error::VIEZAN_UPDATE_SIGNING_KEY is not set; the apps refuse an unsigned update."; exit 1; fi
+          key="$RUNNER_TEMP/update-key.pem"
+          trap 'rm -f "$key"' EXIT
+          (umask 077; printf '%s\n' "$KEY" > "$key")
+          public="$(openssl pkey -in "$key" -pubout -outform DER | tail -c 32 | base64 -w0)"
+          for source in apps/macos/Sources/ViezanDomain/NativeUpdates.swift apps/desktop-qt/NativeUpdates.cpp; do
+            if ! grep -qF "\"$public\"" "$source"; then echo "::error::The signing key does not match the public key in $source."; exit 1; fi
+          done
+          for manifest in assets/Viezan-*.json; do
+            openssl pkeyutl -sign -rawin -inkey "$key" -in "$manifest" | base64 -w0 > "$manifest.sig"
+          done
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -196,7 +216,7 @@ jobs:
             echo "### Changes"
             cat changes.md
             echo
-            echo "SHA-256 checksums are listed in the \`.json\` manifest beside each package."
+            echo "SHA-256 checksums are listed in the \`.json\` manifest beside each package; \`.json.sig\` is its Ed25519 signature."
           } > notes.md
           # Runs from develop publish the release, which creates the tag. Runs
           # from any other ref only prepare a draft.

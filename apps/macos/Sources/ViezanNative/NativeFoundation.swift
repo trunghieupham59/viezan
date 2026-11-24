@@ -2,71 +2,36 @@ import SwiftUI
 import Observation
 import ViezanDomain
 
+// Both system preferences require opaque, clearly edged glass fallbacks.
+func usesSolidSurfaces(reduceTransparency: Bool, contrast: ColorSchemeContrast) -> Bool {
+    reduceTransparency || contrast == .increased
+}
+extension EnvironmentValues {
+    var solidSurfaces: Bool { usesSolidSurfaces(reduceTransparency: accessibilityReduceTransparency, contrast: colorSchemeContrast) }
+}
+
 @MainActor @Observable final class NativeTheme {
     static let shared = NativeTheme()
     var preferences = AppearancePreferences()
 }
 // Colors are generated from the canonical product tokens.
 @MainActor func chromeColor(_ role: String, _ scheme: ColorScheme) -> Color {
-    paletteColor(NativeTheme.shared.preferences.preset ?? "glass", role, scheme)
+    paletteColor(role, scheme)
 }
 // Liquid Glass 2.0 defines its own reading roles in both modes (warm pane,
-// lavender actions); every preset reads content roles from its own palette.
+// lavender actions).
 @MainActor func contentColor(_ role: String, _ scheme: ColorScheme) -> Color {
-    paletteColor(NativeTheme.shared.preferences.preset ?? "glass", role, scheme)
+    paletteColor(role, scheme)
 }
-@MainActor var glassPreset: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
-@MainActor private func paletteColor(_ preset: String, _ role: String, _ scheme: ColorScheme) -> Color {
+@MainActor private func paletteColor(_ role: String, _ scheme: ColorScheme) -> Color {
     let preferences = NativeTheme.shared.preferences
-    let key = preset + ":" + (preferences.accent ?? "auto")
-    let mode = preferences.preset == "midnight" || scheme == .dark ? "dark" : "light"
+    let key = "glass:" + (preferences.accent ?? "auto")
+    let mode = scheme == .dark ? "dark" : "light"
     let hex = nativeResources.themePalettes[key]?[mode]?[role] ?? nativeResources.chromePalettes[mode]![role]!
     let raw = UInt64(hex.dropFirst(), radix: 16)!
     let alpha = hex.count == 9 ? Double((raw >> 24) & 255) / 255 : 1
     return Color(.sRGB, red: Double((raw >> 16) & 255) / 255,
                  green: Double((raw >> 8) & 255) / 255, blue: Double(raw & 255) / 255, opacity: alpha)
-}
-
-// Primary navigation material: real behind-window vibrancy tinted by the
-// persona's nav material; Reduce Transparency falls back to the solid role.
-struct ChromeSurface: View {
-    var titlebar = false
-    var identifier: String? = nil
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-    var body: some View {
-        if reduceTransparency || contrast == .increased { chromeColor(titlebar ? "titlebar-bg" : "sidebar-bg", scheme) }
-        else {
-            let milkyGlass = scheme == .light && (NativeTheme.shared.preferences.preset ?? "glass") == "glass"
-            VisualEffectBackground(material: milkyGlass ? .sidebar : titlebar ? .titlebar : .sidebar, identifier: identifier)
-                .overlay {
-                    if milkyGlass && !titlebar {
-                        LinearGradient(colors: [chromeColor("titlebar-material", scheme), chromeColor("primary-nav-material", scheme)],
-                                       startPoint: .top, endPoint: .bottom)
-                    } else { chromeColor(titlebar ? "titlebar-material" : "primary-nav-material", scheme) }
-                }
-        }
-    }
-}
-
-struct VisualEffectBackground: NSViewRepresentable {
-    var material: NSVisualEffectView.Material
-    var identifier: String? = nil
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = PassiveMaterialView()
-        view.blendingMode = .behindWindow
-        view.state = .followsWindowActiveState
-        view.setAccessibilityElement(false)
-        return view
-    }
-    func updateNSView(_ view: NSVisualEffectView, context: Context) {
-        view.material = material
-        view.setAccessibilityIdentifier(identifier)
-    }
-    final class PassiveMaterialView: NSVisualEffectView {
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
-    }
 }
 
 // Explicit chrome dividers keep fixture and live-window contrast identical.
@@ -75,7 +40,7 @@ struct ChromeDivider: View {
     var vertical = false
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        Rectangle().fill(chromeColor(glassPreset ? (vertical ? "border-strong" : "divider") : "material-border", scheme))
+        Rectangle().fill(chromeColor(vertical ? "border-strong" : "divider", scheme))
             .frame(width: vertical ? metric("hairline") : nil,
                    height: vertical ? nil : metric("hairline"))
             .accessibilityHidden(true)
@@ -187,9 +152,13 @@ struct ShellCloseButton: View {
 }
 
 struct ShellSurface: View {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.solidSurfaces) private var solidSurfaces
     var body: some View {
-        if reduceTransparency { Color(nsColor: .windowBackgroundColor) }
+        if solidSurfaces {
+            RoundedRectangle(cornerRadius: metric("radius")).fill(contentColor("surface", scheme))
+                .overlay { RoundedRectangle(cornerRadius: metric("radius")).strokeBorder(contentColor("border-strong", scheme), lineWidth: metric("hairline")) }
+        }
         else if #available(macOS 26.0, *) {
             Color.clear.glassEffect(.regular, in: RoundedRectangle(cornerRadius: metric("radius")))
         } else { RoundedRectangle(cornerRadius: metric("radius")).fill(.regularMaterial) }
@@ -243,10 +212,9 @@ struct SidebarSurface: View {
     /// The temporary navigation pane (Nav-Overlay) floats above the reading pane: large shadow.
     var raised = false
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.solidSurfaces) private var solidSurfaces
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: metric("chromeSurfaceRadius"), style: .continuous) }
-    private var solid: Bool { reduceTransparency || contrast == .increased }
+    private var solid: Bool { solidSurfaces }
     var body: some View {
         Group {
             if solid {
@@ -341,15 +309,13 @@ struct NavigationGlassMaterial: NSViewRepresentable {
 // clear; hover borrows a softer lens. The Button and its label never change
 // identity when material appears, preserving keyboard and accessibility focus.
 struct NavigationButtonStyle: ButtonStyle {
-    var glass: Bool
     var selected = false
     var hovered = false
-    var resting = false
     /// Glass corner radius; segments default to a capsule, navigation rows pass `radius`.
     var radius: CGFloat? = nil
     func makeBody(configuration: Configuration) -> some View {
-        NavigationButtonBody(configuration: configuration, glass: glass,
-                             selected: selected, hovered: hovered, resting: resting, glassRadius: radius)
+        NavigationButtonBody(configuration: configuration,
+                             selected: selected, hovered: hovered, glassRadius: radius)
     }
 }
 
@@ -359,12 +325,11 @@ struct GlassLens: View {
     var radius: CGFloat
     var hover = false
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.solidSurfaces) private var solidSurfaces
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         Group {
-            if reduceTransparency || contrast == .increased {
+            if solidSurfaces {
                 ChatGlassSurface(radius: radius, selected: !hover)
             } else if hover {
                 shape.fill(chromeColor("chrome-item-hover", scheme))
@@ -378,44 +343,34 @@ struct GlassLens: View {
 }
 
 private struct NavigationButtonBody: View {
+    @Environment(\.isFocused) private var focused
     var configuration: ButtonStyleConfiguration
-    var glass: Bool
     var selected: Bool
     var hovered: Bool
-    var resting: Bool
     var glassRadius: CGFloat?
     @Environment(\.isEnabled) private var enabled
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-    private var solid: Bool { reduceTransparency || contrast == .increased }
+    @Environment(\.solidSurfaces) private var solidSurfaces
+    private var solid: Bool { solidSurfaces }
     private var interacting: Bool { enabled && (hovered || configuration.isPressed) }
-    private var radius: CGFloat { glass ? glassRadius ?? metric("compactControl") / 2 : metric("chromeItemRadius") }
+    private var radius: CGFloat { glassRadius ?? metric("compactControl") / 2 }
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius, style: .continuous) }
     var body: some View {
         configuration.label
             .opacity(enabled ? 1 : 0.5)
             .background {
-                if glass {
-                    if selected || resting || interacting {
-                        GlassLens(radius: radius, hover: !(selected || resting))
-                    }
-                } else {
-                    shape.fill(chromeColor(selected ? "chrome-item-active" : interacting ? "chrome-item-hover" : "sidebar-search-bg", scheme)
-                        .opacity(selected || interacting || resting ? 1 : 0))
-                        .overlay {
-                            if selected || resting { shape.strokeBorder(chromeColor("material-border", scheme), lineWidth: metric("hairline")) }
-                        }
+                if selected || interacting {
+                    GlassLens(radius: radius, hover: !selected)
                 }
             }
             .overlay {
-                if glass {
-                    if configuration.isPressed && enabled && !solid {
-                        shape.fill(chromeColor("chrome-fg", scheme).opacity(metric("selectionOpacity")))
-                            .allowsHitTesting(false).accessibilityHidden(true)
-                    }
+                if configuration.isPressed && enabled && !solid {
+                    shape.fill(chromeColor("chrome-fg", scheme).opacity(metric("selectionOpacity")))
+                        .allowsHitTesting(false).accessibilityHidden(true)
                 }
             }
+            // Keep focus separate from the selected lens.
+            .overlay { if focused { shape.strokeBorder(contentColor("action-text", scheme), lineWidth: metric("hairline") * 2).allowsHitTesting(false).accessibilityHidden(true) } }
             // Keep the native focus halo inside the scroll bounds, including
             // the first row, without shrinking the rectangular pointer target.
             .contentShape(.focusEffect, shape.inset(by: metric("hairline") * 2))
@@ -427,32 +382,21 @@ private struct NavigationButtonBody: View {
 // which let page text show through history, activity and the command palette.
 struct ReadingPanelSurface: View {
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
-    private var solid: Bool { reduceTransparency || contrast == .increased }
+    @Environment(\.solidSurfaces) private var solidSurfaces
+    private var solid: Bool { solidSurfaces }
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: metric("surfaceRadius"), style: .continuous)
         Group {
-            if glass {
-                // `.float`: near-opaque raised white over a heavy in-window
-                // blur, so page text behind the layer never reads through.
-                if solid {
-                    shape.fill(chromeColor("titlebar-bg", scheme))
-                        .overlay { shape.strokeBorder(chromeColor("border-strong", scheme), lineWidth: metric("hairline")) }
-                } else {
-                    shape.fill(.regularMaterial)
-                        .overlay { shape.fill(chromeColor("surface-raised", scheme)) }
-                        .overlay { GlassRim(shape: shape) }
-                        .shadow(color: chromeColor("shadow-lg-color", scheme), radius: metric("shadowLgBlur") / 2, y: metric("shadowLgY"))
-                }
+            // `.float`: near-opaque raised white over a heavy in-window
+            // blur, so page text behind the layer never reads through.
+            if solid {
+                shape.fill(chromeColor("titlebar-bg", scheme))
+                    .overlay { shape.strokeBorder(chromeColor("border-strong", scheme), lineWidth: metric("hairline")) }
             } else {
-                RoundedRectangle(cornerRadius: metric("surfaceRadius"))
-                    .fill(contentColor("surface", scheme))
-                    .overlay(RoundedRectangle(cornerRadius: metric("surfaceRadius"))
-                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: metric("hairline")))
-                    .shadow(color: Color(nsColor: .shadowColor).opacity(solid ? 0 : metric("overlayShadowOpacity")),
-                            radius: metric("inset"), y: metric("small"))
+                shape.fill(.regularMaterial)
+                    .overlay { shape.fill(chromeColor("surface-raised", scheme)) }
+                    .overlay { GlassRim(shape: shape) }
+                    .shadow(color: chromeColor("shadow-lg-color", scheme), radius: metric("shadowLgBlur") / 2, y: metric("shadowLgY"))
             }
         }
         .allowsHitTesting(false).accessibilityHidden(true)
@@ -476,6 +420,15 @@ struct NativePanelButton: View {
     }
 }
 
+/// The visible, enabled shell control with this accessibility identifier, for a menu command
+/// that presses it. Nil when the screen has no such control.
+@MainActor func shellControl(_ identifier: String, in view: NSView?) -> NSButton? {
+    guard let view, !view.isHidden else { return nil }
+    if let button = view as? NSButton, button.accessibilityIdentifier() == identifier, button.isEnabled { return button }
+    for child in view.subviews { if let found = shellControl(identifier, in: child) { return found } }
+    return nil
+}
+
 // Real NSButtons make focus restoration explicit, including when the system's
 // keyboard-navigation preference does not focus a SwiftUI toolbar proxy.
 struct ShellToolbarButton: NSViewRepresentable {
@@ -483,7 +436,7 @@ struct ShellToolbarButton: NSViewRepresentable {
     var symbol: String
     var identifier: String
     var showsLabel = false
-    /// Explicit opt-in for a quiet control; ordinary actions use the Glass preset automatically.
+    /// Explicit opt-in for a quiet control; ordinary actions use their own glass material.
     var glass = false
     /// Quiet controls borrow their parent's material unless `glass` explicitly opts in.
     var quiet = false
@@ -506,8 +459,7 @@ struct ShellToolbarButton: NSViewRepresentable {
     /// Receives the control's frame in window coordinates on activation, for a layer anchored to it.
     var frameAction: ((CGRect) -> Void)? = nil
     var action: () -> Void
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.solidSurfaces) private var solidSurfaces
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> ButtonHost {
         let button = FocusButton()
@@ -539,24 +491,24 @@ struct ShellToolbarButton: NSViewRepresentable {
         context.coordinator.symbol = symbol
         let image = symbol.isEmpty ? nil : NSImage(systemSymbolName: symbol, accessibilityDescription: label)
         button.image = trailingSymbol ? image?.withSymbolConfiguration(NSImage.SymbolConfiguration(scale: .small)) : image
-        let inlineCount = countBadge && glassPreset ? 0 : count
+        let inlineCount = countBadge ? 0 : count
         button.imagePosition = symbol.isEmpty ? .noImage : showsLabel || inlineCount > 0 ? (trailingSymbol ? .imageTrailing : .imageLeading) : .imageOnly
         button.title = showsLabel ? label + (inlineCount > 0 ? " · " + String(inlineCount) : "") : inlineCount > 0 ? String(inlineCount) : ""
         // Glass `.btn`: body size, medium; the tinted "new" action is semibold.
-        button.font = glassPreset && panelAction == nil
+        button.font = panelAction == nil
             ? .systemFont(ofSize: NSFont.systemFontSize * (small ? metric("smallScale") : 1), weight: soft ? .semibold : .medium)
-            : .systemFont(ofSize: panelAction == nil ? NSFont.systemFontSize * metric(small ? "smallScale" : "labelScale") : NSFont.systemFontSize)
+            : .systemFont(ofSize: NSFont.systemFontSize)
         button.titlebarControl = identifier == "navigation-toggle"
         button.solidPrimary = primary
         button.emphasized = primary || soft || (expanded == true && identifier != "navigation-toggle")
         // `.btn.glass.tint`: accent text on clear glass; only an open layer tints the material.
-        button.textTint = soft && glassPreset && expanded != true
+        button.textTint = soft && expanded != true
         if let expanded { button.setAccessibilityExpanded(expanded) }
         button.panelAction = panelAction
-        let glassControl = (glass || !quiet) && glassPreset
+        let glassControl = glass || !quiet
         button.bounded = (showsLabel && !quiet) || glassControl
         button.glassShape = glassControl
-        button.opaqueSurface = reduceTransparency || contrast == .increased
+        button.opaqueSurface = solidSurfaces
         button.usesGlass = glassControl && !button.opaqueSurface
         (button.cell as? PaddedButtonCell)?.horizontalInset = showsLabel ? metric(quiet ? "small" : "inset") : 0
         (button.cell as? PaddedButtonCell)?.leadingRoom = leadingRoom
@@ -731,7 +683,7 @@ struct ShellToolbarButton: NSViewRepresentable {
                 let solid = panelAction == .primary && isEnabled
                 if panelAction == nil {
                     let color: (String) -> NSColor = { NSColor(chromeColor($0, scheme)) }
-                    layer?.borderColor = color("material-border").cgColor
+                    layer?.borderColor = color(opaqueSurface ? "border-strong" : "material-border").cgColor
                     // Unbounded controls borrow the surrounding group's material,
                     // including its disabled surface; never add a solid child plate.
                     let fill = !isEnabled ? (bounded ? NSColor.controlBackgroundColor : NSColor.clear)
@@ -754,7 +706,7 @@ struct ShellToolbarButton: NSViewRepresentable {
                         : color(titlebarControl ? "chrome-fg-muted" : "text-muted")
                     return
                 }
-                layer?.borderColor = (danger ? NSColor.systemRed : NSColor.separatorColor).cgColor
+                layer?.borderColor = (opaqueSurface ? NSColor(contentColor("border-strong", scheme)) : danger ? NSColor.systemRed : NSColor.separatorColor).cgColor
                 let fill = solid ? NSColor.controlAccentColor
                     : danger ? NSColor.systemRed.withAlphaComponent(metric("selectionOpacity"))
                     : emphasized && isEnabled ? NSColor.controlAccentColor.withAlphaComponent(metric("selectionOpacity"))
@@ -957,23 +909,22 @@ struct NativeNavigation: View {
     var close: (() -> Void)?
     @Environment(\.colorScheme) private var scheme
     @State private var hoveredItem: String?
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     // Glass rows sit `gap` inside the pane with a `small` inner inset (Sidebar board).
-    private var rowInset: CGFloat { metric(glass ? "small" : "inset") }
+    private var rowInset: CGFloat { metric("small") }
     // Review 18: one workspace list, then a single system group that ends in Settings.
     private let workspaceItems: [(String, String)] = [("chat", "bubble.left.and.bubble.right"), ("translate", "translate"), ("interpret", "waveform"), ("dictionary", "book"), ("everywhere", "text.viewfinder")]
     private let systemItems: [(String, String)] = [("apps", "macwindow"), ("thermal", "thermometer.medium"), ("utilities", "command")]
     var body: some View {
-        VStack(spacing: metric(glass ? "gap" : "small")) {
+        VStack(spacing: metric("gap")) {
             HStack(spacing: metric("gap")) {
                 if let url = NativeResources.brandURL, let icon = NSImage(contentsOf: url) {
                     // One size in both states; its centre sits on the icon axis (rail centre), so nothing jumps.
                     Image(nsImage: icon).resizable().scaledToFit()
                         .frame(width: metric("large") - metric("tight"), height: metric("large") - metric("tight")).accessibilityHidden(true)
                 }
-                if expanded { Text("Viezan").font(.vzn(glass ? "subtitleScale" : "titleScale", .semibold)).fontWeight(.semibold).transition(.opacity); Spacer(minLength: 0) }
+                if expanded { Text("Viezan").font(.vzn("subtitleScale", .semibold)).fontWeight(.semibold).transition(.opacity); Spacer(minLength: 0) }
                 if let close { ShellCloseButton(label: store.text("close"), focusOnAppear: true, action: close) }
-            }.frame(minHeight: metric("compactControl")).padding(.horizontal, expanded ? metric(glass ? "tight" : "gap") : 0)
+            }.frame(minHeight: metric("compactControl")).padding(.horizontal, expanded ? metric("tight") : 0)
             searchButton
                 .frame(maxWidth: .infinity).foregroundStyle(chromeColor(hoveredItem == "search" ? "chrome-fg" : "chrome-fg-muted", scheme))
             ScrollView {
@@ -994,11 +945,10 @@ struct NativeNavigation: View {
         }.padding(.vertical, metric("small"))
             // Keep the brand row clear of the window-control row and of the
             // floating pane's rounded shoulder in every presentation.
-            .padding(.top, glass ? metric("gap") : 0)
-            .padding(.horizontal, metric(glass ? "gap" : "small"))
-            .padding(.bottom, glass ? metric("small") : 0)
+            .padding(.top, metric("gap"))
+            .padding(.horizontal, metric("gap"))
+            .padding(.bottom, metric("small"))
             .foregroundStyle(chromeColor("chrome-fg", scheme))
-            .background { if !glass { ChromeSurface() } }
             .accessibilityElement(children: .contain).accessibilityLabel(store.text("primaryNavigation"))
     }
     /// What keeps running behind the pages: fan control, global shortcuts.
@@ -1018,14 +968,13 @@ struct NativeNavigation: View {
         let rows = backgroundRows
         if !rows.isEmpty, expanded {
             // Glass: the running group opens the footer; only storage is set off by a hairline.
-            if !glass { ChromeDivider().padding(.vertical, metric("tight")) }
             VStack(alignment: .leading, spacing: 0) {
                     groupLabel("backgroundRunning").padding(.horizontal, rowInset).padding(.bottom, metric("tight"))
                     ForEach(rows, id: \.route) { row in
                         Button { select(row.route) } label: {
                             HStack(spacing: metric("small")) { StatusDot(tone: .ready); Text(row.text).lineLimit(1); Spacer(minLength: 0) }
                                 .font(.vzn("smallScale")).padding(.horizontal, rowInset).frame(height: metric("compactControl") - metric("tight")).contentShape(Rectangle())
-                        }.buttonStyle(NavigationButtonStyle(glass: glass, hovered: glass && hoveredItem == "background-" + row.route))
+                        }.buttonStyle(NavigationButtonStyle(hovered: hoveredItem == "background-" + row.route))
                             .onHover { hoveredItem = $0 ? "background-" + row.route : nil }
                             .foregroundStyle(chromeColor("chrome-fg-muted", scheme)).accessibilityIdentifier("background-" + row.route)
                     }
@@ -1034,28 +983,27 @@ struct NativeNavigation: View {
     }
     // Uppercase group label (`.cap`): Glass reads semibold in the muted chrome role.
     private func groupLabel(_ key: String) -> some View {
-        Text(store.text(key).uppercased()).font(.vzn("captionScale", glass ? .semibold : .regular)).tracking(metric("hairline"))
-            .foregroundStyle(chromeColor(glass ? "chrome-fg-muted" : "chrome-fg-soft", scheme))
+        Text(store.text(key).uppercased()).font(.vzn("captionScale", .semibold)).tracking(metric("hairline"))
+            .foregroundStyle(chromeColor("chrome-fg-muted", scheme))
             .accessibilityAddTraits(.isHeader).transition(.opacity)
     }
     // "Search ⌘K" opens the command palette. Glass: an inset capsule field with
     // a key cap when expanded, a round glass control on the rail.
     private var searchButton: some View {
         Button(action: commands) {
-            HStack(spacing: metric(glass ? "small" : "gap")) {
-                Image(systemName: "magnifyingglass").frame(width: glass ? nil : metric("icon")).accessibilityHidden(true)
+            HStack(spacing: metric("small")) {
+                Image(systemName: "magnifyingglass").accessibilityHidden(true)
                 if expanded {
                     Text(store.text("searchEverything")).lineLimit(1)
                     Spacer(minLength: metric("tight"))
-                    if glass { KeyCap(text: "⌘K").accessibilityHidden(true) }
-                    else { Text("⌘ K").font(.vzn("captionScale")).accessibilityHidden(true) }
+                    KeyCap(text: "⌘K").accessibilityHidden(true)
                 }
-            }.padding(.leading, expanded ? metric(glass ? "gap" : "inset") : 0).padding(.trailing, expanded ? metric(glass ? "tight" : "inset") : 0)
-                .frame(maxWidth: expanded || !glass ? .infinity : nil)
-                .frame(width: glass && !expanded ? metric("compactControl") : nil, height: metric("compactControl"))
-                .font(.system(size: NSFont.systemFontSize * (glass ? 1 : metric("smallScale"))))
+            }.padding(.leading, expanded ? metric("gap") : 0).padding(.trailing, expanded ? metric("tight") : 0)
+                .frame(maxWidth: expanded ? .infinity : nil)
+                .frame(width: !expanded ? metric("compactControl") : nil, height: metric("compactControl"))
+                .font(.system(size: NSFont.systemFontSize))
                 .contentShape(Capsule())
-        }.buttonStyle(SidebarSearchStyle(glass: glass, expanded: expanded, hovered: hoveredItem == "search"))
+        }.buttonStyle(SidebarSearchStyle(expanded: expanded))
             .frame(maxWidth: .infinity).foregroundStyle(chromeColor(hoveredItem == "search" ? "chrome-fg" : "chrome-fg-muted", scheme))
             .onHover { hoveredItem = $0 ? "search" : nil }
             .accessibilityIdentifier("navigation-search")
@@ -1085,9 +1033,9 @@ struct NativeNavigation: View {
         let running = backgroundRows.first { $0.route == id }
         let railNote = expanded ? "" : missingKey ? ": " + store.text("keyAbsent") : running.map { ": " + $0.text } ?? ""
         return Button { select(id) } label: {
-            HStack(spacing: metric(glass ? "small" : "gap")) {
-                Image(systemName: symbol).symbolRenderingMode(.monochrome).imageScale(.medium).frame(width: metric("icon"))
-                    .foregroundStyle(chromeColor(glass && screen == id ? "action-text" : screen == id ? "chrome-item-active-fg" : "chrome-fg", scheme))
+            HStack(spacing: metric("small")) {
+                Image(systemName: symbol).accessibilityHidden(true).symbolRenderingMode(.monochrome).imageScale(.medium).frame(width: metric("icon"))
+                    .foregroundStyle(chromeColor(screen == id ? "action-text" : "chrome-fg", scheme))
                     .overlay(alignment: .topTrailing) {
                         if !expanded, missingKey || running != nil { StatusDot(tone: missingKey ? .failed : .ready).offset(x: metric("tight"), y: -metric("tight")) }
                     }
@@ -1096,10 +1044,10 @@ struct NativeNavigation: View {
                     if missingKey { HStack(spacing: metric("tight")) { StatusDot(tone: .failed); Text(store.text("keyAbsent")).font(.vzn("captionScale")) }.foregroundStyle(chromeColor("chrome-fg-muted", scheme)) }
                 }
             }.padding(.horizontal, expanded ? rowInset : 0)
-                .frame(maxWidth: expanded || !glass ? .infinity : nil, alignment: expanded ? .leading : .center)
-                .frame(width: glass && !expanded ? metric("navControl") : nil, height: metric("compactControl"))
+                .frame(maxWidth: expanded ? .infinity : nil, alignment: expanded ? .leading : .center)
+                .frame(width: !expanded ? metric("navControl") : nil, height: metric("compactControl"))
                 .contentShape(Rectangle())
-        }.buttonStyle(NavigationButtonStyle(glass: glass, selected: screen == id, hovered: hoveredItem == id, radius: metric("radius")))
+        }.buttonStyle(NavigationButtonStyle(selected: screen == id, hovered: hoveredItem == id, radius: metric("radius")))
             .frame(maxWidth: .infinity)
             .foregroundStyle(chromeColor(screen == id ? "chrome-item-active-fg" : "chrome-fg", scheme))
             .font(.system(size: NSFont.systemFontSize * metric("labelScale"), weight: screen == id ? .semibold : .regular))
@@ -1111,23 +1059,17 @@ struct NativeNavigation: View {
 }
 
 // Sidebar search trigger. Glass expanded: inset capsule field (`.sb-search`);
-// rail: round glass control (`.sb-round`). Other presets keep the row style.
+// rail: round glass control (`.sb-round`).
 private struct SidebarSearchStyle: ButtonStyle {
-    var glass: Bool
     var expanded: Bool
-    var hovered: Bool
     @ViewBuilder func makeBody(configuration: Configuration) -> some View {
-        if glass {
-            configuration.label
-                .background {
-                    if expanded { InsetInputSurface(radius: metric("compactControl") / 2) }
-                    else { Color.clear.modifier(ControlGlass(radius: metric("compactControl") / 2, pressed: configuration.isPressed)).allowsHitTesting(false) }
-                }
-                .opacity(configuration.isPressed ? 0.8 : 1)
-                .contentShape(.focusEffect, Capsule())
-        } else {
-            NavigationButtonStyle(glass: false, hovered: hovered, resting: expanded).makeBody(configuration: configuration)
-        }
+        configuration.label
+            .background {
+                if expanded { InsetInputSurface(radius: metric("compactControl") / 2) }
+                else { Color.clear.modifier(ControlGlass(radius: metric("compactControl") / 2, pressed: configuration.isPressed)).allowsHitTesting(false) }
+            }
+            .opacity(configuration.isPressed ? 0.8 : 1)
+            .contentShape(.focusEffect, Capsule())
     }
 }
 
@@ -1140,7 +1082,6 @@ enum CommandSelection {
 
 struct NativeCommands: View {
     @Environment(\.colorScheme) private var scheme
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     @Bindable var store: WorkbenchStore
     var historyAvailable = true
     var availableHeight: CGFloat
@@ -1186,7 +1127,7 @@ struct NativeCommands: View {
     private func move(_ offset: Int) { index = CommandSelection.moved(index, by: offset, count: entries.count) }
     private func open() { if entries.indices.contains(index) { entries[index].run() } }
     var body: some View {
-        if glass { paletteBody } else { classicBody }
+        paletteBody
     }
     private var shortcutText: (String) -> String { { "⌘" + $0.replacingOccurrences(of: "Shift+", with: "⇧") } }
     // Glass palette (Overlays board): a bare search head with Close, one hairline,
@@ -1246,55 +1187,5 @@ struct NativeCommands: View {
                 .background { if selected { GlassLens(radius: metric("radius")) } }
         }.buttonStyle(.plain).focusable(false).help(item.title)
             .accessibilityAddTraits(selected ? .isSelected : []).id(item.id)
-    }
-    private var classicBody: some View {
-        VStack(alignment: .leading, spacing: metric("inset")) {
-            HStack {
-                Text(store.text("commands")).font(.vzn("labelScale", .semibold))
-                Spacer()
-                ShellToolbarButton(label: store.text("close"), symbol: "xmark", identifier: "panel-close", focusEpoch: closeFocusEpoch, onTab: { _ in searchFocusEpoch += 1 }, action: dismiss)
-                    .frame(width: metric("control"), height: metric("control"))
-            }.frame(height: metric("control"))
-            SearchBox(query: $query, label: store.text("commandSearch"), move: move, submit: open, cancel: dismiss, first: { index = 0 }, last: { index = max(0, entries.count - 1) }, onTab: { _ in closeFocusEpoch += 1 }, focusEpoch: searchFocusEpoch).frame(height: metric("control"))
-            if entries.isEmpty { Text(store.text("noCommands")).foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: metric("control")) }
-            else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(spacing: metric("tight")) {
-                            ForEach(Array(entries.enumerated()), id: \.element.id) { offset, item in
-                                Button { item.run() } label: {
-                                    HStack {
-                                        Label(item.title, systemImage: item.symbol).lineLimit(1)
-                                        Spacer()
-                                        if !item.shortcut.isEmpty {
-                                            Text("⌘" + item.shortcut.replacingOccurrences(of: "Shift+", with: "⇧")).font(.vzn("captionScale")).foregroundStyle(.secondary).fixedSize()
-                                        }
-                                    }.padding(.horizontal, metric("small")).frame(maxWidth: .infinity, alignment: .leading)
-                                        .frame(height: metric("compactControl")).contentShape(Rectangle())
-                                }.buttonStyle(.plain).focusable(false)
-                                    .fontWeight(glass && offset == index ? .semibold : .regular)
-                                    .foregroundStyle(offset == index ? contentColor("action-text", scheme) : Color.primary)
-                                    .onHover { if $0 { index = offset } }
-                                    .help(item.title)
-                                    .background {
-                                        if offset == index {
-                                            if glass {
-                                                Color.clear.modifier(ControlGlass(radius: metric("compactControl") / 2))
-                                                    .allowsHitTesting(false).accessibilityHidden(true)
-                                            } else {
-                                                RoundedRectangle(cornerRadius: metric("radius")).fill(contentColor("action-soft", scheme))
-                                            }
-                                        }
-                                    }
-                                    .accessibilityAddTraits(offset == index ? .isSelected : []).id(item.id)
-                            }
-                        }.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
-                    }.frame(height: min(max(metric("control"), contentHeight), max(metric("control"), availableHeight - metric("control") * 2 - metric("inset") * 4)))
-                    .onChange(of: index) { _, value in if entries.indices.contains(value) { proxy.scrollTo(entries[value].id) } }
-                }
-            }
-        }.padding(metric("inset"))
-            .accessibilityElement(children: .contain).accessibilityLabel(store.text("commands"))
-            .onChange(of: query) { _, _ in index = 0 }
     }
 }

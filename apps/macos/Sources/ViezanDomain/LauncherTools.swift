@@ -23,26 +23,171 @@ public enum LauncherCalculator {
         return String(format: "%.12g", value)
     }
 }
-public struct LauncherFile: Identifiable, Sendable { public var id: String; public var name: String }
+public struct LauncherFile: Identifiable, Sendable, Equatable {
+    public var id: String; public var name: String
+    public var isDirectory = false
+    /// Last content change, seconds since 1970; nil when the file system does not say.
+    public var modified: Double?
+    public var contentMatch = false
+}
+
+/// Only the surrounding wildcards are Spotlight operators.
+private func spotlightPattern(_ text: String) -> String {
+    var pattern = "\"*"
+    for scalar in text.unicodeScalars {
+        if ["\\", "\"", "'", "*"].contains(scalar) { pattern.append("\\") }
+        pattern.unicodeScalars.append(scalar)
+    }
+    return pattern + "*\"cd"
+}
+
 public enum LauncherFiles {
+    private static let limit = 50
     /// Dependency and build folders hold thousands of files nobody opens from a launcher.
     static let skipped: Set<String> = ["node_modules", "DerivedData", "Pods", "Carthage", "site-packages", "__pycache__", "target", "dist", "build"]
+    /// A result row for a path under `home`: regular files and folders only, nothing hidden, no
+    /// dependency or build folders, no symbolic links.
+    static func file(at path: String, home: String) -> LauncherFile? {
+        let url = URL(fileURLWithPath: path)
+        // Only the part below the home folder decides: an account named "build" still has files.
+        guard path.hasPrefix(home + "/"), !path.dropFirst(home.count).split(separator: "/").contains(where: { $0.hasPrefix(".") || skipped.contains(String($0)) }),
+              let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey, .isPackageKey, .contentModificationDateKey]),
+              values.isRegularFile == true || values.isDirectory == true, values.isSymbolicLink != true else { return nil }
+        // A package (an app, a Pages document) opens like a file, so it reads as one.
+        return LauncherFile(id: path, name: url.lastPathComponent, isDirectory: values.isDirectory == true && values.isPackage != true, modified: values.contentModificationDate?.timeIntervalSince1970)
+    }
+    static func contentQuery(_ text: String) -> String {
+        "kMDItemTextContent == \(spotlightPattern(text))"
+    }
+
+    private static func indexedFiles(_ arguments: [String], home: String) throws -> some Sequence<LauncherFile> {
+        // Never walk the home directory as a fallback. NUL separates paths even if a name contains a newline.
+        try Task.checkCancellation()
+        let result = try NativeCommand.run(URL(fileURLWithPath: "/usr/bin/mdfind"), ["-0", "-onlyin", home] + arguments, timeout: 3)
+        guard result.status == 0 else { throw CocoaError(.fileReadUnknown) }
+        let paths = String(decoding: result.output, as: UTF8.self)
+        return paths.split(separator: "\0").lazy.compactMap { file(at: String($0), home: home) }
+    }
+
     public static func search(_ input: String) -> [LauncherFile] {
         let query = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard query.count >= 2, query.utf8.count <= 256 else { return [] }
-        let manager = FileManager.default
-        if let result = try? NativeCommand.run(URL(fileURLWithPath: "/usr/bin/mdfind"), ["-onlyin", manager.homeDirectoryForCurrentUser.path, "-name", query], timeout: 3), result.status == 0 {
-            let paths = String(decoding: result.output, as: UTF8.self).split(separator: "\n").map(String.init)
-            let indexed = paths.compactMap { path -> LauncherFile? in
-                let url = URL(fileURLWithPath: path)
-                guard path.hasPrefix(manager.homeDirectoryForCurrentUser.path + "/"), !url.pathComponents.contains(where: { $0.hasPrefix(".") || LauncherFiles.skipped.contains($0) }), let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey]), (values.isRegularFile == true || values.isDirectory == true), values.isSymbolicLink != true else { return nil }
-                return LauncherFile(id: path, name: url.lastPathComponent)
-            }
-            return Array(indexed.prefix(50))
+        guard query.count >= 2, query.utf8.count <= 256, !query.utf8.contains(0) else { return [] }
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        var files = (try? Array(indexedFiles(["-name", query], home: home).prefix(limit))) ?? []
+        guard query.count >= 3, files.count < limit, let matches = try? indexedFiles([contentQuery(query)], home: home) else { return files }
+        var seen = Set(files.map(\.id))
+        for var file in matches where seen.insert(file.id).inserted {
+            file.contentMatch = true
+            files.append(file)
+            if files.count == limit { break }
         }
-        // Without Spotlight there are no file results: walking Desktop, Documents and Downloads
-        // would raise macOS's folder-access prompt in the middle of typing.
-        return []
+        return files
+    }
+
+    public static func search(_ plan: FileSearchPlan, now: Date = Date()) -> [LauncherFile] {
+        (try? searchPlan(plan, now: now)) ?? []
+    }
+
+    fileprivate static func searchPlan(_ plan: FileSearchPlan, now: Date) throws -> [LauncherFile] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        var files = try Array(indexedFiles([plan.query(matchAll: true, now: now)], home: home))
+        if files.isEmpty, plan.keywords.count > 1 {
+            files = try Array(indexedFiles([plan.query(matchAll: false, now: now)], home: home))
+        }
+        files.sort { ($0.modified ?? -.infinity) > ($1.modified ?? -.infinity) }
+        return Array(files.prefix(limit))
+    }
+}
+
+public struct FileSearchPlan: Equatable, Sendable {
+    public enum Kind: String, CaseIterable, Sendable {
+        case pdf, document, spreadsheet, presentation, image, text, audio, video, folder
+
+        fileprivate var contentTypes: [String] {
+            switch self {
+            case .pdf: ["com.adobe.pdf"]
+            // Excel/Numbers and PowerPoint/Keynote share type trees. Word and Pages need their individual types.
+            case .document: ["com.microsoft.word.doc", "org.openxmlformats.wordprocessingml.document", "com.apple.iwork.pages.pages", "com.apple.iwork.pages.sffpages"]
+            case .spreadsheet: ["public.spreadsheet"]
+            case .presentation: ["public.presentation"]
+            case .image: ["public.image"]
+            case .text: ["public.plain-text"]
+            case .audio: ["public.audio"]
+            case .video: ["public.movie"]
+            case .folder: ["public.folder"]
+            }
+        }
+    }
+
+    public let keywords: [String]
+    public let kinds: [Kind]
+    public let withinDays: Int?
+
+    public static let instruction: String = """
+    Given a file description in any language, return only one JSON object of the form {"keywords":[...],"kinds":[...],"within_days":N|null}.
+    Choose 1–6 distinct keywords of 1–64 characters likely to appear in the filename or contents. Keep the original language and optionally add common English translations.
+    Choose kinds from pdf, document, spreadsheet, presentation, image, text, audio, video, folder. Use [] for any kind.
+    Infer the modification window in days (1–3650). Use 14 for last week, 62 for last month and null when unspecified. No explanation or Markdown.
+    """
+
+    public static func parse(_ reply: String) -> FileSearchPlan? {
+        guard reply.count <= 4_000 else { return nil }
+        let json: Any
+        if let whole = try? JSONSerialization.jsonObject(with: Data(reply.utf8), options: .fragmentsAllowed) {
+            json = whole
+        } else {
+            guard let start = reply.firstIndex(of: "{"), let end = reply.lastIndex(of: "}"), start < end,
+                  let wrapped = try? JSONSerialization.jsonObject(with: Data(reply[start...end].utf8)) else { return nil }
+            json = wrapped
+        }
+        guard let object = json as? [String: Any], let terms = object["keywords"] as? [String],
+              let rawKinds = (object["kinds"] ?? []) as? [String] else { return nil }
+        var keywords: [String] = []
+        for term in terms {
+            let word = term.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard (1...64).contains(word.count), !word.utf8.contains(0),
+                  !keywords.contains(where: { $0.caseInsensitiveCompare(word) == .orderedSame }) else { continue }
+            keywords.append(word)
+            if keywords.count == 6 { break }
+        }
+        guard !keywords.isEmpty else { return nil }
+        var kinds: [Kind] = []
+        for kind in rawKinds.compactMap(Kind.init(rawValue:)) where !kinds.contains(kind) {
+            kinds.append(kind)
+        }
+        var withinDays: Int?
+        if let number = object["within_days"] as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+           let days = number as? Int, (1...3650).contains(days) { withinDays = days }
+        return FileSearchPlan(keywords: keywords, kinds: kinds, withinDays: withinDays)
+    }
+
+    public func query(matchAll: Bool, now: Date) -> String {
+        let terms = keywords.map { word in
+            let pattern = spotlightPattern(word)
+            return "(kMDItemFSName == \(pattern) || kMDItemTextContent == \(pattern))"
+        }
+        let joined = terms.joined(separator: matchAll ? " && " : " || ")
+        var clauses = [terms.count > 1 ? "(\(joined))" : joined]
+        let types = kinds.flatMap(\.contentTypes).map { "kMDItemContentTypeTree == \"\($0)\"c" }
+        if !types.isEmpty { clauses.append("(" + types.joined(separator: " || ") + ")") }
+        if let withinDays {
+            let cutoff = now.addingTimeInterval(-Double(withinDays) * 86_400)
+            clauses.append("kMDItemFSContentChangeDate >= $time.iso(\(cutoff.ISO8601Format()))")
+        }
+        return clauses.joined(separator: " && ")
+    }
+
+    public func summary(text: (String) -> String) -> String {
+        var parts = [keywords.joined(separator: ", ")]
+        if !kinds.isEmpty {
+            parts.append(kinds.map { text($0 == .folder ? "launcher_folder" : "fileKind_" + $0.rawValue) }.joined(separator: ", "))
+        }
+        if let withinDays { parts.append(text("launcher_ai_files_days").replacingOccurrences(of: "{count}", with: String(withinDays))) }
+        return parts.joined(separator: " · ")
+    }
+
+    public static func search(_ plan: FileSearchPlan, now: Date = Date()) throws -> [LauncherFile] {
+        try LauncherFiles.searchPlan(plan, now: now)
     }
 }
 /// Orders launcher applications for a query: name prefix, then a word prefix, then anywhere;
@@ -177,6 +322,31 @@ public enum PaletteQuery: Equatable, Sendable {
         if raw.lowercased().hasPrefix("t ") { let text = raw.dropFirst(2).trimmingCharacters(in: .whitespacesAndNewlines); return text.isEmpty ? nil : .translate(text) }
         if raw.lowercased().hasPrefix("d ") { let text = raw.dropFirst(2).trimmingCharacters(in: .whitespacesAndNewlines); return text.isEmpty ? nil : .lookup(text) }
         return nil
+    }
+}
+
+/// Launcher control order and localized search rules for the future Qt implementation.
+public enum LauncherControls: String, CaseIterable, Identifiable, Sendable {
+    case awake, mute, dark
+
+    public var id: String { rawValue }
+    public var nameKey: String { "launcher_control_" + id }
+    public var keywordsKey: String { nameKey + "_keywords" }
+
+    public static func matches(_ query: String, name: String, keywords: String) -> Bool {
+        let prefix = LauncherCurrency.fold(query.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard prefix.count >= 2 else { return false }
+        let terms = [name] + keywords.components(separatedBy: ",")
+        return terms.contains { term in
+            let folded = LauncherCurrency.fold(term.trimmingCharacters(in: .whitespacesAndNewlines))
+            return folded.hasPrefix(prefix) || folded.split { !$0.isLetter && !$0.isNumber }.contains { $0.hasPrefix(prefix) }
+        }
+    }
+
+    public static func rows(_ input: String, text: (String) -> String) -> [Self] {
+        let query = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard query.count >= 2, !query.hasPrefix("="), !query.hasPrefix("?"), PaletteQuery.parse(query) == nil else { return [] }
+        return allCases.filter { matches(query, name: text($0.nameKey), keywords: text($0.keywordsKey)) }
     }
 }
 

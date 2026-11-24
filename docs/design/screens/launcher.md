@@ -4,6 +4,16 @@
 
 Luật chung ở [`../foundations.md`](../foundations.md). Cách đặt phím mở Launcher ở [`utilities.md`](utilities.md).
 
+## Native hiện tại (2026-11-24)
+
+- Chỉ trên macOS, từ hai ký tự khớp tên hoặc từ khoá, nhóm Hệ thống hiện các hàng khớp theo thứ tự Ngăn máy ngủ, Tắt tiếng, Chế độ tối. Nhấn ↵ hoặc bấm hàng để bật/tắt và tiếp tục gõ trong Launcher. Chế độ tối đổi giao diện của hệ thống và cần quyền Tự động hóa cho System Events ở lần dùng đầu tiên. Thanh menu cũng có Ngăn máy ngủ và hiện biểu tượng cốc khi bật. Thoát Viezan sẽ kết thúc việc ngăn máy ngủ.
+- macOS nhận tiền tố "t …", "d …", "? …" như Qt và ghi gợi ý tiền tố ở chân khi chưa gõ (native-code-68).
+- Hàng tệp: nhãn "Tệp" / "Thư mục" ở mép phải, dòng phụ "~/Documents · hôm qua"; gói ứng dụng đọc là tệp; không liệt kê mục ẩn và thư mục build (macOS native-code-65, Qt qt-parity-4).
+- Trên macOS, Spotlight tìm theo tên từ hai ký tự và bổ sung kết quả khớp nội dung từ ba ký tự. Dòng phụ của kết quả bổ sung có nhãn “Khớp nội dung”. Viezan dùng chỉ mục Spotlight của macOS, không đọc nội dung tệp hoặc dựng chỉ mục riêng.
+- **Giới hạn của bản dựng hiện tại.** Bộ dựng prompt dùng chung còn bổ sung hướng dẫn trình bày của Chat. Store kiểm tra đúng hai tin nhắn trước khi gửi, nên lệnh AI hiện dừng ở thông báo “Model không tạo được điều kiện tìm”. Các trạng thái tìm bằng AI bên dưới mô tả luồng khi provider hỗ trợ đúng prompt.
+- Khi bật Tiện ích và gõ ít nhất bốn ký tự, hàng “Tìm tệp bằng AI” nằm ngay dưới “Hỏi AI” hoặc “Hỏi tiếp AI”. Hàng này bỏ qua phép tính, tiền tệ và tiền tố. Dòng phụ nêu tên model và cho biết model chạy trên máy hay trên đám mây. Chỉ ↵ hoặc bấm hàng mới gửi câu mô tả đã gõ (tối đa 500 ký tự) đến model của lượt Hỏi AI. Tên tệp, đường dẫn, nội dung tệp và lịch sử chat đều ở lại trên máy.
+- Khi gõ từ 2 ký tự, tối đa ba mục Cài đặt có tiêu đề hoặc nhãn ngắn bắt đầu bằng truy vấn (ở đầu một từ, không phân biệt dấu) hiện trong nhóm Viezan và mở thẳng mục đó; mô tả dài không tính để hai ký tự không kéo theo mục không liên quan (macOS native-code-66, Qt qt-parity-6).
+
 ## 1. Mục đích
 
 Launcher là **một cửa sổ nổi riêng** (không nằm trong cửa sổ chính), mở bằng phím tắt toàn cục (⌘Space hoặc ⌥Space trên macOS, Alt+Space nơi khác). Người dùng gõ một dòng để: mở ứng dụng, mở tệp/thư mục, tính nhanh, đổi tiền, đưa chữ sang Dịch / Từ điển / Phiên dịch của Viezan, tìm web, hoặc hỏi AI ngay trong cửa sổ đó. Thành công là: từ lúc nhấn phím đến lúc mở được thứ cần chỉ mất vài phím, không cần chuột, và cửa sổ tự biến mất khi xong hoặc khi bấm ra ngoài.
@@ -93,17 +103,19 @@ Hành động theo loại hàng (`execute` trong `QuickLauncher.tsx`):
 | Loại | Nhóm | Chữ loại | Footer ↵ | Kết quả |
 | --- | --- | --- | --- | --- |
 | Ứng dụng | Gần đây / Ứng dụng | Ứng dụng | Mở | `launcher.openApp(id)` |
-| Tệp / Thư mục | Tệp | Tệp / Thư mục | Mở (+ "Mở thư mục chứa ⇧↵") | `openFile(id)`; ⇧↵ `revealFile(id)` |
+| Tệp / Thư mục | Tệp | Tệp / Thư mục | Mở (+ "Mở thư mục chứa ⇧↵") | Trên macOS, cả kết quả khớp nội dung lẫn kết quả tìm bằng AI đều mở và hiện trong Finder như hàng tệp thường |
 | Máy tính | Máy tính | Máy tính | Sao chép | Chép số đã định dạng theo ngôn ngữ app, ẩn cửa sổ |
 | Tiền tệ | Tiền tệ | (bộ chọn thay chữ loại) | Sao chép | Chép số tiền đã đổi, ẩn cửa sổ. Đang tải: ↵ không làm gì. Không có tỷ giá: ↵ **thử lại** |
+| Điều khiển hệ thống (Ngăn máy ngủ, Tắt tiếng, Chế độ tối trên macOS) | Hệ thống | Đang bật / Đang tắt | Bật / Tắt | Đổi trạng thái, giữ hàng đang chọn và giữ Launcher mở |
 | Hỏi AI / Hỏi tiếp AI | Dùng "…" với… | Lệnh | "Hỏi AI" | Chế độ Hỏi AI, gửi chữ. "Hỏi tiếp AI" khi phiên Quick AI < 30 phút |
+| Tìm tệp bằng AI (macOS) | Dùng "…" với… | Lệnh | Mở | Phân tích câu gõ rồi tìm bằng Spotlight trong cùng cửa sổ. Nếu chưa có model hoặc khoá, mở Cài đặt › Nhà cung cấp AI |
 | Tiếp tục Quick AI | Viezan (phiên mới) hoặc Gần đây (phiên cũ) | Lệnh | Mở | Mở lại phiên đã lưu, không gửi gì |
 | Dịch / Tra từ điển | Viezan (ô trống) hoặc Dùng "…" với… | Lệnh | Mở | `openFeature({ feature, text })` — mở trang trong app chính với chữ đã gõ |
 | Phiên dịch AI | Viezan | Lệnh | Mở | `openFeature({ feature: 'live' })` |
 | Tìm trên Google | Dùng "…" với… | Lệnh | Mở | `searchWeb(query)` → `https://www.google.com/search` |
 | Mở trong Chat / Mở Cài đặt | Viezan | Lệnh | Mở | `openInChat()` / `openSettings()` |
 
-Thứ tự nhóm khi có chữ: **Máy tính hoặc Tiền tệ** (chỉ một) → **Ứng dụng** (tối đa 8, xếp theo: khớp đúng → viết tắt "vsc"/"vs code" → bắt đầu bằng → từ bắt đầu bằng → chứa; tên hiển thị bản địa và tên gói đều tìm được, bỏ dấu tiếng Việt) → **Tệp** (≥ 2 ký tự, chờ 150 ms, chỉ macOS/Windows) → **Viezan** (chỉ lệnh điều hướng khớp tên) → **Dùng "…" với…** (luôn có 4 mục).
+Thứ tự nhóm khi có chữ: **Máy tính hoặc Tiền tệ** (chỉ một) → **Gợi ý** (lệnh có tiền tố) → **Ứng dụng** (tối đa 8, xếp theo: khớp đúng → viết tắt "vsc"/"vs code" → bắt đầu bằng → từ bắt đầu bằng → chứa; tên hiển thị bản địa và tên gói đều tìm được, bỏ dấu tiếng Việt) → **Tệp** (từ hai ký tự trên macOS/Windows) → **Viezan** (các lệnh và mục Cài đặt khớp) → **Hệ thống** (chỉ macOS, bỏ qua tiền tố và phép tính) → **Dùng "…" với…**. Trên macOS, nhóm Tệp hiện tối đa 5 kết quả khi gõ (chờ 150 ms). Sau một lượt tìm bằng AI, nhóm này hiện tối đa 8 kết quả, mới sửa gần nhất trước, và chọn sẵn hàng đầu. Ngay dưới tiêu đề là dòng “AI hiểu là: từ khoá · loại tệp · thời gian”; chỉ hiện các bộ lọc có trong kế hoạch. Trong nhóm “Dùng … với”, lệnh tìm tệp đứng sau Hỏi AI và trước Dịch, Tra từ điển, Tìm trên Google.
 
 Khi ô trống: **Gần đây** (tối đa 5 ứng dụng + "Tiếp tục Quick AI" nếu phiên đã cũ) → **Viezan** ("Tiếp tục Quick AI" nếu phiên mới, Dịch, Tra từ điển, Phiên dịch AI, Mở trong Chat, Mở Cài đặt).
 
@@ -133,13 +145,20 @@ Máy tính (`evaluateQuickCalc`) chỉ trả lời khi câu rõ ràng là phép 
 | Trống (mới mở) | Ô trống | Gần đây + Viezan; footer: mục đầu, "Mở ↵ · Hỏi AI ⌘↵" | ↑↓, ↵, gõ, Tab |
 | Đang tải ứng dụng | Lần đầu, danh mục chưa về | Notice "Đang tải ứng dụng…" (`role="status"`); lệnh Viezan vẫn dùng được | Gõ, Hỏi AI |
 | Đang gõ | Có chữ | Các nhóm như §4; tiêu đề "Dùng "{query}" với…" | Tất cả |
-| Không khớp gì | Chữ không trùng ứng dụng/tệp | Chỉ nhóm "Dùng "…" với…" (Hỏi AI, Dịch, Tra từ điển, Tìm trên Google) — không bao giờ rỗng | ↵ = Hỏi AI |
+| Không khớp gì | Chữ không trùng ứng dụng/tệp | Các lệnh phù hợp trong nhóm “Dùng … với” | ↵ chạy lệnh đang chọn |
+| Tìm tệp bằng AI · đang chạy (macOS) | Đã kích hoạt hàng lệnh | Chip “Đang phân tích bằng {model}…” rồi “Đang tìm bằng Spotlight…”, hàng lệnh tạm khoá | Esc huỷ và giữ chữ. Esc lần nữa xoá chữ. Gõ tiếp, vào chat hoặc đóng Launcher cũng huỷ |
+| Tìm tệp bằng AI · rỗng | Spotlight chạy xong và không có kết quả | Chip trung tính nêu điều kiện đã tìm | Gõ mô tả khác |
+| Tìm tệp bằng AI · lỗi kế hoạch hoặc nhà cung cấp | Model trả về kế hoạch không dùng được, vượt giới hạn hoặc hết 10 giây, hoặc nhà cung cấp báo lỗi | Khối lỗi của hàng lệnh, dùng thông báo tương ứng | Thử lại cùng câu và model |
+| Tìm tệp bằng AI · thiếu model/khoá | Model mất khả dụng khi chạy | Khối lỗi của hàng lệnh | Mở Cài đặt › Nhà cung cấp AI |
+| Tìm tệp bằng AI · Spotlight lỗi | Lệnh `mdfind` thất bại | “Spotlight chưa khả dụng để tìm tệp.” | Gõ tiếp để bỏ thông báo |
 | Tính nhanh | Câu là phép tính | Hàng đầu "12*7 = 84", footer "Sao chép ↵" | ↵ chép + ẩn |
 | Đổi tiền · đang tải | Câu là số tiền, chưa có tỷ giá | "100 USD → VND" + "Đang tải tỷ giá…" | Đổi tiền đích |
 | Đổi tiền · sẵn sàng | Có tỷ giá | "[100 USD] = [số tiền] VND" + "1 USD = … VND · Tỷ giá ngày …" | ↵ chép |
 | Đổi tiền · không có tỷ giá | Ngoại tuyến / lỗi | Chi tiết "Không có tỷ giá khi ngoại tuyến. Hãy kết nối mạng rồi thử lại." | ↵ thử lại |
 | Lỗi danh mục | `listApps` lỗi | Notice "Chưa tải được ứng dụng. Bạn vẫn có thể hỏi AI và tìm web." + "Thử lại" | K11 |
 | Lỗi mở mục | Main trả lỗi khi mở | Notice đỏ `role="alert"` "Không mở được mục này. Hãy thử lại." (mất khi gõ tiếp) | Chọn lại |
+| Thiết bị không hỗ trợ tắt tiếng (macOS) | Thiết bị đầu ra không cung cấp trạng thái tắt tiếng | Hàng Tắt tiếng hiện “Chưa khả dụng” và “Thiết bị này không hỗ trợ tắt tiếng” | ↵ không làm gì, footer ẩn gợi ý Bật/Tắt |
+| Chưa cấp quyền Tự động hóa (macOS) | macOS từ chối cho Viezan điều khiển System Events | Hàng Chế độ tối hiện hướng dẫn cấp quyền trong Cài đặt hệ thống. Lỗi mất khi chuyển hàng hoặc gõ tiếp. | Cấp quyền rồi chọn “Thử lại” |
 | Đang mở | Chờ main | Danh sách `aria-busy`, mọi hàng disabled | — |
 | Hỏi AI · trống | Vào chế độ AI không có chữ | Logo, "AI NHANH", "Hỏi AI", mô tả và bảng phím ↵ Gửi · ⇧↵ Xuống dòng · ⌘↵ Mở trong Chat · Esc Đóng | A3 |
 | Hỏi AI · đang nghĩ | Đã gửi, chưa có chữ | Thẻ có câu hỏi + "Đang suy nghĩ…" (hoặc nhãn "Smart Thinking" khi đang tìm web) + 3 dòng skeleton | Dừng |
@@ -198,6 +217,7 @@ Cửa sổ rộng cố định 760 px; không có ngưỡng bề rộng.
 - Bàn phím đầy đủ: ↑↓ (vòng), ↵, ⌘↵/Ctrl↵, ⇧↵, Tab, Esc. Bỏ qua khi đang soạn IME (`isComposing`, keyCode 229) và khi giữ phím lặp.
 - Di chuột chỉ đổi lựa chọn khi con trỏ thực sự di chuyển (chống sự kiện giả sau khi đóng menu).
 - Notice tải và lỗi danh mục `role="status"`; lỗi mở mục `role="alert"`.
+- Trên macOS, VoiceOver đọc nhãn và dòng phụ của hàng tìm tệp bằng AI. Launcher thông báo lúc bắt đầu, số kết quả hoặc điều kiện tìm rỗng khi xong, và đọc lỗi với ưu tiên cao. Ô tìm giữ focus. Gõ tiếp bỏ kết quả và thông báo của lượt AI.
 - Chế độ AI: Esc ẩn cửa sổ; ⌘N mới; ⌘↵ mở trong Chat. Vùng câu trả lời có `aria-live="polite"` + `aria-busy` khi đang gửi; kết quả tính/đổi tiền được đọc qua một vùng ẩn `aria-live="polite"`.
 
 ## 9. Nội dung chữ (vi)

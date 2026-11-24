@@ -9,7 +9,36 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <algorithm>
+#include <cmath>
 namespace ModelCatalog {
+Result parsePage(const QString &provider, const QJsonObject &root) {
+    const bool ollama = provider == "ollama";
+    const bool gemini = provider == "gemini";
+    const auto rows = root.value(ollama || gemini ? "models" : "data");
+    if (!rows.isArray()) return {{}, false, "providerInvalidResponse"};
+
+    Result result;
+    for (const auto &value : rows.toArray()) {
+        const auto row = value.toObject();
+        auto id = row.value(ollama || gemini ? "name" : "id").toString();
+        if (gemini) {
+            if (!row.value("supportedGenerationMethods").toArray().contains("generateContent")) continue;
+            if (id.startsWith("models/")) id.remove(0, 7);
+        }
+        if (id.isEmpty() || id.toUtf8().size() + provider.size() + 1 > 512) continue;
+        if (std::any_of(id.cbegin(), id.cend(), [](QChar c) { return c.category() == QChar::Other_Control; })) continue;
+        const auto model = provider + ":" + id;
+        result.models.append(model);
+        if (ollama) {
+            const double bytes = row.value("size").toDouble();
+            const qint64 size = std::isfinite(bytes) && bytes > 0 && bytes < 1e15 ? qint64(bytes) : 0;
+            result.ollamaSizes.insert(model, qMax(size, result.ollamaSizes.value(model).toLongLong()));
+        }
+    }
+    result.success = true;
+    return result;
+}
 Result fetch(const QString &provider) {
     if (!QStringList{"ollama", "lmstudio", "llamacpp", "openai", "claude", "gemini"}.contains(provider)) return {};
     const bool local = QStringList{"ollama", "lmstudio", "llamacpp"}.contains(provider);
@@ -35,15 +64,11 @@ Result fetch(const QString &provider) {
             key.fill('\0');
             return {{}, false, status == 401 || status == 403 ? "providerAuthError" : status == 429 ? "providerRateLimit" : local && refused ? "providerOffline" : "providerNetworkError"};
         }
-        QJsonParseError error; const auto root = QJsonDocument::fromJson(bytes, &error).object(); const auto rows = root.value(provider == "ollama" || provider == "gemini" ? "models" : "data");
-        if (error.error != QJsonParseError::NoError || !rows.isArray()) { key.fill('\0'); return {{}, false, "providerInvalidResponse"}; }
-        for (const auto &value : rows.toArray()) {
-            const auto row = value.toObject(); auto id = row.value(provider == "ollama" || provider == "gemini" ? "name" : "id").toString();
-            if (provider == "gemini") { if (!row.value("supportedGenerationMethods").toArray().contains("generateContent")) continue; if (id.startsWith("models/")) id.remove(0, 7); }
-            bool safe = !id.isEmpty() && id.toUtf8().size() + provider.size() + 1 <= 512;
-            for (const auto c : id) if (c.category() == QChar::Other_Control) safe = false;
-            if (safe) result.models.append(provider + ":" + id);
-        }
+        const auto root = QJsonDocument::fromJson(bytes).object();
+        const auto parsed = parsePage(provider, root);
+        if (!parsed.success) { key.fill('\0'); return parsed; }
+        result.models.append(parsed.models);
+        result.ollamaSizes.insert(parsed.ollamaSizes);
         const auto next = provider == "claude" && root.value("has_more").toBool() ? root.value("last_id").toString() : root.value("nextPageToken").toString();
         if (next.isEmpty() || next == cursor) { key.fill('\0'); result.models.removeDuplicates(); result.models.sort(); result.success = true; return result; }
         cursor = next;

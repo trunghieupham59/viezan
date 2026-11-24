@@ -21,6 +21,7 @@ Kit.QuietButton {
     function read(source, provider) { audio.speak(source.text, source.language, source.id, provider || "") }
     text: t(readingHere ? "readingNow" : "listen")
     checked: readingHere
+    popupOpen: listenPanel.visible
     Accessible.checked: readingHere
     icon.source: "icons/listen.svg"; icon.color: readingHere ? palette.highlight : palette.buttonText
     enabled: sources.some(source => !!source.text.trim())
@@ -30,14 +31,15 @@ Kit.QuietButton {
         id: listenPanel; objectName: "listen-panel"; shell: listenButton.shell
         desiredWidth: metrics.dialog - metrics.compactSidebar
         onOpened: listenScroll.forceActiveFocus()
-        contentItem: ScrollView {
+        contentItem: NamedScrollView {
+            scrollName: listenButton.t("listen")
             id: listenScroll; contentWidth: availableWidth
             implicitHeight: listenContents.implicitHeight
             Keys.onReturnPressed: event => { if (listenButton.sources.length && listenButton.sources[0].text.trim()) listenButton.read(listenButton.sources[0]); event.accepted = true }
             ScrollBar.vertical: ScrollBar { policy: listenScroll.contentHeight > listenScroll.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff; contentItem: Rectangle { implicitWidth: listenButton.metrics.small; radius: width / 2; color: palette.mid } }
             ColumnLayout {
                 id: listenContents; width: listenScroll.availableWidth; spacing: listenButton.metrics.small
-                RowLayout { Layout.fillWidth: true; Label { text: listenButton.t("listen"); font.bold: true; Layout.fillWidth: true } Kit.IconButton { iconName: "close"; text: listenButton.t("close"); onClicked: listenPanel.close() } }
+                RowLayout { Layout.fillWidth: true; Label { Accessible.role: Accessible.Heading; text: listenButton.t("listen"); font.bold: true; Layout.fillWidth: true } Kit.IconButton { iconName: "close"; text: listenButton.t("close"); onClicked: listenPanel.close() } }
                 Repeater {
                     model: listenPanel.visible ? listenButton.sources : []
                     delegate: RowLayout {
@@ -53,7 +55,7 @@ Kit.QuietButton {
                             onClicked: listenButton.read(listenRow.modelData)
                             background: Item {
                                 Kit.GlassLens { anchors.fill: parent; visible: listenRow.index === 0 && !listenRow.reading || readSource.hovered; radius: listenButton.metrics.radius }
-                                Rectangle { anchors.fill: parent; color: "transparent"; radius: listenButton.metrics.radius; border.width: readSource.visualFocus ? listenButton.metrics.hairline : 0; border.color: palette.highlight }
+                                Rectangle { anchors.fill: parent; color: "transparent"; radius: listenButton.metrics.radius; border.width: readSource.visualFocus ? listenButton.metrics.focusRingWidth : 0; border.color: palette.highlight }
                             }
                             contentItem: RowLayout {
                                 IconImage { source: "icons/listen.svg"; sourceSize.width: listenButton.metrics.icon; sourceSize.height: listenButton.metrics.icon; color: palette.buttonText; Accessible.ignored: true }
@@ -68,7 +70,7 @@ Kit.QuietButton {
                         Kit.IconButton { objectName: "listen-stop"; visible: listenRow.reading; iconName: "stop"; text: listenButton.t("stopSpeaking"); onClicked: listenButton.audio.silence() }
                     }
                 }
-                Label { visible: !!listenButton.audio.error; text: listenButton.t(listenButton.audio.error); wrapMode: Text.Wrap; Layout.fillWidth: true }
+                Label { Accessible.role: Accessible.AlertMessage; visible: !!listenButton.audio.error; text: listenButton.t(listenButton.audio.error); wrapMode: Text.Wrap; Layout.fillWidth: true }
                 Kit.QuietButton { objectName: "listen-system-fallback"; visible: !!listenButton.audio.error && listenButton.voice.provider !== "system"; text: listenButton.t("readWithSystemVoice"); Layout.fillWidth: true; onClicked: { const source = listenButton.sources.find(source => source.id === listenButton.audio.lastSource) || listenButton.sources[0]; if (source) listenButton.read(source, "system") } }
                 Rectangle { Layout.fillWidth: true; implicitHeight: listenButton.metrics.hairline; color: palette.midlight }
                 RowLayout {

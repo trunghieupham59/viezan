@@ -4,36 +4,53 @@ import Observation
 @MainActor @Observable public final class LocalModelManager {
     public private(set) var busy = false
     public private(set) var progress: Double?
+    /// Bytes of the layer being pulled, when the runtime reports them ("2,1 / 4,9 GB").
+    public private(set) var transferred: (completed: Int64, total: Int64)?
     public private(set) var status = ""
     public private(set) var error: String?
     @ObservationIgnored private var worker: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
     public init() {}
-    public func cancel() { generation = UUID(); worker?.cancel(); worker = nil; busy = false; status = "cancelled" }
+    public func cancel() { generation = UUID(); worker?.cancel(); worker = nil; busy = false; progress = nil; transferred = nil; status = "cancelled" }
     public func run(model: String, delete: Bool = false, completion: @escaping @MainActor () async -> Void) {
         guard !busy, !model.isEmpty, model.utf8.count <= 505, !model.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else { return }
-        let owner = UUID(); generation = owner; busy = true; progress = nil; error = nil; status = "running"
+        let owner = UUID(); generation = owner; busy = true; progress = nil; transferred = nil; error = nil; status = "running"
         worker = Task { [weak self] in
             guard let manager = self else { return }
             do {
-                try await LocalModelTransport.run(model: model, delete: delete) { status, progress in
-                    await manager.update(owner, status: status, progress: progress)
+                try await LocalModelTransport.run(model: model, delete: delete) { step in
+                    await manager.update(owner, step)
                 }
                 guard let self, self.generation == owner else { return }
-                self.busy = false; self.status = "succeeded"; self.worker = nil
+                self.busy = false; self.progress = nil; self.transferred = nil; self.status = "succeeded"; self.worker = nil
                 await completion()
             } catch {
                 guard let self, self.generation == owner else { return }
-                self.busy = false; self.error = Task.isCancelled ? nil : "providerError"; self.worker = nil
+                self.busy = false; self.progress = nil; self.transferred = nil; self.error = Task.isCancelled ? nil : "providerError"; self.worker = nil
             }
         }
     }
-    private func update(_ owner: UUID, status: String, progress: Double?) {
-        guard generation == owner else { return }; self.status = status; self.progress = progress
+    private func update(_ owner: UUID, _ step: PullStep) {
+        guard generation == owner else { return }
+        status = step.status; progress = step.fraction; transferred = step.total > 0 ? (step.completed, step.total) : nil
+    }
+}
+/// One line of the runtime's pull stream. Sizes are bounded and never negative; a line without a
+/// positive total carries no progress.
+public struct PullStep: Equatable, Sendable {
+    public var status: String
+    public var completed: Int64
+    public var total: Int64
+    public var fraction: Double? { total > 0 ? Double(completed) / Double(total) : nil }
+    public static func parse(_ line: Data) throws -> PullStep {
+        guard let value = try JSONSerialization.jsonObject(with: line) as? [String: Any], value["error"] == nil else { throw ProviderFailure.invalidResponse }
+        func size(_ key: String) -> Int64 { (value[key] as? Double).flatMap { $0.isFinite && $0 > 0 && $0 < 1e15 ? Int64($0) : nil } ?? 0 }
+        let total = size("total")
+        return PullStep(status: value["status"] as? String ?? "running", completed: min(size("completed"), total), total: total)
     }
 }
 private enum LocalModelTransport {
-    static func run(model: String, delete: Bool, receive: @escaping @Sendable (String, Double?) async -> Void) async throws {
+    static func run(model: String, delete: Bool, receive: @escaping @Sendable (PullStep) async -> Void) async throws {
         let config = URLSessionConfiguration.ephemeral
         config.connectionProxyDictionary = [:]; config.timeoutIntervalForRequest = 120; config.timeoutIntervalForResource = 86400
         let session = URLSession(configuration: config, delegate: NoRedirectDelegate(), delegateQueue: nil)
@@ -47,11 +64,9 @@ private enum LocalModelTransport {
         var line = Data()
         func consume(_ line: Data) async throws -> Bool {
             guard !line.isEmpty else { return false }
-            guard let value = try JSONSerialization.jsonObject(with: line) as? [String: Any], value["error"] == nil else { throw ProviderFailure.invalidResponse }
-            let status = value["status"] as? String ?? "running"
-            let total = value["total"] as? Double ?? 0, completed = value["completed"] as? Double ?? 0
-            await receive(status, total > 0 ? min(1, max(0, completed / total)) : nil)
-            return status == "success"
+            let step = try PullStep.parse(line)
+            await receive(step)
+            return step.status == "success"
         }
         for try await byte in bytes {
             try Task.checkCancellation()

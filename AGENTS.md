@@ -33,7 +33,8 @@
   on demand. Size the reading column from the feature container.
 - Use quiet neutral surfaces and semantic control emphasis. Keep sibling
   toolbar controls the same size. Reserve destructive styling for destructive
-  actions. Theme mode, preset and optional accent remain independent.
+  actions. Glass is the only theme. Theme mode and optional accent remain
+  independent.
 - Empty and active chat use one composer. Keep deletion in history management.
   Preserve conversation-specific provider and model IDs across async loads,
   retries, cancellation and session changes.

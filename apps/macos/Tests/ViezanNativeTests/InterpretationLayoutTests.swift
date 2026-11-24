@@ -23,9 +23,6 @@ extension AppKitFixtureTests {
         @Test(arguments: [640.0, 820, 1200])
         func summaryActionsKeepCompleteLabelsAtWindowWidths(windowWidth: Double) async throws {
             _ = NSApplication.shared
-            let previous = NativeTheme.shared.preferences
-            defer { NativeTheme.shared.preferences = previous }
-            NativeTheme.shared.preferences.preset = "glass"
             let strings = nativeResources.locales["vi"]!
             let tabs = ["summary", "actionItems", "decisions", "speakerAnalysis"].map { ($0, strings["interpret_" + $0]!) }
             let contentWidth = min(metric("reading"), windowWidth - metric(windowWidth < metric("compact") ? "rail" : "sidebar") - (metric("large") + metric("gap")) * 2) - metric("inset") * 2

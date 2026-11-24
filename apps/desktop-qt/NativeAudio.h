@@ -12,6 +12,7 @@
 #include <QMediaPlayer>
 #include <QAudioOutput>
 #include <QBuffer>
+#include <optional>
 
 class NativeAudio final : public QObject {
     Q_OBJECT
@@ -32,7 +33,8 @@ class NativeAudio final : public QObject {
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
     Q_PROPERTY(QString error READ error NOTIFY changed)
 public:
-    explicit NativeAudio(QObject *parent = nullptr);
+    // An injected transport must outlive this service.
+    explicit NativeAudio(QObject *parent = nullptr, QNetworkAccessManager *network = nullptr);
     // OpenAI's newer transcription models detect the language better and invent less on noise
     // than whisper-1; use the best one the account lists (provider discovery).
     static QString transcriptionModel(const QStringList &available);
@@ -73,6 +75,7 @@ public:
     Q_INVOKABLE void silence();
 signals:
     void changed();
+    void transcriptionFailed(const QString &owner, const QString &error);
     void transcribed(const QString &owner, const QString &text);
 private:
     EdgeSpeech *m_edge = nullptr;
@@ -89,11 +92,16 @@ private:
     double m_recordingStarted = 0;
     QString m_speakingSource, m_lastSource, m_activeProvider = "system";
     void nextVoiceChunk();
-    QAudioInput m_input;
     QMediaCaptureSession m_capture;
     QMediaRecorder m_recorder;
-    QTextToSpeech m_speech;
-    QNetworkAccessManager m_network;
+    QTextToSpeech m_voiceCatalog;
+    QTextToSpeech *m_systemUtterance = nullptr;
+    void beginSystemSpeech(QTextToSpeech *utterance, const QString &source);
+    static std::optional<QVoice> preferredVoice(const QList<QVoice> &voices, const QLocale &locale, const QString &name);
+#ifdef VIEZAN_CONTRACT_FIXTURE
+    friend class WorkbenchBridgeTests;
+#endif
+    QNetworkAccessManager *const m_network;
     QNetworkReply *m_reply = nullptr;
     QTemporaryDir m_directory;
     QString m_owner, m_file, m_error, m_provider, m_language = "auto";

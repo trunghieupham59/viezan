@@ -2,7 +2,11 @@
 
 ## Native hiện tại — Glass, 2026-11-02
 
+- 2026-11-08: Bản ghi Chat nhanh và ô soạn Launcher dùng cỡ chữ đọc đã chọn; Reduce Motion tắt cuộn có hoạt ảnh. Bản ghi AI Chat có nhóm và giá trị trạng thái trợ năng.
 - macOS (2026-11-08): "Thường làm" hiện tối đa ba chip lặng dưới "Tiếp tục" trong Chat trống; lấy hành động lặp trong 30 ngày, suy giảm theo thời gian và tăng điểm theo giờ. Thiếu dữ liệu thì không hiện, module đã tắt và chế độ chat đang dùng không được gợi ý.
+- Qt (2026-11-24): AI Chat gửi bằng Enter, Shift+Enter xuống dòng, Ctrl+Enter vẫn gửi; Enter khi IME đang soạn chỉ xác nhận chữ (qt-parity-16). Chat nhanh, Launcher Quick AI, Dịch và Từ điển giữ phím cũ.
+- macOS (2026-11-24): Khi nghiên cứu (chế độ Web hoặc Nghiên cứu) đang chạy, chip dưới câu trả lời ghi "Đang nghiên cứu · 1:42" thay cho "Đang trả lời…"; tên trợ năng cố định ([native-code-66](../../migration/native-implementation/native-code-66.md)).
+- macOS (2026-11-24): Panel model có nhóm **Đã ghim** dưới Mục đích; hàng model có nút ghim ở mép phải (hiện khi trỏ, khi phím mũi tên ở hàng, hoặc đã ghim), ⌘P, menu ngữ cảnh; tối đa 8. ⌘⇧M mở panel model, ⌘⇧T mở menu "+" ([native-code-64](../../migration/native-implementation/native-code-64.md)).
 - macOS (2026-11-08): Panel "+" có bốn mức Suy luận (Tự động, Thấp, Vừa, Kỹ); Thấp/Vừa bị vô hiệu khi model không hỗ trợ effort, Kỹ vẫn thêm chỉ dẫn cẩn thận. Chip model chỉ thêm tiền tố "Kỹ ·" ở mức Kỹ. Qt chưa port hai thay đổi này.
 
 Phần native tuân theo [direction.md](../direction.md), không lấy thông số

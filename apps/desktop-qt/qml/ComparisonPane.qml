@@ -10,7 +10,6 @@ ColumnLayout {
     property var snapshot: bridge.state
     required property var session
     property var shell: null
-    readonly property bool glass: bridge.appearance?.preset === "glass"
     property bool choosing: candidates.length === 0
     function tpl(key, values) { let text = t(key); Object.keys(values).forEach(key => text = text.split("{" + key + "}").join(values[key])); return text }
     readonly property var candidates: snapshot.sessions.filter(value => value.comparisonParent === session.id)
@@ -34,21 +33,22 @@ ColumnLayout {
     }
     Component.onCompleted: resetSelection()
     function command(name, payload) { bridge.command(name, Object.assign({sessionID: session.id}, payload || {})) }
-    Kit.GlassButton { text: root.t("compareModels"); checkable: true; id: toggle; checked: root.glass || root.candidates.length > 0; visible: !root.glass }
     ColumnLayout {
-        visible: toggle.checked; Layout.fillWidth: true
+        Layout.fillWidth: true
         Kit.ModelLabel { id: formatter; visible: false }
         RowLayout {
-            visible: root.glass; Layout.fillWidth: true
-            Label { text: root.t(root.choosing ? "compareChooseTitle" : "compareModels"); font.bold: true; Layout.fillWidth: true }
+            Layout.fillWidth: true
+            Label { Accessible.role: Accessible.Heading; text: root.t(root.choosing ? "compareChooseTitle" : "compareModels"); font.bold: true; Layout.fillWidth: true }
             Label { visible: !root.choosing; text: root.tpl("compareProgress",{done:root.candidates.filter(item => ["succeeded","failed","cancelled","interrupted"].includes(root.snapshot.tasks.find(task => task.request.sessionID === item.id)?.status)).length,total:root.candidates.length}); color: palette.placeholderText }
             Kit.IconButton { iconName: "close"; text: root.t("close"); onClicked: { if (root.shell?.composerPopup) root.shell.composerPopup.close() } }
         }
-        Label { visible: root.glass && root.choosing; text: root.tpl("compareChooseHint", {max:3}); wrapMode: Text.Wrap; Layout.fillWidth: true }
-        Kit.SearchField { id: filter; visible: !root.glass || root.choosing; placeholderText: root.t("compareModelHint"); Accessible.name: placeholderText; Layout.fillWidth: true }
+        Label { visible: root.choosing; text: root.tpl("compareChooseHint", {max:3}); wrapMode: Text.Wrap; Layout.fillWidth: true }
+        Kit.SearchField { id: filter; visible: root.choosing; placeholderText: root.t("compareModelHint"); Accessible.name: placeholderText; Layout.fillWidth: true }
         ListView {
             id: modelChoices
-            visible: !root.glass || root.choosing
+            Accessible.role: Accessible.List
+            Accessible.name: root.t("compareModels")
+            visible: root.choosing
             objectName: "compare-model-choices"
             Layout.fillWidth: true; Layout.preferredHeight: Math.min(contentHeight, root.metrics.editor)
             clip: true; model: root.choices
@@ -64,13 +64,14 @@ ColumnLayout {
             ScrollBar.vertical: ScrollBar { policy: modelChoices.contentHeight > modelChoices.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff; contentItem: Rectangle { implicitWidth: root.metrics.small; radius: width / 2; color: palette.mid } }
         }
         RowLayout {
-            Kit.GlassButton { visible: !root.glass || root.choosing; text: root.tpl("compareRun", {count:root.selected.length}); enabled: !!root.session.draft.trim() && Array.from(root.session.draft).length <= 5000 && root.selected.length >= 2; onClicked: { root.command("compare", {models:[root.session.model].concat(root.selected.filter(model => model !== root.session.model))}); root.choosing = false } }
-            Kit.QuietButton { visible: root.glass && !root.choosing; text: root.t("compareChange"); onClicked: root.choosing = true }
-            CheckBox { id: sentenceMode; visible: !root.glass || !root.choosing; objectName: "compare-sentence-mode"; text: root.t("compareSentences"); checked: !!root.snapshot.compareBySentence; onToggled: root.bridge.command("compareBySentence", {value:checked}) }
+            Kit.GlassButton { visible: root.choosing; text: root.tpl("compareRun", {count:root.selected.length}); enabled: !root.parentRunning && !!root.session.draft.trim() && root.bridge.graphemeCount(root.session.draft) <= 5000 && root.selected.length >= 2; onClicked: { root.command("compare", {models:[root.session.model].concat(root.selected.filter(model => model !== root.session.model))}); root.choosing = false } }
+            Kit.QuietButton { visible: !root.choosing; text: root.t("compareChange"); onClicked: root.choosing = true }
+            CheckBox { id: sentenceMode; visible: !root.choosing; objectName: "compare-sentence-mode"; text: root.t("compareSentences"); checked: !!root.snapshot.compareBySentence; onToggled: root.bridge.command("compareBySentence", {value:checked}) }
         }
-        ScrollView {
+        NamedScrollView {
+            scrollName: root.t("compareColumns")
             id: columnResults
-            visible: !root.glass || (!root.choosing && !root.sentenceRows)
+            visible: (!root.choosing && !root.sentenceRows)
             Layout.fillWidth: true; Layout.preferredHeight: root.metrics.editor * 2
             ScrollBar.horizontal: ScrollBar { policy: columnResults.contentWidth > columnResults.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff; contentItem: Rectangle { implicitHeight: root.metrics.small; radius: height / 2; color: palette.mid } }
             ScrollBar.vertical: ScrollBar { policy: columnResults.contentHeight > columnResults.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff; contentItem: Rectangle { implicitWidth: root.metrics.small; radius: width / 2; color: palette.mid } }
@@ -88,7 +89,7 @@ ColumnLayout {
                         Label { text: formatter.format(modelData.model); textFormat: Text.PlainText; font.bold: true; wrapMode: Text.Wrap; Layout.fillWidth: true; ToolTip.visible: titleHover.hovered; ToolTip.text: text; HoverHandler { id: titleHover } }
                         Label { visible: candidate.current && !!candidate.task?.errorDetail; text: candidate.task?.errorDetail || ""; textFormat: Text.PlainText; color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
                         Label { text: root.t(candidate.current ? candidate.task?.errorCode || candidate.task?.status || "queued" : "comparisonStale"); wrapMode: Text.Wrap; Layout.fillWidth: true }
-                        TextArea { visible: !sentenceMode.checked || candidate.rows.length !== root.sourceRows.length; text: modelData.output; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; Layout.fillWidth: true }
+                        TextArea { visible: !sentenceMode.checked || candidate.rows.length !== root.sourceRows.length; Accessible.name: formatter.format(modelData.model); text: modelData.output; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; Layout.fillWidth: true }
                         Repeater {
                             model: sentenceMode.checked && candidate.rows.length === root.sourceRows.length ? candidate.rows : []
                             delegate: ColumnLayout {
@@ -106,9 +107,10 @@ ColumnLayout {
                 }
             }
         }
-        ScrollView {
+        NamedScrollView {
+            scrollName: root.t("compareSentences")
             id: sentenceResults; objectName: "compare-sentence-results"
-            visible: root.glass && !root.choosing && root.sentenceRows
+            visible: !root.choosing && root.sentenceRows
             Layout.fillWidth: true; Layout.preferredHeight: root.metrics.editor * 2
             implicitWidth: 0
             contentWidth: Math.max(root.width, root.candidates.length * root.metrics.sidebar)
@@ -127,13 +129,14 @@ ColumnLayout {
                             Repeater {
                                 model: root.candidates
                                 delegate: Kit.Card {
+                                    Accessible.name: formatter.format(cell.modelData.model)
                                     id: cell; required property var modelData
                                     readonly property string sentence: root.bridge.sentences(modelData.output)[sentenceRow.index] || ""
                                     selected: !!sentence && root.session.assemblyParts?.[String(sentenceRow.index)] === sentence
                                     Layout.fillWidth: true; Layout.fillHeight: true; Layout.preferredWidth: 0
                                     contentItem: ColumnLayout {
                                         Label { text: formatter.format(cell.modelData.model); font.bold: true; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                                        TextArea { text: cell.sentence; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; background: null; Layout.fillWidth: true; Layout.fillHeight: true }
+                                        TextArea { Accessible.name: formatter.format(cell.modelData.model); text: cell.sentence; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; background: null; Layout.fillWidth: true; Layout.fillHeight: true }
                                         Kit.QuietButton { text: root.t(cell.selected ? "compareInUse" : "useSentence"); enabled: !root.parentRunning && !cell.selected && cell.modelData.comparisonRevision === root.session.revision; onClicked: root.command("useSentence",{childID:cell.modelData.id,index:sentenceRow.index}) }
                                     }
                                 }

@@ -28,32 +28,20 @@ struct HomeWorkspace: View {
         let ids = Set(store.workspace.tasks.filter { $0.status == .running }.map(\.request.sessionID))
         return recent.filter { ids.contains($0.id) }
     }
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
         WorkspacePage {
-            if glass {
-                // Home board: intro, the model status strip and the one primary action share a row;
-                // narrower panes drop the state words first, then stack the controls under the intro.
-                ViewThatFits(in: .horizontal) {
-                    glassIntro(detailed: true, stacked: false)
-                    glassIntro(detailed: false, stacked: false)
-                    // Home-Compact: the strip folds into a "● Haiku 5.5 ⌄" pill beside the primary action.
-                    glassIntro(detailed: false, stacked: false, pill: true)
-                    glassIntro(detailed: false, stacked: true, pill: true)
-                }
-            } else {
-                PageIntro(title: store.text("workspace"), subtitle: store.text("workspaceSubtitle")) { newWorkButton }
+            // Home board: intro, the model status strip and the one primary action share a row;
+            // narrower panes drop the state words first, then stack the controls under the intro.
+            ViewThatFits(in: .horizontal) {
+                glassIntro(detailed: true, stacked: false)
+                glassIntro(detailed: false, stacked: false)
+                // Home-Compact: the strip folds into a "● Haiku 5.5 ⌄" pill beside the primary action.
+                glassIntro(detailed: false, stacked: false, pill: true)
+                glassIntro(detailed: false, stacked: true, pill: true)
             }
-            if glass {
-                runningSection
-                glassQuickStart
-                recentSection
-            } else {
-                runningSection
-                recentSection
-                quickStartSection
-                providerSection
-            }
+            runningSection
+            glassQuickStart
+            recentSection
         }.task { store.discoverIfNeeded() }
     }
     @ViewBuilder private func glassIntro(detailed: Bool, stacked: Bool, pill: Bool = false) -> some View {
@@ -174,74 +162,23 @@ struct HomeWorkspace: View {
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: metric("small")) {
             HomeRecentHeaderLayout(spacing: metric("small")) {
-                if glass { Eyebrow(text: store.text("recentWork")) }
-                else { Text(store.text("recentWork")).font(.vzn("sectionScale", .bold)).accessibilityAddTraits(.isHeader) }
+                Eyebrow(text: store.text("recentWork"))
                 FilterTabs(label: store.text("recentWork"), items: [(String?.none, store.text("filterAll"))] + ["chat", "translate", "dictionary", "interpret"].filter { store.moduleEnabled($0) }.map { (String?.some($0), store.text($0)) }, selection: $filter)
             }
             let rows = entries.filter { filter == nil || $0.route == filter }
-            if glass {
-                // `.row`: a flat list on the pane; hover lifts the row into a lens, hairlines sit inset.
-                VStack(spacing: 0) {
-                    if rows.isEmpty {
-                        Text(store.text("noRecentWork")).foregroundStyle(contentColor("text-muted", scheme))
-                            .padding(.vertical, metric("inset")).padding(.horizontal, metric("gap")).frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    ForEach(Array(rows.prefix(6).enumerated()), id: \.element.id) { offset, entry in
-                        if offset > 0 { CardDivider().padding(.horizontal, metric("gap")) }
-                        Button { open(entry) } label: { entryRow(entry) }
-                            .buttonStyle(HomeRowStyle()).disabled(store.loadBlocked).help(entryTitle(entry))
-                    }
+            // `.row`: a flat list on the pane; hover lifts the row into a lens, hairlines sit inset.
+            VStack(spacing: 0) {
+                if rows.isEmpty {
+                    Text(store.text("noRecentWork")).foregroundStyle(contentColor("text-muted", scheme))
+                        .padding(.vertical, metric("inset")).padding(.horizontal, metric("gap")).frame(maxWidth: .infinity, alignment: .leading)
                 }
-            } else {
-                VStack(spacing: 0) {
-                    Divider()
-                    if rows.isEmpty {
-                        Text(store.text("noRecentWork")).foregroundStyle(.secondary)
-                            .padding(.vertical, metric("inset"))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    ForEach(rows.prefix(6)) { entry in
-                        Button { open(entry) } label: { entryRow(entry) }
-                            .buttonStyle(.plain).disabled(store.loadBlocked).help(entryTitle(entry))
-                        Divider()
-                    }
+                ForEach(Array(rows.prefix(6).enumerated()), id: \.element.id) { offset, entry in
+                    if offset > 0 { CardDivider().padding(.horizontal, metric("gap")) }
+                    Button { open(entry) } label: { entryRow(entry) }
+                        .buttonStyle(HomeRowStyle()).disabled(store.loadBlocked).help(entryTitle(entry))
                 }
             }
         }
-    }
-    private var quickStartSection: some View {
-        VStack(alignment: .leading, spacing: metric("small")) {
-            Text(store.text("quickStart")).font(.vzn("sectionScale", .bold)).accessibilityAddTraits(.isHeader)
-            NativeFlow(spacing: metric("small")) {
-                if store.moduleEnabled("chat") { quickStartButton("newChat", symbol: "plus") { start(.chat) } }
-                if store.moduleEnabled("translate") { quickStartButton("translateText", symbol: Feature.translate.symbol) { start(.translate) } }
-                if store.moduleEnabled("interpret") { quickStartButton("interpret", symbol: "waveform", action: interpret) }
-                if store.moduleEnabled("dictionary") { quickStartButton("lookup", symbol: Feature.dictionary.symbol) { start(.dictionary) } }
-            }.disabled(store.loadBlocked)
-        }
-    }
-    private func quickStartButton(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Label(store.text(title), systemImage: symbol) }.buttonStyle(.vznOutline)
-    }
-    private var providerSection: some View {
-        // The active model's real readiness, local or cloud (not only Ollama).
-        let model = store.session.model, state = store.providers.availability(model)
-        let local = ProviderDiscovery.localProviders.contains(where: { model.hasPrefix($0 + ":") })
-        return HStack(spacing: metric("small")) {
-            HStack(alignment: .center, spacing: metric("small")) {
-                StatusDot(tone: state == .available ? .ready : state == .unknown ? .idle : .failed)
-                HStack(spacing: metric("small")) {
-                    Text(nativeModelLabel(model, store: store) + (state == .unknown ? "" : " · " + store.text(state == .available ? "runtimeReady" : "unavailable").lowercased()))
-                        .fontWeight(.medium).lineLimit(1)
-                    Text(store.text(local ? "onDevice" : "viaCloud")).foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-            Spacer(minLength: metric("small"))
-            // Manage opens the section that owns the active model.
-            Button(store.text("manage")) {
-                NotificationCenter.default.post(name: .viezanOpenSettings, object: local ? "localModels" : "providers")
-            }.buttonStyle(.vznOutline).fixedSize()
-        }.font(.vzn("smallScale")).accessibilityElement(children: .contain)
     }
     private func open(_ entry: RecentEntry) {
         switch entry {
@@ -263,47 +200,19 @@ struct HomeWorkspace: View {
     }
     private func interpretationRow(_ item: InterpretationSession) -> some View {
         let title = Date(timeIntervalSince1970: item.created).formatted(date: .abbreviated, time: .shortened)
-        let detail = store.text("interpret") + " · " + store.text("lang_" + item.source) + " → " + store.text("lang_" + item.target)
         let live = store.interpretation.busy && store.interpretation.current?.id == item.id
         // Home board: "Phiên dịch · 2 người nói · 38 câu" — who spoke and how much, from the transcript.
         let speakers = Set(item.segments.compactMap(\.speaker)).count
         let glassDetail = ([store.text("interpret")] + (speakers > 1 ? [store.text("speakersCount").replacingOccurrences(of: "{n}", with: speakers.formatted())] : [])
                            + [item.segments.isEmpty ? store.text("lang_" + item.source) + " → " + store.text("lang_" + item.target) : store.text("sentencesCount").replacingOccurrences(of: "{n}", with: item.segments.count.formatted())]).joined(separator: " · ")
-        if glass { return AnyView(glassRow(symbol: "waveform", title: title, detail: glassDetail, note: live ? store.text("listening") : nil, time: relativeTime(RecentEntry.interpretation(item).updated, store: store))) }
-        return AnyView(HStack(spacing: metric("gap")) {
-            Image(systemName: "waveform").imageScale(.large).foregroundStyle(.secondary).frame(width: metric("icon") + metric("tight"))
-            VStack(alignment: .leading, spacing: metric("tight")) {
-                Text(title).font(.vzn("labelScale", .semibold)).foregroundStyle(.primary).lineLimit(1)
-                Text(detail).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1)
-            }
-            Spacer(minLength: metric("small"))
-            if live { Text(store.text("listening")).font(.vzn("smallScale")).foregroundStyle(contentColor("action-text", scheme)) }
-            Text(relativeTime(RecentEntry.interpretation(item).updated, store: store)).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1).fixedSize()
-            Image(systemName: "arrow.right").fontWeight(.semibold).foregroundStyle(.primary).accessibilityHidden(true)
-        }.padding(.vertical, metric("gap")).padding(.horizontal, metric("small"))
-            .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle()))
+        return glassRow(symbol: "waveform", title: title, detail: glassDetail, note: live ? store.text("listening") : nil, time: relativeTime(RecentEntry.interpretation(item).updated, store: store))
     }
     private func recentRow(_ item: Session) -> some View {
         let detail = item.feature == .chat ? store.text("chat") : store.text(item.feature.rawValue) + " · " + store.text("lang_" + item.source) + " → " + store.text("lang_" + item.target)
-        if glass {
-            // Chat rows also name the model that answered (`AI Chat · Haiku 5.5`).
-            let note = store.running(item.id) != nil ? store.text("running") : item.favorite == true ? store.text("favorite") : nil
-            return AnyView(glassRow(symbol: item.feature.symbol, title: store.title(item), detail: item.feature == .chat ? detail + " · " + ModelLineup.shortName(item.model) : detail,
-                                    note: note, time: relativeTime(item.updated, store: store)))
-        }
-        return AnyView(HStack(spacing: metric("gap")) {
-            Image(systemName: item.feature.symbol).imageScale(.large).foregroundStyle(.secondary).frame(width: metric("icon") + metric("tight"))
-            VStack(alignment: .leading, spacing: metric("tight")) {
-                Text(store.title(item)).font(.vzn("labelScale", .semibold)).foregroundStyle(.primary).lineLimit(1)
-                Text(detail).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1)
-            }
-            Spacer(minLength: metric("small"))
-            if store.running(item.id) != nil { Text(store.text("running")).font(.vzn("smallScale")).foregroundStyle(contentColor("action-text", scheme)) }
-            else if item.favorite == true { Text(store.text("favorite")).font(.vzn("smallScale")).foregroundStyle(.secondary) }
-            Text(relativeTime(item.updated, store: store)).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1).fixedSize()
-            Image(systemName: "arrow.right").fontWeight(.semibold).foregroundStyle(.primary).accessibilityHidden(true)
-        }.padding(.vertical, metric("gap")).padding(.horizontal, metric("small"))
-            .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle()))
+        // Chat rows also name the model that answered (`AI Chat · Haiku 5.5`).
+        let note = store.running(item.id) != nil ? store.text("running") : item.favorite == true ? store.text("favorite") : nil
+        return glassRow(symbol: item.feature.symbol, title: store.title(item), detail: item.feature == .chat ? detail + " · " + ModelLineup.shortName(item.model) : detail,
+                        note: note, time: relativeTime(item.updated, store: store))
     }
     // `.row` (Home board): accent icon, title 14 medium over a 12 pt detail, time and arrow trailing.
     private func glassRow(symbol: String, title: String, detail: String, note: String?, time: String) -> some View {
@@ -434,9 +343,8 @@ struct DictionaryResultView: View {
         let parts = [sense.map { store.text("dictionaryExampleSense").replacingOccurrences(of: "{n}", with: String(format: "%02d", $0)) }, register].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
-        if glass { glassBody } else { classicBody }
+        glassBody
     }
     private func speak(_ text: String, _ language: String) { store.audio.speak(text, language: language) }
     private var sourceLanguage: String { store.session.source == "auto" ? store.session.target : store.session.source }
@@ -455,7 +363,7 @@ struct DictionaryResultView: View {
             .padding(.horizontal, metric("small") + metric("hairline") * 2).frame(height: metric("gutter") - metric("hairline") * 2)
             .background(contentColor("surface-muted", scheme), in: Capsule())
     }
-    private var mono: Font { .system(size: NSFont.systemFontSize * metric("labelScale"), design: .monospaced) }
+    private var mono: Font { readingFont(store).monospaced() }
     // Dictionary-Entry: headword 30 with its speaker and the actions on the right; phonetics, word
     // class and pair as chips; the context line; a counted seg; numbered senses with an example
     // and their nuance; a quiet foot with the model, Copy and Look up again.
@@ -465,7 +373,7 @@ struct DictionaryResultView: View {
         let sourceName = store.text("lang_" + (entry.detectedSourceLang.flatMap { nativeResources.nativeLanguages.contains($0) ? $0 : nil } ?? sourceLanguage))
         return VStack(alignment: .leading, spacing: metric("gap")) {
             HStack(alignment: .center, spacing: metric("gap")) {
-                Text(entry.headword).font(.system(size: NSFont.systemFontSize * metric("displayScale") + metric("tight") / 2, weight: .semibold))
+                Text(entry.headword).font(readingFont(store, base: .systemFont(ofSize: NSFont.systemFontSize * metric("displayScale") + metric("tight") / 2, weight: .semibold)))
                     .foregroundStyle(contentColor("text-strong", scheme)).lineLimit(2).accessibilityAddTraits(.isHeader)
                 ListenSpeakerButton(store: store, label: store.text("speak") + " " + entry.headword,
                                     sources: [ListenSource(id: "headword", title: store.text("dictionaryHeadword"), text: entry.headword, language: sourceLanguage)]
@@ -487,7 +395,7 @@ struct DictionaryResultView: View {
                     Image(systemName: "text.quote").foregroundStyle(contentColor("action-text", scheme)).accessibilityHidden(true)
                     // The model says which sense fits the context; older entries only quote the context.
                     Text(entry.contextSense.map { store.text("dictionaryContextSenseLine").replacingOccurrences(of: "{context}", with: context).replacingOccurrences(of: "{n}", with: String(format: "%02d", $0)) }
-                         ?? store.text("dictionaryContextLine").replacingOccurrences(of: "{context}", with: context)).lineLimit(2)
+                         ?? store.text("dictionaryContextLine").replacingOccurrences(of: "{context}", with: context)).font(readingFont(store)).lineLimit(2)
                         .foregroundStyle(contentColor("text-strong", scheme))
                 }.font(.vzn("smallScale")).padding(.horizontal, metric("gap")).padding(.vertical, metric("small"))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -507,7 +415,7 @@ struct DictionaryResultView: View {
                     if let notes = entry.notes, !notes.isEmpty {
                         CardDivider()
                         VStack(alignment: .leading, spacing: metric("tight")) {
-                            ForEach(Array(notes.enumerated()), id: \.offset) { _, value in Text(value).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)) }
+                            ForEach(Array(notes.enumerated()), id: \.offset) { _, value in Text(value).font(readingFont(store)).foregroundStyle(contentColor("text-muted", scheme)) }
                         }.padding(.vertical, metric("gap"))
                     }
                 }
@@ -553,7 +461,7 @@ struct DictionaryResultView: View {
         let parts = value.components(separatedBy: " → ")
         return VStack(alignment: .leading, spacing: metric("hairline") * 2) {
             Text(parts[0]).font(readingFont(store)).foregroundStyle(contentColor("text-strong", scheme))
-            if parts.count > 1 { Text(parts.dropFirst().joined(separator: " → ")).font(.system(size: NSFont.systemFontSize)).foregroundStyle(contentColor("text-muted", scheme)) }
+            if parts.count > 1 { Text(parts.dropFirst().joined(separator: " → ")).font(readingFont(store)).foregroundStyle(contentColor("text-muted", scheme)) }
         }
     }
     // Dictionary-Redesign-States: same root, near and opposite words as glass pills; a click looks the
@@ -587,90 +495,25 @@ struct DictionaryResultView: View {
             number(index)
             VStack(alignment: .leading, spacing: metric("small") - metric("hairline") * 2) {
                 HStack(alignment: .center, spacing: metric("small")) {
-                    Text(translation.text).font(.vzn("sectionScale", .semibold)).foregroundStyle(contentColor("text-strong", scheme))
-                    if !translation.pronunciation.isEmpty { Text(translation.pronunciation).font(.system(size: NSFont.systemFontSize * metric("smallScale"), design: .monospaced)).foregroundStyle(contentColor("text-muted", scheme)) }
+                    Text(translation.text).font(readingFont(store, base: .systemFont(ofSize: NSFont.systemFontSize * metric("sectionScale"), weight: .semibold))).foregroundStyle(contentColor("text-strong", scheme))
+                    if !translation.pronunciation.isEmpty { Text(translation.pronunciation).font(readingFont(store).monospaced()).foregroundStyle(contentColor("text-muted", scheme)) }
                     if let kind = translation.partOfSpeech, !kind.isEmpty { pill(kind) }
                     Button { speak(translation.text, targetLanguage) } label: { Image(systemName: "speaker.wave.2").imageScale(.small) }
                         .buttonStyle(.plain).foregroundStyle(contentColor("text-muted", scheme)).help(store.text("speak")).accessibilityLabel(store.text("speak") + " " + translation.text)
                 }
-                if let meaning = translation.meaning, !meaning.isEmpty { Text(meaning).font(.system(size: NSFont.systemFontSize)).foregroundStyle(contentColor("text-muted", scheme)) }
+                if let meaning = translation.meaning, !meaning.isEmpty { Text(meaning).font(readingFont(store)).foregroundStyle(contentColor("text-muted", scheme)) }
                 if let example = translation.examples?.first { exampleText(example).padding(.top, metric("hairline") * 2) }
                 if let nuance = translation.nuance ?? translation.usage, !nuance.isEmpty {
                     HStack(alignment: .firstTextBaseline, spacing: metric("small") - metric("hairline") * 2) {
                         Text(store.text("dictionaryNuance").uppercased(with: Locale(identifier: store.workspace.locale)))
                             .font(.system(size: NSFont.systemFontSize * metric("captionScale") * 0.9, weight: .semibold)).foregroundStyle(contentColor("text-muted", scheme))
-                        Text(nuance).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
+                        Text(nuance).font(readingFont(store)).foregroundStyle(contentColor("text-muted", scheme))
                     }
                 }
                 if let collocations = translation.collocations, !collocations.isEmpty {
-                    Text(collocations.joined(separator: " · ")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-soft", scheme))
+                    Text(collocations.joined(separator: " · ")).font(readingFont(store)).foregroundStyle(contentColor("text-soft", scheme))
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
         }.padding(.vertical, metric("gap") + metric("hairline") * 2)
-    }
-    private var classicBody: some View {
-        VStack(alignment: .leading, spacing: metric("inset")) {
-            HStack(alignment: .firstTextBaseline, spacing: metric("inset")) {
-                Text(entry.headword).font(.vzn("heroScale", .bold)).accessibilityAddTraits(.isHeader)
-                Spacer(minLength: metric("small"))
-                Button { store.toggleFavorite(store.session.id) } label: {
-                    Label(store.text(store.session.favorite == true ? "savedWord" : "saveWord"), systemImage: store.session.favorite == true ? "star.fill" : "star")
-                }.buttonStyle(.vznQuiet).accessibilityAddTraits(store.session.favorite == true ? .isSelected : [])
-            }
-            HStack(spacing: metric("small")) {
-                if !entry.pronunciation.isEmpty { Text(entry.pronunciation).foregroundStyle(.secondary) }
-                if let language = entry.detectedSourceLang, nativeResources.nativeLanguages.contains(language) {
-                    Text(store.text("lang_" + language)).font(.vzn("smallScale")).padding(.horizontal, metric("small")).padding(.vertical, metric("tight"))
-                        .background(contentColor("surface-muted", scheme), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
-                }
-                Button { store.audio.speak(entry.headword, language: store.session.source == "auto" ? store.session.target : store.session.source) } label: { Image(systemName: "speaker.wave.2") }
-                    .buttonStyle(.vznQuiet).help(store.text("speak")).accessibilityLabel(store.text("speak"))
-                Spacer(minLength: 0)
-                Button(store.text("translate")) { let id = store.createDetachedSession(feature: .translate, draft: entry.headword); store.select(id); NotificationCenter.default.post(name: .viezanOpenRoute, object: "translate") }.buttonStyle(.vznOutline)
-                Button(store.text("chat")) { let id = store.createDetachedSession(feature: .chat, draft: entry.headword + "\n" + entry.meaning); store.select(id); NotificationCenter.default.post(name: .viezanOpenRoute, object: "chat") }.buttonStyle(.vznOutline)
-            }
-            FilterTabs(label: store.text("dictionary"), items: [("meaning", store.text("dictionaryMeaning")), ("examples", store.text("dictionaryExamples"))], selection: $selectedTab)
-            Divider()
-            if selectedTab == "meaning" {
-                if !entry.meaning.isEmpty { Text(entry.meaning) }
-                ForEach(Array(entry.translations.enumerated()), id: \.offset) { index, translation in
-                    HStack(alignment: .firstTextBaseline, spacing: metric("inset")) {
-                        Text(String(format: "%02d", index + 1)).font(.vzn("smallScale")).monospacedDigit().foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: metric("small")) {
-                            HStack(alignment: .firstTextBaseline, spacing: metric("small")) {
-                                Text(translation.text).font(.vzn("titleScale", .bold))
-                                if !translation.pronunciation.isEmpty { Text(translation.pronunciation).foregroundStyle(.secondary) }
-                                Button { store.audio.speak(translation.text, language: store.session.target) } label: { Image(systemName: "speaker.wave.2") }
-                                    .buttonStyle(.vznQuiet).help(store.text("speak")).accessibilityLabel(store.text("speak") + " " + translation.text)
-                            }
-                            ForEach(Array([translation.partOfSpeech, translation.meaning].compactMap { $0 }.enumerated()), id: \.offset) { _, value in Text(value).foregroundStyle(.secondary) }
-                            if translation.usage != nil || translation.nuance != nil || !((translation.examples ?? []) + (translation.collocations ?? []) + (translation.notes ?? [])).isEmpty {
-                                DisclosureGroup(store.text("dictionaryDetails")) {
-                                    VStack(alignment: .leading, spacing: metric("small")) {
-                                        ForEach(Array([translation.usage, translation.nuance].compactMap { $0 }.enumerated()), id: \.offset) { _, value in Text(value) }
-                                        ForEach(Array(((translation.examples ?? []) + (translation.collocations ?? []) + (translation.notes ?? [])).enumerated()), id: \.offset) { _, value in Text(value) }
-                                    }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, metric("small"))
-                                }
-                            }
-                        }
-                    }
-                }
-                if let notes = entry.notes, !notes.isEmpty {
-                    ForEach(Array(notes.enumerated()), id: \.offset) { _, value in Text(value).foregroundStyle(.secondary) }
-                }
-            }
-            if selectedTab == "examples" && examples.isEmpty {
-                Text(store.text("dictionaryNoExamples")).foregroundStyle(.secondary)
-            }
-            if !examples.isEmpty {
-                VStack(alignment: .leading, spacing: metric("small")) {
-                    Eyebrow(text: store.text("dictionaryExamples"))
-                    ForEach(Array((selectedTab == "meaning" ? Array(examples.prefix(1)) : examples).enumerated()), id: \.offset) { _, value in Text(value) }
-                }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(contentColor("surface-muted", scheme), in: RoundedRectangle(cornerRadius: metric("radius")))
-            }
-        }.font(readingFont(store)).textSelection(.enabled)
-            .onChange(of: store.session.id) { _, _ in selectedTab = "meaning" }
-            .onChange(of: entry.headword) { _, _ in selectedTab = "meaning" }
     }
 }

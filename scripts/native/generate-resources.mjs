@@ -14,13 +14,15 @@ const metric = (name) => {
 const metrics = Object.fromEntries(Object.entries({
   trafficLights: '--vzn-titlebar-mac-controls-width', titlebar: '--vzn-titlebar-height',
   hairline: '--vzn-border-width', tight: '--vzn-space-1', small: '--vzn-space-2', gap: '--vzn-space-3', inset: '--vzn-space-4',
-  gutter: '--vzn-space-6', large: '--vzn-space-8', radius: '--vzn-radius-md',
+  gutter: '--vzn-space-6', large: '--vzn-space-8', radius: '--vzn-native-radius',
   compactSidebar: '--vzn-sidebar-compact-expanded-width', sidebar: '--vzn-sidebar-expanded-width', reading: '--vzn-chat-reading-max',
   editor: '--vzn-chat-textarea-max-height', control: '--vzn-control-height-md',
   rail: '--vzn-sidebar-width', compact: '--vzn-navigation-compact-breakpoint',
   minWindowWidth: '--vzn-native-window-min-width', minWindowHeight: '--vzn-native-window-min-height',
-  compactControl: '--vzn-control-height-sm', surfaceRadius: '--vzn-radius-xl', largeRadius: '--vzn-radius-lg', controlRadius: '--vzn-radius-control', composerMinimum: '--vzn-composer-min-height',
+  compactControl: '--vzn-control-height-sm', surfaceRadius: '--vzn-native-surface-radius', largeRadius: '--vzn-native-large-radius', controlRadius: '--vzn-radius-control', composerMinimum: '--vzn-composer-min-height',
   navControl: '--vzn-control-height-lg', dialog: '--vzn-dialog-md-max-inline', icon: '--vzn-space-5', brand: '--vzn-space-8', hero: '--vzn-space-12', notificationInline: '--vzn-notification-max-inline',
+  // --vzn-focus-ring-width is an alias of this step.
+  focusRingWidth: '--vzn-space-0-5', dialogSmall: '--vzn-dialog-sm-max-inline',
 }).map(([key, name]) => [key, metric(name)]))
 // Motion durations in ms become seconds, the unit SwiftUI and Qt animations take.
 const duration = (name) => {
@@ -38,10 +40,13 @@ const ratio = (name) => {
   return Number(value)
 }
 Object.assign(metrics, Object.fromEntries(Object.entries({
+  selectionOpacity: '--vzn-native-selection-opacity', overlayShadowOpacity: '--vzn-native-overlay-shadow-opacity',
   launcherTop: '--vzn-native-launcher-top-fraction', launcherHeight: '--vzn-native-launcher-height-fraction', launcherResults: '--vzn-native-launcher-results-fraction',
-  toastSeconds: '--vzn-native-toast-seconds', skeletonShort: '--vzn-native-skeleton-short-fraction', quickCard: '--vzn-native-quick-card-fraction', inventorySplit: '--vzn-native-inventory-fraction', thermalScaleMax: '--vzn-native-thermal-scale-max',
+  toastSeconds: '--vzn-native-toast-seconds', toastBriefSeconds: '--vzn-native-toast-brief-seconds',
+  toastWarningSeconds: '--vzn-native-toast-warning-seconds', toastActionSeconds: '--vzn-native-toast-action-seconds',
+  skeletonShort: '--vzn-native-skeleton-short-fraction', quickCard: '--vzn-native-quick-card-fraction', inventorySplit: '--vzn-native-inventory-fraction', thermalScaleMax: '--vzn-native-thermal-scale-max',
   composerMaxLines: '--vzn-composer-max-lines',
-  bubbleFraction: '--vzn-native-bubble-fraction',
+  bubbleFraction: '--vzn-native-bubble-fraction', disabledOpacity: '--vzn-opacity-disabled',
 }).map(([key, name]) => [key, ratio(name)])))
 // Type roles as ratios to body (md) so native system fonts keep their own base size.
 const fontSize = (name) => Number(css.match(new RegExp(`--vzn-font-size-${name}:\\s*calc\\(([\\d.]+)px`))?.[1])
@@ -50,11 +55,6 @@ for (const [key, role] of Object.entries({ captionScale: 'caption', smallScale: 
   if (!Number.isFinite(ratio) || ratio <= 0) throw new Error(`Missing font role ${role}`)
   metrics[key] = Math.round(ratio * 1000) / 1000
 }
-// Keep native accent emphasis tied to the canonical selected-surface token.
-metrics.selectionOpacity = Number(css.match(/--vzn-surface-selected:\s*rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)/)?.[1])
-if (!Number.isFinite(metrics.selectionOpacity)) throw new Error('Missing selected surface opacity')
-metrics.overlayShadowOpacity = Number(css.match(/--vzn-shadow-overlay:[^;]*rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)/)?.[1])
-if (!Number.isFinite(metrics.overlayShadowOpacity)) throw new Error('Missing overlay shadow opacity')
 const textScales = {
   medium: Number(css.match(/--vzn-text-scale:\s*([\d.]+);/)?.[1]),
 }
@@ -72,10 +72,10 @@ for (const locale of ['vi', 'en', 'ja']) {
 }
 const keys = Object.keys(locales.vi).sort().join(',')
 if (Object.values(locales).some(catalog => Object.keys(catalog).sort().join(',') !== keys)) throw new Error('Native locale parity failed')
-// Graphite is the native Qt foundation palette. Resolve aliases from the source
+// Resolve Glass palette aliases from the source
 // stylesheet and encode CSS rgba as Qt ARGB; never maintain a second color table.
 const declarations = block => Object.fromEntries([...block.matchAll(/(--vzn-[\w-]+):\s*([^;]+);/g)].map(match => [match[1], match[2].trim()]))
-const primitives = declarations(css.slice(0, css.indexOf('/* Palette (light)')))
+const primitives = declarations(css.match(/^:root \{([^}]+)\}/m)[1])
 // Gradients and layered shadows have no single native colour. Native views
 // draw them from flat roles: a backdrop resampled at shared stop locations,
 // the primary fill's two ends and each shadow's colour. Geometry is in metrics.
@@ -137,16 +137,15 @@ for (const layer of shadowLayers) {
   const name = 'shadow' + layer[0].toUpperCase() + layer.slice(1)
   Object.assign(metrics, {[name + 'Y']: Number(shadow[1]), [name + 'Blur']: Number(shadow[2])})
 }
-const paletteBlock = (preset, mode) => css.match(new RegExp(`:root \\[data-theme="${preset}"\\]\\[data-mode="${mode}"\\]\\s*\\{([\\s\\S]*?)\\}`))?.[1]
-const makePalettes = (preset, roles, accent = "auto") => Object.fromEntries(['light', 'dark'].map(mode => {
-  const block = paletteBlock(preset, mode)
-  if (!block) throw new Error(`Missing Graphite ${mode} palette`)
+const paletteBlock = mode => css.match(new RegExp(`:root \\[data-theme="glass"\\]\\[data-mode="${mode}"\\]\\s*\\{([\\s\\S]*?)\\}`))?.[1]
+const makePalettes = (roles, accent = "auto") => Object.fromEntries(['light', 'dark'].map(mode => {
+  const block = paletteBlock(mode)
+  if (!block) throw new Error(`Missing Glass ${mode} palette`)
   const accentBlock = accent === 'auto' ? '' : css.match(new RegExp(`\\[data-accent="${accent}"\\]\\[data-accent\\]\\[data-mode="${mode}"\\]\\s*\\{([\\s\\S]*?)\\}`))?.[1]
   if (accent !== 'auto' && !accentBlock) throw new Error(`Missing accent ${accent}/${mode}`)
-  const values = {...primitives, ...declarations(block), ...declarations(accentBlock || '')}
+  const statusBlock = css.match(new RegExp(`^\\[data-mode="${mode}"\\] \\{([^}]+)\\}`, 'm'))[1]
+  const values = {...primitives, ...declarations(statusBlock), ...declarations(block), ...declarations(accentBlock || '')}
   Object.assign(values, derivedColors(values))
-  values['--vzn-danger'] = css.slice(mode === 'dark' ? css.indexOf('/* Palette (dark)') : 0).match(/--vzn-danger:\s*([^;]+);/)?.[1].trim()
-  for (const status of ['success', 'warning']) values[`--vzn-${status}`] = css.slice(mode === 'dark' ? css.indexOf('/* Palette (dark)') : 0).match(new RegExp(`--vzn-${status}:\\s*([^;]+);`))?.[1].trim()
   function resolve(key, seen = new Set()) {
     if (seen.has(key) || !values[key]) throw new Error(`Unresolved color ${key}`)
     seen.add(key)
@@ -163,16 +162,16 @@ const makePalettes = (preset, roles, accent = "auto") => Object.fromEntries(['li
   }
   return [mode, Object.fromEntries(roles.map(role => [role,resolve(`--vzn-${role}`)]))]
 }))
-const palettes = makePalettes('graphite', ['canvas','surface','sidebar-bg','surface-hover','text','text-muted','border','border-strong','action','action-text','action-fg','surface-subtle','text-disabled','danger','success','warning'])
-const chromePalettes = makePalettes('glass', ['app-bg','sidebar-bg','titlebar-bg','surface','surface-raised','border-strong','text','text-strong','text-muted','text-soft','border','divider','action-text','action-soft','action','action-hover','action-active','action-fg','surface-hover','chrome-fg-strong','chrome-fg-muted','chrome-fg-soft','chrome-accent','chrome-item-active','chrome-item-hover','chrome-fg','chrome-item-active-fg','material-border','material-highlight','primary-nav-material','titlebar-material','sidebar-search-bg','surface-muted','backdrop-0','backdrop-1','backdrop-2','backdrop-3','backdrop-glow-lead','backdrop-glow-trail','action-fill-top','action-fill-bottom','shadow-sm-color','shadow-md-color','shadow-lg-color','tone-blue','tone-violet','tone-green','tone-orange'])
+const palettes = makePalettes(['canvas','surface','sidebar-bg','surface-hover','text','text-muted','border','border-strong','action','action-text','action-fg','surface-subtle','text-disabled','danger','success','warning'])
+const chromePalettes = makePalettes(['app-bg','sidebar-bg','titlebar-bg','surface','surface-raised','border-strong','text','text-strong','text-muted','text-soft','border','divider','action-text','action-soft','action','action-hover','action-active','action-fg','surface-hover','chrome-fg-strong','chrome-fg-muted','chrome-fg-soft','chrome-accent','chrome-item-active','chrome-item-hover','chrome-fg','chrome-item-active-fg','material-border','material-highlight','primary-nav-material','titlebar-material','sidebar-search-bg','surface-muted','backdrop-0','backdrop-1','backdrop-2','backdrop-3','backdrop-glow-lead','backdrop-glow-trail','action-fill-top','action-fill-bottom','shadow-sm-color','shadow-md-color','shadow-lg-color','tone-blue','tone-violet','tone-green','tone-orange'])
 const themePalettes = {}
 const themeRoles = Array.from(new Set([...Object.keys(palettes.light), ...Object.keys(chromePalettes.light)]))
-for (const preset of ['graphite','glass','paper','corporate','midnight']) for (const accent of ['auto','violet','pink','teal','green','amber','red']) {
-  themePalettes[preset + ':' + accent] = makePalettes(preset, themeRoles, accent)
+for (const accent of ['auto','violet','pink','teal','green','amber','red']) {
+  themePalettes['glass:' + accent] = makePalettes(themeRoles, accent)
 }
 // Glass chrome geometry follows the same preset as its generated colors.
 for (const [key, token] of Object.entries({chromeSearchRadius: '--vzn-radius-sm', chromeShortcutRadius: '--vzn-radius-xs', chromeItemRadius: '--vzn-radius-control', chromeControlRadius: '--vzn-radius-control', chromeCardRadius: '--vzn-radius-md', chromeSurfaceRadius: '--vzn-radius-xl'})) {
-  const value = declarations(paletteBlock('glass', 'light'))[token]
+  const value = declarations(paletteBlock('light'))[token]
   if (!/^\d+(?:\.\d+)?px$/.test(value)) throw new Error(`Missing Glass metric ${token}`)
   metrics[key] = Number(value.slice(0, -2))
 }
@@ -236,7 +235,7 @@ const resources = {
   ],
   settingsSections: [
     {id: 'general', title: 'generalTitle', description: 'generalDescription', terms: ['language', 'recoveryTitle', 'recoveryDescription', 'hotkeys', 'utilities', 'launcher', 'quickChat', 'translateSelection']},
-    {id: 'appearance', title: 'appearanceTitle', description: 'appearanceDescription', terms: ['themeMode', 'themeDescription', 'themeLight', 'themeDark', 'themeSystem', 'readingSize', 'readingSizeDescription']},
+    {id: 'appearance', title: 'appearanceTitle', description: 'appearanceDescription', terms: ['themeMode', 'themeDescription', 'themeLight', 'themeDark', 'themeSystem', 'themeAccent', 'accentDescription', 'readingSize', 'readingSizeDescription']},
     {id: 'providers', title: 'providerSettings', description: 'keyStorageHint', terms: ['provider', 'apiKey', 'modelID']},
     {id: "localModels", title: "localModels", description: "localModelsHint", terms: ["downloadModel", "deleteModel"]},
     {id: "voice", title: "voiceTitle", description: "voiceDescription", terms: ["speechProvider", "voiceProvider", "voiceID"]},

@@ -14,7 +14,6 @@ struct NativeSettings: View {
     @State private var pickerOpen: String?
     @State private var pendingSection: String?
     @State private var confirmRequest: SettingsConfirm?
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     private var sections: [NativeResources.SettingsSection] { nativeResources.settings(query: query, locale: store.workspace.locale) }
 
     private var visibleSections: [NativeResources.SettingsSection] {
@@ -38,32 +37,24 @@ struct NativeSettings: View {
                                             Eyebrow(text: store.text(group)).padding(.horizontal, metric("small")).padding(.top, metric("gap")).padding(.bottom, metric("tight"))
                                             ForEach(items) { section in navigationRow(section, proxy: proxy) }
                                         }
-                                    }.padding(glass ? metric("inset") : metric("small"))
-                                }.scrollIndicators(glass ? .hidden : .automatic).frame(maxHeight: .infinity)
-                                if glass {
-                                    Text(store.text("changesImmediately")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
-                                        .fixedSize(horizontal: false, vertical: true).padding(metric("gutter"))
-                                }
-                            }.frame(width: glass ? metric("sidebar") + metric("large") + metric("gutter") : metric("sidebar") - metric("large"))
-                            if glass { Rectangle().fill(contentColor("divider", scheme)).frame(width: metric("hairline")).accessibilityHidden(true) } else { Divider() }
+                                    }.padding(metric("inset"))
+                                }.scrollIndicators(.hidden).frame(maxHeight: .infinity)
+                                Text(store.text("changesImmediately")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
+                                    .fixedSize(horizontal: false, vertical: true).padding(metric("gutter"))
+                            }.accessibilityElement(children: .contain).accessibilityLabel(store.text("settings"))
+                            .frame(width: metric("sidebar") + metric("large") + metric("gutter"))
+                            Rectangle().fill(contentColor("divider", scheme)).frame(width: metric("hairline")).accessibilityHidden(true)
                         }
                         VStack(spacing: 0) {
                             if !wide && !sections.isEmpty {
-                                if glass {
-                                    // Below 760 the section column becomes one picker layer.
-                                    HStack {
-                                        SettingsPicker(id: "section", label: store.text("settings"),
-                                                       options: groupedSections.flatMap { group, items in items.map { SettingsPickerOption(id: $0.id, title: store.text($0.title), group: store.text(group), symbol: Self.symbols[$0.id]) } },
-                                                       selection: selected ?? sections[0].id, leading: true) { id in selected = id; proxy.scrollTo(id, anchor: .top) }
-                                        Spacer(minLength: 0)
-                                    }.padding(.horizontal, metric("gutter")).padding(.vertical, metric("gap"))
-                                    CardDivider()
-                                } else {
-                                Picker(store.text("settings"), selection: Binding(get: { selected ?? sections[0].id }, set: { id in selected = id; proxy.scrollTo(id, anchor: .top) })) {
-                                    ForEach(sections) { section in Text(store.text(section.title)).tag(section.id) }
-                                }.pickerStyle(.menu).padding(metric("inset"))
-                                Divider()
-                                }
+                                // Below 760 the section column becomes one picker layer.
+                                HStack {
+                                    SettingsPicker(id: "section", label: store.text("settings"),
+                                                   options: groupedSections.flatMap { group, items in items.map { SettingsPickerOption(id: $0.id, title: store.text($0.title), group: store.text(group), symbol: Self.symbols[$0.id]) } },
+                                                   selection: selected ?? sections[0].id, leading: true) { id in selected = id; proxy.scrollTo(id, anchor: .top) }
+                                    Spacer(minLength: 0)
+                                }.padding(.horizontal, metric("gutter")).padding(.vertical, metric("gap"))
+                                CardDivider()
                             }
                             if sections.isEmpty {
                                 ContentUnavailableView(store.text("noSettings"), systemImage: "magnifyingglass")
@@ -75,20 +66,20 @@ struct NativeSettings: View {
                                             VStack(alignment: .leading, spacing: metric("inset")) {
                                                 HStack(alignment: .top, spacing: metric("inset")) {
                                                     VStack(alignment: .leading, spacing: metric("small")) {
-                                                        Text(store.text(section.title)).font(.vzn(glass ? "headingScale" : "titleScale", glass ? .semibold : .bold)).accessibilityAddTraits(.isHeader)
-                                                        Text(store.text(section.description)).foregroundStyle(glass ? contentColor("text-muted", scheme) : .secondary)
+                                                        Text(store.text(section.title)).font(.vzn("headingScale", .semibold)).accessibilityAddTraits(.isHeader)
+                                                        Text(store.text(section.description)).foregroundStyle(contentColor("text-muted", scheme))
                                                     }
                                                     // Settings-Models board: "Check again" sits in the providers intro.
-                                                    if glass && section.id == "providers" {
+                                                    if section.id == "providers" {
                                                         Spacer(minLength: metric("small"))
                                                         Button(store.text("checkAgain"), systemImage: "arrow.clockwise") { NotificationCenter.default.post(name: .viezanProviderRecheck, object: nil) }
                                                             .buttonStyle(.vznOutline).fixedSize().disabled(store.discovering).accessibilityIdentifier("provider-check-again")
                                                     }
                                                 }
                                                 sectionContent(section.id)
-                                            }.id(section.id)
+                                            }.accessibilityElement(children: .contain).accessibilityLabel(store.text(section.title)).id(section.id)
                                         }
-                                        if !glass || !wide { Text(store.text("changesImmediately")).font(.vzn("captionScale")).foregroundStyle(.secondary) }
+                                        if !wide { Text(store.text("changesImmediately")).font(.vzn("captionScale")).foregroundStyle(.secondary) }
                                     }.scrollTargetLayout()
                                         .frame(maxWidth: metric("reading"), alignment: .leading)
                                         .frame(maxWidth: .infinity, alignment: .leading).padding(metric("gutter"))
@@ -100,7 +91,7 @@ struct NativeSettings: View {
             }
         }
         .groupBoxStyle(CardGroupBoxStyle())
-        .overlay(alignment: .topTrailing) { if glass && !query.trimmingCharacters(in: .whitespaces).isEmpty { searchResults } }
+        .overlay(alignment: .topTrailing) { if !query.trimmingCharacters(in: .whitespaces).isEmpty { searchResults } }
         .overlay {
             if let request = confirmRequest {
                 BlockingDialog(title: request.title, onCancel: { confirmRequest = nil }) {
@@ -118,7 +109,7 @@ struct NativeSettings: View {
                 }
             }
         }
-        .environment(\.settingsConfirm, glass ? { confirmRequest = $0 } : nil)
+        .environment(\.settingsConfirm, { confirmRequest = $0 })
         .modifier(SettingsPickerHost(open: $pickerOpen))
         .onChange(of: query) { _, _ in selected = pendingSection ?? sections.first?.id; pendingSection = nil }
         .onChange(of: selected, initial: true) { _, value in current.wrappedValue = value }
@@ -167,24 +158,19 @@ struct NativeSettings: View {
             proxy.scrollTo(section.id, anchor: .top)
         } label: {
             Group {
-                if glass {
-                    // Settings board: icon accent only when selected, the name stays strong and turns semibold.
-                    HStack(spacing: metric("gap")) {
-                        Image(systemName: Self.symbols[section.id] ?? "circle").frame(width: metric("icon")).foregroundStyle(contentColor(active ? "action-text" : "text-muted", scheme))
-                        Text(store.text(section.title)).foregroundStyle(contentColor("text-strong", scheme))
-                    }.font(.vzn("labelScale", active ? .semibold : .regular))
-                } else {
-                    Label(store.text(section.title), systemImage: Self.symbols[section.id] ?? "circle")
-                        .foregroundStyle(active ? contentColor("action-text", scheme) : contentColor("text-strong", scheme))
-                }
+                // Settings board: icon accent only when selected, the name stays strong and turns semibold.
+                HStack(spacing: metric("gap")) {
+                    Image(systemName: Self.symbols[section.id] ?? "circle").accessibilityHidden(true).frame(width: metric("icon")).foregroundStyle(contentColor(active ? "action-text" : "text-muted", scheme))
+                    Text(store.text(section.title)).foregroundStyle(contentColor("text-strong", scheme))
+                }.font(.vzn("labelScale", active ? .semibold : .regular))
             }
                 .fontWeight(active ? .semibold : .regular).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, metric("small")).frame(height: metric("compactControl"))
                 .contentShape(Rectangle())
-        }.buttonStyle(SettingsNavigationStyle(glass: glass, selected: active, hovered: hoveredSection == section.id))
+        }.buttonStyle(NavigationButtonStyle(selected: active, hovered: hoveredSection == section.id, radius: metric("radius")))
             .onHover { hoveredSection = $0 ? section.id : nil }
             .foregroundStyle(active ? contentColor("action-text", scheme) : contentColor("text-strong", scheme))
-            .background(active && !glass ? contentColor("action-soft", scheme) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
+            .background(Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
             .accessibilityAddTraits(active ? .isSelected : [])
             .help(store.text(section.description))
     }
@@ -192,7 +178,7 @@ struct NativeSettings: View {
     @ViewBuilder private func sectionContent(_ id: String) -> some View {
         if id == "data" {
             // Glass: Data draws its own titled cards (History, Usage, Backup).
-            if glass { DataSettings(store: store) } else { CardSection { DataSettings(store: store) } }
+            DataSettings(store: store)
         } else if id == "localModels" {
             LocalModelSettings(store: store)
         } else if id == "providers" {
@@ -210,7 +196,7 @@ struct NativeSettings: View {
                         Toggle(store.text("menuBarVisible"), isOn: Binding(get: { store.menuBarVisible }, set: { store.menuBarVisible = $0 }))
                             .toggleStyle(.switch).labelsHidden().accessibilityIdentifier("settings-menu-bar-visible")
                     }
-                    if glass && store.moduleEnabled("utilities") { hotkeysRow }
+                    if store.moduleEnabled("utilities") { hotkeysRow }
                     SystemSettings(store: store)
                 }
                 CardSection(flush: true, title: store.text("translate")) {
@@ -253,37 +239,17 @@ struct NativeSettings: View {
         } else if id == "appearance" {
             VStack(alignment: .leading, spacing: metric("inset")) {
                 CardSection(flush: true, title: store.text("appearanceTitle")) {
-                    CardRow(title: store.text("themePreset"), detail: store.text("presetDescription")) {
-                        SettingsPicker(id: "preset", label: store.text("themePreset"), options: ["graphite", "glass", "paper", "corporate", "midnight"].map { SettingsPickerOption(id: $0, title: store.text("preset_" + $0)) },
-                                       selection: store.workspace.preferences.preset ?? "glass") { store.setAppearance(preset: $0) }
+                    CardRow(title: store.text("themeMode"), detail: store.text("themeDescription")) {
+                        FilterTabs(label: store.text("themeMode"), items: [(AppearanceMode.light, store.text("themeLight")), (.dark, store.text("themeDark")), (.system, store.text("themeSystem"))],
+                                   selection: Binding(get: { store.workspace.preferences.mode }, set: { store.setAppearance(mode: $0) })).accessibilityIdentifier("settings-theme")
                     }
                     CardRow(title: store.text("themeAccent"), detail: store.text("accentDescription")) {
                         SettingsPicker(id: "accent", label: store.text("themeAccent"), options: ["auto", "violet", "pink", "teal", "green", "amber", "red"].map { SettingsPickerOption(id: $0, title: store.text("accent_" + $0)) },
                                        selection: store.workspace.preferences.accent ?? "auto") { store.setAppearance(accent: $0) }
                     }
-                    CardRow(title: store.text("themeMode"), detail: store.text("themeDescription")) {
-                        if glass {
-                            FilterTabs(label: store.text("themeMode"), items: [(AppearanceMode.light, store.text("themeLight")), (.dark, store.text("themeDark")), (.system, store.text("themeSystem"))],
-                                       selection: Binding(get: { store.workspace.preferences.mode }, set: { store.setAppearance(mode: $0) })).accessibilityIdentifier("settings-theme")
-                        } else {
-                        Picker(store.text("themeMode"), selection: Binding(get: { store.workspace.preferences.mode }, set: { store.setAppearance(mode: $0) })) {
-                            Text(store.text("themeLight")).tag(AppearanceMode.light)
-                            Text(store.text("themeDark")).tag(AppearanceMode.dark)
-                            Text(store.text("themeSystem")).tag(AppearanceMode.system)
-                        }.pickerStyle(.segmented).labelsHidden().fixedSize().accessibilityIdentifier("settings-theme")
-                        }
-                    }
                     CardRow(title: store.text("readingSize"), detail: store.text("readingSizeDescription"), divider: false) {
-                        if glass {
-                            FilterTabs(label: store.text("readingSize"), items: [(ReadingSize.small, store.text("textSmall")), (.medium, store.text("textMedium")), (.large, store.text("textLarge"))],
-                                       selection: Binding(get: { store.workspace.preferences.textSize }, set: { store.setAppearance(textSize: $0) })).accessibilityIdentifier("settings-text-size")
-                        } else {
-                        Picker(store.text("readingSize"), selection: Binding(get: { store.workspace.preferences.textSize }, set: { store.setAppearance(textSize: $0) })) {
-                            Text(store.text("textSmall")).tag(ReadingSize.small)
-                            Text(store.text("textMedium")).tag(ReadingSize.medium)
-                            Text(store.text("textLarge")).tag(ReadingSize.large)
-                        }.pickerStyle(.segmented).labelsHidden().fixedSize().accessibilityIdentifier("settings-text-size")
-                        }
+                        FilterTabs(label: store.text("readingSize"), items: [(ReadingSize.small, store.text("textSmall")), (.medium, store.text("textMedium")), (.large, store.text("textLarge"))],
+                                   selection: Binding(get: { store.workspace.preferences.textSize }, set: { store.setAppearance(textSize: $0) })).accessibilityIdentifier("settings-text-size")
                     }
                 }.disabled(store.loadBlocked)
                 CardSection(flush: true, title: store.text("previewHeading")) {
@@ -316,7 +282,7 @@ struct NativeSettings: View {
 
     // General board: the global shortcuts at a glance, managed on the sidebar page.
     private var hotkeysRow: some View {
-        let order = ["launcher", "quickChat", "translateSelection"]
+        let order = ["launcher", "quickChat", "translateSelection", "translateScreen"]
         let summary = store.desktopIntegration.shortcuts.filter(\.enabled).sorted { (order.firstIndex(of: $0.id) ?? order.count) < (order.firstIndex(of: $1.id) ?? order.count) }
             .map { store.text($0.id) + " " + shortcutDisplay($0.key) }.joined(separator: " · ")
         return CardRow(title: store.text("hotkeys"), detail: summary) {
@@ -343,23 +309,9 @@ private struct SettingsResultBody: View {
     }
 }
 
-private struct SettingsNavigationStyle: ButtonStyle {
-    var glass: Bool
-    var selected: Bool
-    var hovered: Bool
-    @Environment(\.isEnabled) private var enabled
-    @ViewBuilder func makeBody(configuration: Configuration) -> some View {
-        if glass {
-            NavigationButtonStyle(glass: true, selected: selected, hovered: hovered, radius: metric("radius"))
-                .makeBody(configuration: configuration)
-        } else { configuration.label.opacity(enabled ? (configuration.isPressed ? 0.8 : 1) : 0.5) }
-    }
-}
-
 // MARK: - Settings pickers as shell-style floating layers (Overlays-Settings board)
 // A glass pill opens a `.float` list anchored under it: rows of 40, the current choice a
-// lens with a check, groups with caps headings; ↑↓ Return choose, Escape closes. Other
-// presets keep the system popup.
+// lens with a check, groups with caps headings; ↑↓ Return choose, Escape closes.
 
 struct SettingsPickerOption: Identifiable {
     let id: String
@@ -408,11 +360,9 @@ struct SettingsPicker: View {
     var choose: (String) -> Void
     @Environment(\.settingsPickerOpen) private var open
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.isEnabled) private var enabled
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     private var current: SettingsPickerOption? { options.first { $0.id == selection } }
     var body: some View {
-        if glass, let open {
+        if let open {
             Button { open.wrappedValue = open.wrappedValue == id ? nil : id } label: {
                 HStack(spacing: metric("small") - metric("hairline") * 2) {
                     if let symbol = current?.symbol { Image(systemName: symbol).foregroundStyle(contentColor("text-muted", scheme)) }
@@ -422,6 +372,7 @@ struct SettingsPicker: View {
             }.buttonStyle(.vznOutline).fixedSize()
                 .anchorPreference(key: SettingsPickerKey.self, value: .bounds) { [id: SettingsPickerSpec(anchor: $0, options: options, selection: selection, leading: leading, choose: choose)] }
                 .accessibilityLabel(label + ": " + (current?.title ?? selection))
+                .accessibilityAddTraits(open.wrappedValue == id ? .isSelected : [])
                 .accessibilityIdentifier("settings-picker-" + id)
         } else {
             Picker(label, selection: Binding(get: { selection }, set: choose)) {

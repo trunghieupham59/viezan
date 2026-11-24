@@ -7,7 +7,6 @@ GlassDialog {
     required property var bridge
     property var desktop: bridge.desktopIntegration
     property var shortcut: null
-    property Item opener: null
     property string candidate: ""
     property string failure: ""
     property bool waiting: false
@@ -15,7 +14,7 @@ GlassDialog {
     readonly property var localeStrings: bridge.strings
     function t(key) { return localeStrings[key] || key }
     function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
-    function begin(row, button) { shortcut = row; candidate = row.key; failure = ""; waiting = false; opener = button; open() }
+    function begin(row, button) { shortcut = row; candidate = row.key; failure = ""; waiting = false; openFrom(button) }
     function capture(key, modifiers) {
         if (waiting || desktop.busy) return
         if ([Qt.Key_Control, Qt.Key_Alt, Qt.Key_Shift, Qt.Key_Meta].includes(key)) return
@@ -42,10 +41,8 @@ GlassDialog {
     modal: true; focus: true
     closePolicy: waiting ? Popup.NoAutoClose : Popup.CloseOnEscape
     title: tpl("shortcutFor", {name: shortcut ? t(shortcut.id) : ""})
-    width: Math.min(parent.width - metrics.inset * 2, metrics.dialog)
-    x: (parent.width - width) / 2; y: (parent.height - height) / 2
-    onOpened: captureField.forceActiveFocus(Qt.TabFocusReason)
-    onClosed: if (opener) opener.forceActiveFocus(Qt.TabFocusReason)
+    preferredDialogWidth: 460 // Width of the keyboard recorder in Shortcuts-Recorder.
+    initialFocusItem: captureField
     Connections {
         target: recorder.desktop
         function onChanged() {
@@ -72,7 +69,7 @@ GlassDialog {
                 event.accepted = true
             }
         }
-        Label { objectName: "shortcut-error"; visible: !!text; text: recorder.failure; wrapMode: Text.Wrap; Layout.fillWidth: true }
+        Label { objectName: "shortcut-error"; Accessible.role: Accessible.AlertMessage; visible: !!text; text: recorder.waiting ? recorder.t("inProgress") : recorder.failure; onTextChanged: if (text && recorder.opened) Accessible.announce(text); wrapMode: Text.Wrap; Layout.fillWidth: true }
     }
     footer: DialogButtonBox {
         background: Item {}

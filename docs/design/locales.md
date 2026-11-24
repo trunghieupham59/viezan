@@ -44,6 +44,8 @@ Board: [`specs/locales.html`](specs/locales.html). Board vẽ các màn hình ch
 | `settings_extension_download_btn` | Tải về từ GitHub (16) | Download from GitHub (20) | GitHubからダウンロード (14) | nút 145 / 187 / 193 |
 | `command_palette_everywhere_description` | (39) | Quick Translate and the Chrome extension (40) | (22) | đo trong app: 235 / 239 / 236, không bị cắt (trước EN **319 trên 307**) |
 | `image_model_switched_message` | Đang dùng {model} vì {previous} không đọc được ảnh. | Using {model} because {previous} can't read images. | {previous} は画像を読み取れないため、{model} を使用しています。 | một câu có chỗ trống |
+| `fanProfiles` | Cấu hình quạt | Fan profiles | ファンプロファイル | Chưa đo trên macOS |
+| `setUpHelper` | Thiết lập dịch vụ quạt | Set up fan helper | ファンヘルパーを設定 | Chưa đo trên macOS |
 
 ## Rủi ro và đề xuất
 

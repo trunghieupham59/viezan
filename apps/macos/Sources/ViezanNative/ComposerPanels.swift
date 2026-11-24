@@ -10,52 +10,49 @@ struct PanelRow: View {
     var selected = false
     var highlighted = false
     var muted = false
+    /// Room kept clear at the trailing edge for a control the caller overlays on the row.
+    var trailingRoom: CGFloat = 0
+    /// The pointer is over that overlaid control: the row keeps its hover surface.
+    var hovering = false
     var identifier: String
     var action: () -> Void
     @Environment(\.colorScheme) private var scheme
     @Environment(\.isEnabled) private var enabled
     @FocusState private var focused: Bool
     @State private var hovered = false
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     private var radius: CGFloat { metric("radius") }
-    private var titleColor: Color { contentColor(glass && !enabled ? "text-disabled" : muted ? "text-muted" : "text", scheme) }
-    private var detailColor: Color { glass ? contentColor(enabled ? "text-muted" : "text-disabled", scheme) : .secondary }
+    private var titleColor: Color { contentColor(!enabled ? "text-disabled" : muted ? "text-muted" : "text", scheme) }
+    private var detailColor: Color { contentColor(enabled ? "text-muted" : "text-disabled", scheme) }
     @ViewBuilder private var rowBackground: some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        if glass {
-            // Overlays board: the current choice is a lens, hover the softer lens;
-            // the keyboard position keeps its own accent ring.
-            ZStack {
-                if enabled && selected { GlassLens(radius: radius) }
-                else if enabled && hovered { GlassLens(radius: radius, hover: true) }
-            }
-            .overlay {
-                if enabled && !selected && (highlighted || focused) {
-                    shape.strokeBorder(contentColor("action-text", scheme), lineWidth: metric("hairline") * 2)
-                }
-            }
-            .allowsHitTesting(false).accessibilityHidden(true)
-        } else {
-            RoundedRectangle(cornerRadius: radius).fill(highlighted || hovered ? contentColor("surface-hover", scheme) : .clear)
-                .allowsHitTesting(false).accessibilityHidden(true)
+        // Overlays board: the current choice is a lens, hover the softer lens;
+        // the keyboard position keeps its own accent ring.
+        ZStack {
+            if enabled && selected { GlassLens(radius: radius) }
+            else if enabled && (hovered || hovering) { GlassLens(radius: radius, hover: true) }
         }
+        .overlay {
+            if enabled && (highlighted || focused) {
+                shape.strokeBorder(contentColor("action-text", scheme), lineWidth: metric("hairline") * 2)
+            }
+        }
+        .allowsHitTesting(false).accessibilityHidden(true)
     }
     var body: some View {
         Button(action: action) {
             HStack(spacing: metric("small")) {
                 if let symbol { Image(systemName: symbol).imageScale(.medium).frame(width: metric("icon")).foregroundStyle(detailColor).accessibilityHidden(true) }
-                else { Image(systemName: "checkmark").imageScale(.small).opacity(selected && !glass ? 1 : 0).frame(width: metric("icon") - metric("tight")).foregroundStyle(.primary).accessibilityHidden(true) }
-                Text(title).fontWeight(glass && selected ? .medium : nil).lineLimit(1).foregroundStyle(titleColor)
+                else { Image(systemName: "checkmark").imageScale(.small).opacity(0).frame(width: metric("icon") - metric("tight")).foregroundStyle(.primary).accessibilityHidden(true) }
+                Text(title).fontWeight(selected ? .medium : nil).lineLimit(1).foregroundStyle(titleColor)
                 Spacer(minLength: metric("small"))
-                if symbol != nil, selected, !glass { Image(systemName: "checkmark").imageScale(.small).foregroundStyle(.primary).accessibilityHidden(true) }
-                if !detail.isEmpty { Text(detail).font(.vzn(glass ? "smallScale" : "captionScale")).monospacedDigit().foregroundStyle(detailColor).lineLimit(1) }
+                if !detail.isEmpty { Text(detail).font(.vzn("smallScale")).monospacedDigit().foregroundStyle(detailColor).lineLimit(1) }
                 // Glass: one accent check at the trailing edge for the current choice.
-                if glass, selected { Image(systemName: "checkmark").imageScale(.small).fontWeight(.semibold).foregroundStyle(contentColor("action", scheme)).accessibilityHidden(true) }
+                if selected { Image(systemName: "checkmark").imageScale(.small).fontWeight(.semibold).foregroundStyle(contentColor("action", scheme)).accessibilityHidden(true) }
             }
-            .padding(.horizontal, metric("small")).frame(height: metric(glass ? "navControl" : "compactControl")).frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, metric("small")).padding(.trailing, trailingRoom).frame(height: metric("navControl")).frame(maxWidth: .infinity, alignment: .leading)
             .background { rowBackground }
             .contentShape(Rectangle())
-        }.buttonStyle(.plain).focused($focused).focusEffectDisabled(glass).onHover { hovered = $0 }
+        }.buttonStyle(.plain).focused($focused).focusEffectDisabled(true).onHover { hovered = $0 }
             .accessibilityLabel(title + (detail.isEmpty ? "" : " · " + detail)).accessibilityAddTraits(selected ? .isSelected : [])
             .accessibilityIdentifier(identifier)
     }

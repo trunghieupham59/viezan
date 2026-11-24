@@ -17,7 +17,7 @@ public enum ProviderPrompt {
         } else if request.feature == .dictionary {
             messages = [.init(role: "system", content: DictionaryEntry.prompt(request)), .init(role: "user", content: DictionaryEntry.userMessage(request))]
         }
-        if request.feature == .chat {
+        if request.feature == .chat, request.exactSystemPrompt != true {
             let policy = NativeResources.shared.chatPrompt
             let custom = request.systemPrompt?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             var sections = [custom.isEmpty ? (policy["default"] ?? "") : custom, policy["reading"] ?? "", policy["formatting"] ?? ""]

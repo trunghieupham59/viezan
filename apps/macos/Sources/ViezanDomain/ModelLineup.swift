@@ -156,7 +156,7 @@ public enum ModelLineup {
         return [.fast: fast.id, .balanced: balanced.id, .careful: careful.id]
     }
 
-    /// What the picker panel lists, top to bottom. Without a query: purpose, recent, one group per
+    /// What the picker panel lists, top to bottom. Without a query: purpose, pinned, recent, one group per
     /// cloud provider (its sizes, or a setup row), local models (or a setup row). With a query: the
     /// matching chat models of every provider that lists any, local matches, and the typed ID itself
     /// when it names a provider ("openai:gpt-7") so an unlisted model stays reachable.
@@ -173,14 +173,15 @@ public enum ModelLineup {
         }
         public var modelID: String? { switch self { case .tier(_, let id), .model(let id), .typed(let id): return id; case .setup: return nil } }
     }
-    public static func sections(query: String, tiers: [ModelTier: String]?, recent: [String], listings: [String: [String]], cloud: [String], local: [String]) -> [Section] {
+    public static func sections(query: String, tiers: [ModelTier: String]?, pinned: [String] = [], recent: [String], listings: [String: [String]], cloud: [String], local: [String]) -> [Section] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         var sections: [Section] = []
         let localModels = local.flatMap { listings[$0] ?? [] }
         if needle.isEmpty {
             if let tiers, tiers.count == ModelTier.allCases.count { sections.append(Section(key: "purpose", rows: ModelTier.allCases.map { .tier($0, tiers[$0] ?? "") })) }
             let offered = Set(tiers?.values ?? [:].values)
-            let picks = recent.filter { !offered.contains($0) }
+            if !pinned.isEmpty { sections.append(Section(key: "pinned", rows: pinned.map(Row.model))) }
+            let picks = recent.filter { !offered.contains($0) && !pinned.contains($0) }
             if !picks.isEmpty { sections.append(Section(key: "recent", rows: picks.map(Row.model))) }
             for provider in cloud {
                 if let listing = listings[provider], !listing.isEmpty { sections.append(Section(key: provider, rows: featured(listing).map(Row.model))) }

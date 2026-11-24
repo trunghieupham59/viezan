@@ -7,7 +7,7 @@ Pane {
     required property var bridge
     property var audio: bridge.audio
     readonly property var metrics: bridge.metrics
-    readonly property bool dark: bridge.appearance?.preset === "midnight" || bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && bridge.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+    readonly property bool dark: bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && bridge.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property var colors: bridge.palettes[dark ? "dark" : "light"]
     readonly property bool active: audio.recordingStarted > 0
     property real clock: Date.now() / 1000
@@ -26,7 +26,7 @@ Pane {
     Connections { target: strip.audio; function onChanged() { if (strip.active) strip.clock = Date.now() / 1000 } }
     Timer { interval: 1000; repeat: true; running: strip.active; onTriggered: strip.clock = Date.now() / 1000 }
     contentItem: RowLayout {
-        Kit.StatusBadge { objectName: "recording-elapsed"; text: strip.tpl("recordingElapsed", {time: strip.timeText}) }
+        Kit.StatusBadge { objectName: "recording-elapsed"; Accessible.name: strip.t("recordingDraftHint"); text: strip.tpl("recordingElapsed", {time: strip.timeText}) }
         Label { visible: strip.width > strip.metrics.reading; text: strip.t("recordingDraftHint"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
         Item { Layout.fillWidth: true }
         Kit.GlassButton { objectName: "recording-stop"; implicitHeight: strip.metrics.compactControl; palette.buttonText: strip.colors.danger; icon.source: "icons/stop.svg"; text: strip.t("stop"); onClicked: strip.audio.cancel() }

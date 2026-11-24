@@ -2,33 +2,23 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Dialog {
+BlockingDialog {
     id: dialog
     required property var bridge
     property string message: ""
     property string actionText: ""
     property bool destructive: true
     property bool actionEnabled: true
-    readonly property var metrics: bridge.metrics
-    readonly property bool dark: bridge.appearance?.preset === "midnight" || bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
+    readonly property bool dark: bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property var colors: bridge.palettes[dark ? "dark" : "light"]
-    property Item previousFocus: null
-    onAboutToShow: previousFocus = parent ? parent.Window.window.activeFocusItem : null
-    onOpened: cancelButton.forceActiveFocus(Qt.PopupFocusReason)
-    onClosed: if (previousFocus) previousFocus.forceActiveFocus(Qt.PopupFocusReason)
-    parent: Overlay.overlay
-    popupType: Popup.Item
-    modal: true; focus: true
-    width: Math.min(metrics.dialog, parent ? parent.width - metrics.large : metrics.dialog)
+    useGlassScrim: true
+    initialFocusItem: cancelButton
     implicitHeight: titleLabel.implicitHeight + messageLabel.implicitHeight + buttons.implicitHeight + topPadding + bottomPadding
-    x: parent ? (parent.width - width) / 2 : 0
-    y: parent ? (parent.height - height) / 2 : 0
     padding: metrics.inset
     leftInset: 0; rightInset: 0; topInset: 0; bottomInset: 0
     contentHeight: messageLabel.implicitHeight
     closePolicy: Popup.CloseOnEscape
-    background: Kit.ReadingPanelSurface { radius: dialog.metrics.chromeCardRadius + dialog.metrics.hairline * 2 }
-    Overlay.modal: Rectangle { color: Qt.alpha(dialog.colors["shadow-lg-color"], dialog.metrics.overlayShadowOpacity) }
+    background: Kit.ReadingPanelSurface { radius: dialog.panelRadius }
     header: Label { id: titleLabel; text: dialog.title; padding: dialog.metrics.inset; font.bold: true; wrapMode: Text.Wrap; Accessible.role: Accessible.Heading }
     contentItem: Label { id: messageLabel; text: dialog.message; wrapMode: Text.Wrap; Accessible.name: text }
     footer: DialogButtonBox {
@@ -51,7 +41,7 @@ Dialog {
             background: Rectangle {
                 radius: height / 2
                 color: acceptButton.enabled ? (dialog.destructive ? dialog.colors.danger : dialog.colors.action) : dialog.colors["surface-muted"]
-                border.width: acceptButton.visualFocus ? dialog.metrics.hairline * 2 : 0
+                border.width: acceptButton.visualFocus ? dialog.metrics.focusRingWidth : 0
                 border.color: dialog.colors.text
             }
             DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole

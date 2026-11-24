@@ -168,6 +168,12 @@ Board `Dictionary` và `Dictionary-States` đã gỡ ngày 2026-11-03 (Đợt 3 
 
 ### Bổ sung sau Đợt 1–7 (`*-Compact`, `Nav-Overlay`, `Shell-*`, `*-States`)
 
+> 2026-11-24 · Thông báo trên macOS đã đổi so với các bản vẽ dưới đây và các bản vẽ
+> CHƯA được vẽ lại: toast nằm góc trên phải dưới header với bốn mức; dải kết quả
+> xanh của `Apps-States` thành toast có Hoàn tác; dải lỗi của `Shell-States` và
+> `Interpret-States` dùng nền trung tính với icon đỏ thay cho nền đỏ. Nguồn đúng: `docs/design/screens/shell.md` mục "Native toasts — macOS and Qt" và
+> dòng 2026-11-24 trong `docs/design/findings.md`.
+
 Vẽ ngày 2026-11-03 từ các "Chênh lệch còn lại" của báo cáo Đợt 1–7: những
 trạng thái và cửa sổ mà bản dựng phải tự suy ra vì chưa có board. Ba hàng
 cuối của canvas; mỗi board `*-States` là nhiều khối có chú thích, số đo

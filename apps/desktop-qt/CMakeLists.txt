@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 file(READ "${CMAKE_CURRENT_LIST_DIR}/../../package.json" VIEZAN_PACKAGE_JSON)
 string(JSON VIEZAN_VERSION GET "${VIEZAN_PACKAGE_JSON}" version)
-project(ViezanNativeQt VERSION ${VIEZAN_VERSION} LANGUAGES CXX)
+project(ViezanNativeQt VERSION ${VIEZAN_VERSION} LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 6.8 REQUIRED COMPONENTS Svg Widgets Quick QuickControls2 Qml Network Concurrent Multimedia TextToSpeech WebSockets)
@@ -11,8 +11,9 @@ check_ipo_supported(RESULT VIEZAN_IPO)
 if(VIEZAN_IPO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
+set(HABIT_SOURCES HabitSuggestions.cpp HabitSuggestions.h)
 set(BACKEND_SERVICES AppUninstall.cpp AppUninstall.h AppUninstallPlatform.cpp SystemAppearance.cpp SystemAppearance.h)
-qt_add_executable(ViezanNativeQt main.cpp WorkbenchBridge.cpp WorkbenchBridge.h WorkbenchDomain.cpp WorkbenchDomain.h LocalProvider.cpp LocalProvider.h CloudProtocol.cpp CloudProtocol.h CredentialStore.cpp CredentialStore.h NativeAudio.cpp NativeAudio.h Attachments.cpp Attachments.h LocalModelManager.cpp LocalModelManager.h NativeBackup.cpp NativeBackup.h DesktopIntegration.cpp DesktopIntegration.h WindowsSelection.cpp WindowsSelection.h ThermalMonitor.cpp ThermalMonitor.h Interpretation.cpp Interpretation.h LocalRuntime.cpp LocalRuntime.h ImageGeneration.cpp ImageGeneration.h Research.cpp Research.h ModelCatalog.cpp ModelCatalog.h ProviderDiscovery.cpp ProviderDiscovery.h ModelLineup.cpp ModelLineup.h LauncherTools.cpp LauncherTools.h SpeechSynthesis.cpp SpeechSynthesis.h AudioCapture.cpp AudioCapture.h EdgeSpeech.cpp EdgeSpeech.h CurrencyRates.cpp CurrencyRates.h NativeUpdates.cpp NativeUpdates.h LocalPerformance.cpp LocalPerformance.h)
+qt_add_executable(ViezanNativeQt ${HABIT_SOURCES} main.cpp WorkbenchBridge.cpp WorkbenchBridge.h WorkbenchDomain.cpp WorkbenchDomain.h LocalProvider.cpp LocalProvider.h CloudProtocol.cpp CloudProtocol.h CredentialStore.cpp CredentialStore.h NativeAudio.cpp NativeAudio.h Attachments.cpp Attachments.h LocalModelManager.cpp LocalModelManager.h NativeBackup.cpp NativeBackup.h DesktopIntegration.cpp DesktopIntegration.h WindowsSelection.cpp WindowsSelection.h ThermalMonitor.cpp ThermalMonitor.h Interpretation.cpp Interpretation.h LocalRuntime.cpp LocalRuntime.h ImageGeneration.cpp ImageGeneration.h Research.cpp Research.h ModelCatalog.cpp ModelCatalog.h ProviderDiscovery.cpp ProviderDiscovery.h ModelLineup.cpp ModelLineup.h LauncherTools.cpp LauncherTools.h SpeechSynthesis.cpp SpeechSynthesis.h AudioCapture.cpp AudioCapture.h EdgeSpeech.cpp EdgeSpeech.h CurrencyRates.cpp CurrencyRates.h NativeUpdates.cpp NativeUpdates.h LocalPerformance.cpp LocalPerformance.h)
 if(WIN32)
     set(VIEZAN_ICON "${CMAKE_CURRENT_LIST_DIR}/../../build/icon.ico")
     configure_file(windows.rc.in "${CMAKE_CURRENT_BINARY_DIR}/windows.rc" @ONLY)
@@ -24,7 +25,7 @@ set_target_properties(ViezanNativeQt PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER "com.viezan.native.qt.preview"
     MACOSX_BUNDLE_BUNDLE_NAME "Viezan")
 file(GLOB NATIVE_ICONS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/qml/icons/*.svg")
-set(NATIVE_RESOURCES qml/Kit.qml qml/GlassDialog.qml qml/SessionModelPicker.qml qml/ImageTranslationView.qml qml/TranslationOptions.qml qml/EmptyState.qml qml/DesktopWorkspace.qml qml/Main.qml qml/RegionCapture.qml qml/HomeWorkspace.qml qml/DictionaryResult.qml qml/PrimaryNavigation.qml qml/SettingsWorkspace.qml qml/ProviderSettings.qml qml/LocalModelSettings.qml qml/DataSettings.qml qml/UsageSettings.qml qml/UpdateSettings.qml qml/DesktopSettings.qml qml/DesktopPanels.qml qml/Launcher.qml qml/ThermalWorkspace.qml qml/InterpretationWorkspace.qml qml/ApplicationsWorkspace.qml qml/ComparisonPane.qml qml/NativeChart.qml qml/ChatTranscript.qml qml/native.json qml/brand.png ${NATIVE_ICONS})
+set(NATIVE_RESOURCES qml/Kit.qml qml/BlockingDialog.qml qml/GlassDialog.qml qml/SessionModelPicker.qml qml/ImageTranslationView.qml qml/TranslationOptions.qml qml/EmptyState.qml qml/DesktopWorkspace.qml qml/Main.qml qml/RegionCapture.qml qml/HomeWorkspace.qml qml/HabitChips.qml qml/DictionaryResult.qml qml/PrimaryNavigation.qml qml/SettingsWorkspace.qml qml/ProviderSettings.qml qml/LocalModelSettings.qml qml/DataSettings.qml qml/UsageSettings.qml qml/UpdateSettings.qml qml/DesktopSettings.qml qml/DesktopPanels.qml qml/Launcher.qml qml/ThermalWorkspace.qml qml/InterpretationWorkspace.qml qml/ApplicationsWorkspace.qml qml/ComparisonPane.qml qml/NativeChart.qml qml/ChatTranscript.qml qml/native.json qml/brand.png ${NATIVE_ICONS})
 list(APPEND NATIVE_RESOURCES
     qml/LanguageButton.qml
     qml/ListenButton.qml)
@@ -34,6 +35,7 @@ list(APPEND NATIVE_RESOURCES
     qml/ShortcutKeyButton.qml)
 list(APPEND NATIVE_RESOURCES
     qml/SettingsPicker.qml
+    qml/SettingsSearch.js
     qml/SettingsConfirm.qml
     qml/SettingsDangerButton.qml
     qml/SpeechSettings.qml
@@ -44,7 +46,9 @@ list(APPEND NATIVE_RESOURCES
     qml/PanelNotice.qml
     qml/UpdateSheet.qml)
 list(APPEND NATIVE_RESOURCES
-    qml/SurfaceAppearance.qml)
+    qml/SurfaceAppearance.qml
+    qml/NamedScrollView.qml
+    qml/PopupAccessibility.js)
 qt_add_resources(ViezanNativeQt workbench PREFIX "/" FILES ${NATIVE_RESOURCES})
 # Development only: load qml/ from the source tree and reload the window when a file is saved.
 option(VIEZAN_QML_LIVE "Load QML from the source tree and reload it on save" OFF)
@@ -53,17 +57,18 @@ if(VIEZAN_QML_LIVE)
 endif()
 target_link_libraries(ViezanNativeQt PRIVATE Qt6::Svg Qt6::Widgets Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Network Qt6::Concurrent Qt6::Multimedia Qt6::TextToSpeech Qt6::WebSockets)
 install(TARGETS ViezanNativeQt RUNTIME DESTINATION bin BUNDLE DESTINATION .)
-target_sources(ViezanNativeQt PRIVATE ${BACKEND_SERVICES})
+target_sources(ViezanNativeQt PRIVATE ${BACKEND_SERVICES} third_party/tweetnacl/tweetnacl.c)
 
 include(CTest)
 if(BUILD_TESTING)
     find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
-    qt_add_executable(ViezanQtTests tests/WorkbenchBridgeTests.cpp WorkbenchBridge.cpp WorkbenchBridge.h WorkbenchDomain.cpp WorkbenchDomain.h LocalProvider.cpp LocalProvider.h CloudProtocol.cpp CloudProtocol.h CredentialStore.cpp CredentialStore.h NativeAudio.cpp NativeAudio.h Attachments.cpp Attachments.h LocalModelManager.cpp LocalModelManager.h NativeBackup.cpp NativeBackup.h DesktopIntegration.cpp DesktopIntegration.h WindowsSelection.cpp WindowsSelection.h ThermalMonitor.cpp ThermalMonitor.h Interpretation.cpp Interpretation.h LocalRuntime.cpp LocalRuntime.h ImageGeneration.cpp ImageGeneration.h Research.cpp Research.h ModelCatalog.cpp ModelCatalog.h ProviderDiscovery.cpp ProviderDiscovery.h ModelLineup.cpp ModelLineup.h LauncherTools.cpp LauncherTools.h SpeechSynthesis.cpp SpeechSynthesis.h AudioCapture.cpp AudioCapture.h EdgeSpeech.cpp EdgeSpeech.h CurrencyRates.cpp CurrencyRates.h NativeUpdates.cpp NativeUpdates.h LocalPerformance.cpp LocalPerformance.h)
+    qt_add_executable(ViezanQtTests ${HABIT_SOURCES} tests/WorkbenchBridgeTests.cpp WorkbenchBridge.cpp WorkbenchBridge.h WorkbenchDomain.cpp WorkbenchDomain.h LocalProvider.cpp LocalProvider.h CloudProtocol.cpp CloudProtocol.h CredentialStore.cpp CredentialStore.h NativeAudio.cpp NativeAudio.h Attachments.cpp Attachments.h LocalModelManager.cpp LocalModelManager.h NativeBackup.cpp NativeBackup.h DesktopIntegration.cpp DesktopIntegration.h WindowsSelection.cpp WindowsSelection.h ThermalMonitor.cpp ThermalMonitor.h Interpretation.cpp Interpretation.h LocalRuntime.cpp LocalRuntime.h ImageGeneration.cpp ImageGeneration.h Research.cpp Research.h ModelCatalog.cpp ModelCatalog.h ProviderDiscovery.cpp ProviderDiscovery.h ModelLineup.cpp ModelLineup.h LauncherTools.cpp LauncherTools.h SpeechSynthesis.cpp SpeechSynthesis.h AudioCapture.cpp AudioCapture.h EdgeSpeech.cpp EdgeSpeech.h CurrencyRates.cpp CurrencyRates.h NativeUpdates.cpp NativeUpdates.h LocalPerformance.cpp LocalPerformance.h)
     # Keep QtTest attached to the console so Windows CI captures failures.
     set_target_properties(ViezanQtTests PROPERTIES WIN32_EXECUTABLE FALSE MACOSX_BUNDLE FALSE)
     qt_add_resources(ViezanQtTests workbench_tests PREFIX "/" FILES ${NATIVE_RESOURCES})
     target_link_libraries(ViezanQtTests PRIVATE Qt6::Svg Qt6::Widgets Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Network Qt6::Concurrent Qt6::Multimedia Qt6::TextToSpeech Qt6::WebSockets Qt6::Test)
-    target_compile_definitions(ViezanQtTests PRIVATE VIEZAN_CONTRACT_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/../../contracts/native-workbench/recovery-fixture.json")
+    target_compile_definitions(ViezanQtTests PRIVATE VIEZAN_CONTRACT_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/../../contracts/native-workbench/recovery-fixture.json"
+        VIEZAN_UPDATE_SIGNATURE_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/../../contracts/native-workbench/update-signature-fixture.json")
     # The suite is single-threaded and dominated by QML scene construction, so
     # it runs as shards that `ctest -j` spreads over the cores. Each shard
     # writes its own qt-test-results-<n>.txt report.
@@ -75,7 +80,7 @@ if(BUILD_TESTING)
             -DREPORT=qt-test-results-${shard}.txt -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/RunShard.cmake")
         set_tests_properties(native-qt-bridge-${shard} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Fusion")
     endforeach()
-    target_sources(ViezanQtTests PRIVATE ${BACKEND_SERVICES})
+    target_sources(ViezanQtTests PRIVATE ${BACKEND_SERVICES} third_party/tweetnacl/tweetnacl.c)
     qt_add_executable(ViezanBackendTests tests/BackendServicesTests.cpp ${BACKEND_SERVICES})
     set_target_properties(ViezanBackendTests PROPERTIES WIN32_EXECUTABLE FALSE MACOSX_BUNDLE FALSE)
     target_link_libraries(ViezanBackendTests PRIVATE Qt6::Core Qt6::Concurrent Qt6::Test)
@@ -86,7 +91,7 @@ foreach(native_target ViezanNativeQt ViezanQtTests ViezanBackendTests)
     if(TARGET ${native_target})
         target_compile_definitions(${native_target} PRIVATE VIEZAN_VERSION="${PROJECT_VERSION}")
         if(WIN32)
-            target_link_libraries(${native_target} PRIVATE Advapi32 User32 Ole32 OleAut32 Uiautomationcore Uuid Wintrust Shell32)
+            target_link_libraries(${native_target} PRIVATE Advapi32 User32 Ole32 OleAut32 Uiautomationcore Uuid Shell32)
         elseif(UNIX AND NOT APPLE)
             find_package(Qt6 6.8 REQUIRED COMPONENTS DBus)
             target_link_libraries(${native_target} PRIVATE Qt6::DBus)

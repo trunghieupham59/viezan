@@ -50,6 +50,7 @@ RequestExecutionLevel user
 ; file. A running executable cannot be opened for writing; wait until it can.
 !macro RequireAppClosed
   ${If} ${FileExists} "$INSTDIR\ViezanNativeQt.exe"
+    StrCpy $1 120
     ${Do}
       ClearErrors
       FileOpen $0 "$INSTDIR\ViezanNativeQt.exe" a
@@ -57,7 +58,13 @@ RequestExecutionLevel user
         FileClose $0
         ${ExitDo}
       ${EndIf}
-      ${If} ${Cmd} `MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Viezan is still running. Close it, then choose Retry." /SD IDCANCEL IDCANCEL`
+      ${If} ${Silent}
+        ${If} $1 == 0
+          Abort
+        ${EndIf}
+        Sleep 500
+        IntOp $1 $1 - 1
+      ${ElseIf} ${Cmd} `MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Viezan is still running. Close it, then choose Retry." /SD IDCANCEL IDCANCEL`
         Abort
       ${EndIf}
     ${Loop}

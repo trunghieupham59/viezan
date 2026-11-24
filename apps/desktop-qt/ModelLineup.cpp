@@ -1,6 +1,9 @@
 #include "ModelLineup.h"
 #include "ProviderDiscovery.h"
 #include <QMap>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QRegularExpression>
 #include <algorithm>
 #include <tuple>
@@ -29,6 +32,28 @@ bool validModel(const QString &id) {
 namespace ModelLineup {
 QString provider(const QString &id) { const auto colon = id.indexOf(':'); return colon >= 0 ? id.left(colon) : QString(); }
 QString model(const QString &id) { return rawModel(id).remove(QRegularExpression(R"(-(\d{8}|\d{4}-\d{2}-\d{2})$)")); }
+QString effortFamily(const QString &id) {
+    const auto owner = provider(id);
+    QStringList families;
+    if (owner == "gemini") families = {"geminiLevel", "geminiBudget"};
+    else if (owner == "claude" || owner == "openai") families = {owner};
+    else return {};
+    static const auto patterns = [] {
+        QMap<QString, QRegularExpression> result;
+        QFile file(":/qml/native.json");
+        if (file.open(QIODevice::ReadOnly)) {
+            const auto policy = QJsonDocument::fromJson(file.readAll()).object().value("reasoningPolicy").toObject();
+            for (auto it = policy.begin(); it != policy.end(); ++it)
+                if (!it.value().toString().isEmpty()) result.insert(it.key(), QRegularExpression(it.value().toString(), QRegularExpression::CaseInsensitiveOption));
+        }
+        return result;
+    }();
+    for (const auto &family : families) {
+        const auto pattern = patterns.constFind(family);
+        if (pattern != patterns.cend() && pattern->match(rawModel(id)).hasMatch()) return family;
+    }
+    return {};
+}
 bool isChatModel(const QString &id) { const auto name = model(id).toLower(); return std::none_of(excluded.cbegin(), excluded.cend(), [&name](const QString &word) { return name.contains(word); }); }
 
 std::optional<Family> family(const QString &id) {
@@ -119,14 +144,17 @@ QVariantMap tiers(const QString &current, const QStringList &listing) {
     return {{"fast", fast.first}, {"balanced", balanced.first}, {"careful", careful->first}};
 }
 
-QVariantList sections(const QString &query, const QVariantMap &tierMap, const QStringList &recentModels, const QMap<QString, QStringList> &listings, const QStringList &cloud, const QStringList &local) {
+QVariantList sections(const QString &query, const QVariantMap &tierMap, const QStringList &recentModels, const QMap<QString, QStringList> &listings, const QStringList &cloud, const QStringList &local, const QStringList &pinned) {
     const auto needle = query.trimmed(); QVariantList result;
     const auto row = [](const QString &kind, const QString &key, const QString &value) { return QVariantMap{{"kind", kind}, {key, value}}; };
     const auto section = [](const QString &key, const QVariantList &rows) { return QVariantMap{{"key", key}, {"rows", rows}}; };
     QStringList localModels; for (const auto &runtime : local) localModels += listings.value(runtime);
     if (needle.isEmpty()) {
         if (tierMap.size() == tierNames.size()) { QVariantList rows; for (const auto &tier : tierNames) rows << QVariantMap{{"kind", "tier"}, {"tier", tier}, {"model", tierMap.value(tier)}}; result << section("purpose", rows); }
-        QStringList offered; for (const auto &value : tierMap) offered << value.toString();
+        QVariantList pinnedRows;
+        for (const auto &id : pinned) pinnedRows << row("model", "model", id);
+        if (!pinnedRows.isEmpty()) result << section("pinned", pinnedRows);
+        QStringList offered = pinned; for (const auto &value : tierMap) offered << value.toString();
         QVariantList picks; for (const auto &id : recentModels) if (!offered.contains(id)) picks << row("model", "model", id);
         if (!picks.isEmpty()) result << section("recent", picks);
         for (const auto &owner : cloud) {

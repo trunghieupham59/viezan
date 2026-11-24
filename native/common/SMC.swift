@@ -224,8 +224,22 @@ struct SensorKey {
   let info: SMCKeyInfoData
 }
 
+protocol FanSMCAccess {
+  func keyCount() throws -> UInt32
+  func key(at index: UInt32) throws -> UInt32
+  func keyInfo(_ key: UInt32) throws -> SMCKeyInfoData
+  func readKey(_ key: UInt32, info: SMCKeyInfoData) throws -> [UInt8]
+  func writeKey(_ key: UInt32, info: SMCKeyInfoData, bytes: [UInt8]) throws
+}
+
+extension SMC: FanSMCAccess {}
+
 /// Look a key up by name and accept it only when its type is one the caller can decode.
 func lookupKey(_ smc: SMC, _ name: String, allowedTypes: Set<String>) -> SensorKey? {
+  lookupKey(smc as FanSMCAccess, name, allowedTypes: allowedTypes)
+}
+
+func lookupKey(_ smc: FanSMCAccess, _ name: String, allowedTypes: Set<String>) -> SensorKey? {
   let key = fourCC(name)
   guard let info = try? smc.keyInfo(key) else { return nil }
   let type = fourCCString(info.dataType)
@@ -234,6 +248,10 @@ func lookupKey(_ smc: SMC, _ name: String, allowedTypes: Set<String>) -> SensorK
 }
 
 func readNumber(_ smc: SMC, _ sensor: SensorKey?) -> Double? {
+  readNumber(smc as FanSMCAccess, sensor)
+}
+
+func readNumber(_ smc: FanSMCAccess, _ sensor: SensorKey?) -> Double? {
   guard let sensor else { return nil }
   guard let bytes = try? smc.readKey(sensor.key, info: sensor.info) else { return nil }
   return decodeNumber(type: sensor.type, bytes: bytes)

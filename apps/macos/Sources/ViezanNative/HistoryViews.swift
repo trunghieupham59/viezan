@@ -11,7 +11,6 @@ enum HistoryPanelLayout {
 
 struct QuickHistory: View {
     @Environment(\.colorScheme) private var scheme
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     @Bindable var store: WorkbenchStore
     var select: (String) -> Void
     var all: () -> Void
@@ -31,7 +30,7 @@ struct QuickHistory: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("inset")) {
-            HStack { Text(store.text("history")).font(.vzn("labelScale", .semibold)); Spacer(); ShellCloseButton(label: store.text("close"), action: dismiss) }
+            HStack { Text(store.text("history")).font(.vzn("labelScale", .semibold)).accessibilityAddTraits(.isHeader); Spacer(); ShellCloseButton(label: store.text("close"), action: dismiss) }
                 .frame(height: metric("control"))
             SearchBox(query: $query, label: store.text("historySearch"), move: move, submit: openHighlighted, cancel: dismiss)
             ScrollViewReader { proxy in
@@ -41,14 +40,13 @@ struct QuickHistory: View {
                         ForEach(records) { session in
                             // Same row language as the other layers: a quiet highlight, a check for the current one.
                             Button { select(session.id) } label: { SessionRow(store: store, session: session) }
-                                .buttonStyle(.plain).padding(.horizontal, metric("small")).padding(.vertical, metric("tight"))
+                                .buttonStyle(HistoryRowStyle(selected: session.id == store.session.id)).padding(.horizontal, metric("small")).padding(.vertical, metric("tight"))
                                 .background {
                                     if session.id == highlighted {
-                                        if glass { GlassLens(radius: metric("radius")) }
-                                        else { RoundedRectangle(cornerRadius: metric("radius")).fill(contentColor("surface-hover", scheme)) }
+                                        GlassLens(radius: metric("radius"))
                                     }
                                 }
-                                .accessibilityAddTraits(session.id == highlighted ? .isSelected : [])
+                                .accessibilityAddTraits(session.id == store.session.id ? .isSelected : [])
                                 .id(session.id)
                         }
                     }.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
@@ -56,15 +54,10 @@ struct QuickHistory: View {
             }.frame(height: HistoryPanelLayout.listHeight(content: contentHeight, available: availableHeight))
             CardDivider()
             // The panel's foot reads like the model panel's: a quiet control, not a link.
-            if glass {
-                Button { all() } label: { Label(store.text("allHistory"), systemImage: "arrow.right").labelStyle(TrailingIconLabelStyle()) }
-                    .buttonStyle(.plain).font(.vzn("smallScale", .medium)).foregroundStyle(contentColor("action-text", scheme))
-                    .padding(.horizontal, metric("small")).frame(height: metric("compactControl")).contentShape(Rectangle())
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Button(store.text("allHistory"), systemImage: "arrow.right") { all() }.buttonStyle(.vznQuiet).font(.vzn("smallScale"))
-                    .labelStyle(TrailingIconLabelStyle()).frame(maxWidth: .infinity, alignment: .leading)
-            }
+            Button { all() } label: { Label(store.text("allHistory"), systemImage: "arrow.right").labelStyle(TrailingIconLabelStyle()) }
+                .buttonStyle(.plain).font(.vzn("smallScale", .medium)).foregroundStyle(contentColor("action-text", scheme))
+                .padding(.horizontal, metric("small")).frame(height: metric("compactControl")).contentShape(Rectangle())
+                .frame(maxWidth: .infinity, alignment: .leading)
         }.padding(metric("inset")).frame(maxWidth: .infinity)
             .accessibilityElement(children: .contain).accessibilityLabel(store.text("history"))
             .onAppear { highlighted = store.session.id }
@@ -120,6 +113,7 @@ struct SessionRow: View {
                 }
             }
         }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
     }
 }
 
@@ -145,11 +139,15 @@ struct HistoryLibrary: View {
     @State private var archived = false
     @State private var favoritesOnly = false
     @State private var renameID: String?
+    /// Renames, then confirms it (History-States): no toast when the save failed.
+    private func applyRename() {
+        if let id = renameID { store.renameSession(id, title: newTitle); if store.storageError == nil { ToastCenter.shared.show(store.text("historyRenamed"), key: "rename") } }
+        renameID = nil
+    }
     @State private var newTitle = ""
     @Environment(\.colorScheme) private var scheme
     /// An archived session awaiting "Delete permanently" confirmation (cannot be undone).
     @State private var confirmDelete: String?
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     /// nil = every enabled feature; starts on the feature the library was opened from.
     @State private var featureFilter: Feature?
     private var features: [Feature] { [Feature.chat, .translate, .dictionary].filter { store.moduleEnabled($0.rawValue) } }
@@ -166,7 +164,7 @@ struct HistoryLibrary: View {
     // Glass: an archived session is deleted permanently, so it asks first.
     private func delete(_ id: String) {
         guard let item = store.session(id) else { return }
-        if glass && item.archived == true { confirmDelete = id; return }
+        if item.archived == true { confirmDelete = id; return }
         let next = records.first { $0.id != id }?.id
         do {
             let removed = try store.removeSession(id)
@@ -191,12 +189,13 @@ struct HistoryLibrary: View {
         selected = records[min(max(index + offset, 0), records.count - 1)].id
     }
     var body: some View {
-        libraryBody.onAppear { favoritesOnly = initialFavorites; featureFilter = store.workspace.feature }
-            .onKeyPress(.return) { if confirmDelete == nil, let id = selected, !archived { open(id); return .handled }; return .ignored }
-            .onKeyPress(.delete) { if confirmDelete == nil, let id = selected { delete(id); return .handled }; return .ignored }
-            .onKeyPress(.upArrow) { if glass && confirmDelete == nil { move(-1); return .handled }; return .ignored }
-            .onKeyPress(.downArrow) { if glass && confirmDelete == nil { move(1); return .handled }; return .ignored }
-            .onExitCommand { if confirmDelete != nil { confirmDelete = nil } else { close() } }
+        libraryBody.accessibilityElement(children: .contain).accessibilityLabel(store.text("allHistory")).onAppear { favoritesOnly = initialFavorites; featureFilter = store.workspace.feature }
+            // While a dialog is up (delete or rename) the keys belong to it, not to the list behind.
+            .onKeyPress(.return) { if confirmDelete == nil, renameID == nil, let id = selected, !archived { open(id); return .handled }; return .ignored }
+            .onKeyPress(.delete) { if confirmDelete == nil, renameID == nil, let id = selected { delete(id); return .handled }; return .ignored }
+            .onKeyPress(.upArrow) { if confirmDelete == nil && renameID == nil { move(-1); return .handled }; return .ignored }
+            .onKeyPress(.downArrow) { if confirmDelete == nil && renameID == nil { move(1); return .handled }; return .ignored }
+            .onExitCommand { if confirmDelete != nil { confirmDelete = nil } else if renameID != nil { renameID = nil } else { close() } }
             .overlay {
                 if let id = confirmDelete, let item = store.session(id) {
                     ConfirmDialog(title: store.title(item), message: store.text("deletePermanentlyConfirm"), cancel: store.text("cancel"),
@@ -217,112 +216,54 @@ struct HistoryLibrary: View {
                     if featureFilter == .dictionary {
                         FilterTabs(label: store.text("dictionary"), items: [(false, store.text("recentLookups")), (true, store.text("savedWords"))], selection: $favoritesOnly).padding(.horizontal, metric("inset"))
                     }
-                    if glass {
-                        // History board: archived sessions are a toggle beside search, filtered in place.
-                        HStack(spacing: metric("small")) {
-                            SearchBox(query: $query, label: store.text("historySearch"), move: move)
-                            ShellToolbarButton(label: store.text("archiveSession"), symbol: "archivebox", identifier: "history-archived-toggle", showsLabel: true, glass: true, soft: archived,
-                                               hint: store.text("archivedSessions")) { archived.toggle() }
-                                .fixedSize().accessibilityAddTraits(archived ? .isSelected : [])
-                        }.padding(.horizontal, metric("inset")).padding(.bottom, metric("tight"))
-                    } else {
-                        FilterTabs(label: store.text("history"), items: [(false, store.text("history")), (true, store.text("archivedSessions"))], selection: $archived).padding(.horizontal, metric("inset"))
+                    // History board: archived sessions are a toggle beside search, filtered in place.
+                    HStack(spacing: metric("small")) {
                         SearchBox(query: $query, label: store.text("historySearch"), move: move)
-                            .frame(width: wide ? metric("sidebar") + metric("gutter") - metric("inset") * 2 : nil).padding(metric("inset"))
-                    }
+                        ShellToolbarButton(label: store.text("archiveSession"), symbol: "archivebox", identifier: "history-archived-toggle", showsLabel: true, glass: true, soft: archived,
+                                           hint: store.text("archivedSessions")) { archived.toggle() }
+                            .fixedSize().accessibilityAddTraits(archived ? .isSelected : [])
+                    }.padding(.horizontal, metric("inset")).padding(.bottom, metric("tight"))
                     if records.isEmpty {
                         VStack(spacing: metric("small")) {
-                            if glass {
-                                // History-States: a quiet empty state where the rows would be.
-                                GlassEmptyState(symbol: "magnifyingglass", tone: "text-muted", title: store.text("noHistory"))
-                            } else {
-                                Image(systemName: "magnifyingglass").font(.vzn("headingScale", .semibold)).accessibilityHidden(true)
-                                Text(store.text("noHistory")).multilineTextAlignment(.center)
-                            }
+                            // History-States: a quiet empty state where the rows would be.
+                            let empty = HistoryEmptyMessage.keys(query: query, archived: archived)
+                            GlassEmptyState(symbol: empty.hint == nil ? "clock" : "magnifyingglass", tone: "text-muted", title: store.text(empty.title), hint: empty.hint.map(store.text))
                         }.foregroundStyle(.secondary).padding(metric("inset"))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if glass {
-                        glassList
                     } else {
-                        // Grouped by when they changed, so a run of "5 days ago" rows still scans.
-                        List(selection: $selected) {
-                            ForEach(HistoryBucket.allCases, id: \.self) { bucket in
-                                let rows = records.filter { HistoryBucket.of($0.updated) == bucket }
-                                if !rows.isEmpty {
-                                    Section { ForEach(rows) { SessionRow(store: store, session: $0, showsIcon: featureFilter == nil).tag($0.id) } }
-                                    header: { Eyebrow(text: store.text("group_" + bucket.rawValue)) }
-                                }
-                            }
-                        }.listStyle(.plain)
+                        glassList
                     }
-                }.padding(.top, glass ? metric("inset") : 0)
+                }.padding(.top, metric("inset"))
                 .frame(width: wide && !records.isEmpty ? metric("sidebar") + metric("editor") : nil,
                         height: !wide && !records.isEmpty ? min(metric("editor") * 2, geometry.size.height / 2) : nil)
                 if !records.isEmpty {
-                    if glass { Rectangle().fill(contentColor("divider", scheme)).frame(width: wide ? metric("hairline") : nil, height: wide ? nil : metric("hairline")).accessibilityHidden(true) } else { Divider() }
-                    if glass, let id = selected, let session = records.first(where: { $0.id == id }) {
+                    Rectangle().fill(contentColor("divider", scheme)).frame(width: wide ? metric("hairline") : nil, height: wide ? nil : metric("hairline")).accessibilityHidden(true)
+                    if let id = selected, let session = records.first(where: { $0.id == id }) {
                         glassPreview(id, session, wide: wide)
-                    } else if let id = selected, let session = records.first(where: { $0.id == id }) {
-                        // The preview is the exchange itself in a reading column; title, meta and the
-                        // actions sit at its head where the eye starts, Open as the one primary control.
-                        VStack(alignment: .leading, spacing: metric("inset")) {
-                            VStack(alignment: .leading, spacing: metric("small")) {
-                                HStack(alignment: .firstTextBaseline, spacing: metric("inset")) {
-                                    // A translation's title is its source, repeated just below: one line is enough there.
-                                    Text(store.title(session)).font(.vzn(wide ? "headingScale" : "sectionScale", .semibold)).lineLimit(session.feature == .chat ? 2 : 1).help(store.title(session))
-                                    Spacer(minLength: metric("small"))
-                                    NativePanelButton(label: store.text("open"), symbol: "arrow.right", identifier: "history-open", role: .primary) { open(id) }.disabled(archived)
-                                }
-                                Text([ModelLineup.shortName(session.model),
-                                      session.feature == .chat ? nil : sourceLanguageName(session.source, draft: session.draft, store: store) + " → " + store.text("lang_" + session.target),
-                                      relativeTime(session.updated, store: store),
-                                      session.feature == .chat ? store.text("turnsCount").replacingOccurrences(of: "{n}", with: String(session.messages.filter { $0.role == "user" }.count)) : nil].compactMap { $0 }.joined(separator: " · "))
-                                    .font(.vzn("captionScale")).foregroundStyle(.secondary).help(session.model)
-                                HStack(spacing: metric("tight")) {
-                                    Button(store.text("rename"), systemImage: "pencil") { renameID = id; newTitle = session.title }
-                                    Button(store.text("exportSession"), systemImage: "square.and.arrow.up") { export(id) }
-                                    Button(store.text(archived ? "restoreSession" : "archiveSession"), systemImage: archived ? "tray.and.arrow.up" : "archivebox") {
-                                        let wasArchived = archived
-                                        store.archiveSession(id, archived: !wasArchived); selected = records.first?.id
-                                        ToastCenter.shared.show(store.text(wasArchived ? "sessionRestored" : "sessionArchived") + ": " + store.title(session), key: "archive-" + id, actionLabel: store.text("undo")) {
-                                            store.archiveSession(id, archived: wasArchived)
-                                        }
-                                    }
-                                    Button(store.text("deleteSession"), systemImage: "trash", role: .destructive) { delete(id) }.help(store.text("deleteUndoHint"))
-                                }.buttonStyle(.vznQuiet).font(.vzn("smallScale"))
-                            }.frame(maxWidth: metric("reading"))
-                            Divider()
-                            ScrollView { SessionPreview(store: store, session: session).frame(maxWidth: metric("reading")).padding(.vertical, metric("small")) }
-                                .id(session.id).frame(maxHeight: .infinity)
-                        }.padding(wide ? metric("gutter") : metric("inset")).frame(maxWidth: .infinity, alignment: .leading)
                     } else { ContentUnavailableView(store.text("chooseHistory"), systemImage: "clock").frame(maxWidth: .infinity, maxHeight: .infinity) }
                 }
             }
         }.onAppear { selected = records.contains { $0.id == store.session.id } ? store.session.id : records.first?.id }
             .onChange(of: archived) { _, _ in selected = records.first?.id }
             .onChange(of: featureFilter) { _, _ in if !records.contains(where: { $0.id == selected }) { selected = records.first?.id } }
-            // History-States: Glass renames in a dialog centred over the library; others keep the alert.
+            // History-States: Rename in a dialog centred over the library.
             .overlay {
-                if glass && renameID != nil {
+                if renameID != nil {
                     BlockingDialog(title: store.text("rename"), onCancel: { renameID = nil }) {
                         Text(store.text("rename")).font(.vzn("subtitleScale", .semibold)).foregroundStyle(contentColor("text-strong", scheme)).accessibilityAddTraits(.isHeader)
                         TextField(store.text("sessionTitle"), text: $newTitle).textFieldStyle(.plain).font(.vzn("labelScale"))
                             .padding(.horizontal, metric("gap")).frame(height: metric("control"))
                             .background { InsetInputSurface(radius: metric("controlRadius"), focused: true) }
-                            .onSubmit { if let id = renameID { store.renameSession(id, title: newTitle) }; renameID = nil }
+                            .onSubmit { applyRename() }
                             .accessibilityIdentifier("rename-field")
+                        Text(store.text("historyRenameHint")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).fixedSize(horizontal: false, vertical: true)
                         HStack(spacing: metric("small")) {
                             Spacer(minLength: 0)
                             Button(store.text("close")) { renameID = nil }.buttonStyle(.vznOutline).keyboardShortcut(.cancelAction)
-                            Button(store.text("apply")) { if let id = renameID { store.renameSession(id, title: newTitle) }; renameID = nil }.buttonStyle(.vznPrimary)
+                            Button(store.text("apply")) { applyRename() }.buttonStyle(.vznPrimary)
                         }.padding(.top, metric("tight"))
                     }
                 }
-            }
-            .alert(store.text("rename"), isPresented: Binding(get: { !glass && renameID != nil }, set: { if !$0 { renameID = nil } })) {
-                TextField(store.text("sessionTitle"), text: $newTitle)
-                Button(store.text("apply")) { if let id = renameID { store.renameSession(id, title: newTitle) }; renameID = nil }
-                Button(store.text("close"), role: .cancel) { renameID = nil }
             }
             .onChange(of: query) { _, _ in if !records.contains(where: { $0.id == selected }) { selected = records.first?.id } }
     }
@@ -401,7 +342,6 @@ struct SessionPreview: View {
     var store: WorkbenchStore
     var session: Session
     @Environment(\.colorScheme) private var scheme
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("gutter")) {
             if session.feature == .chat {
@@ -410,12 +350,12 @@ struct SessionPreview: View {
                     if message.role == "user" {
                         // Same shape as the live transcript: the person's turn on a muted surface, inset.
                         Text(text).font(readingFont(store)).fixedSize(horizontal: false, vertical: true)
-                            .padding(.vertical, metric(glass ? "small" : "gap") + (glass ? metric("hairline") * 2 : 0))
-                            .padding(.horizontal, metric(glass ? "gap" : "inset") + (glass ? metric("hairline") * 2 : 0))
-                            .background(contentColor("surface-muted", scheme), in: glass ? AnyShape(UserBubbleShape()) : AnyShape(RoundedRectangle(cornerRadius: metric("largeRadius"))))
+                            .padding(.vertical, metric("small") + metric("hairline") * 2)
+                            .padding(.horizontal, metric("gap") + metric("hairline") * 2)
+                            .background(contentColor("surface-muted", scheme), in: UserBubbleShape())
                             .frame(maxWidth: metric("reading") * metric("bubbleFraction"), alignment: .trailing)
                             .frame(maxWidth: .infinity, alignment: .trailing)
-                    } else if glass {
+                    } else {
                         VStack(alignment: .leading, spacing: metric("small")) {
                             HStack(spacing: metric("small") - metric("hairline") * 2) {
                                 Image(systemName: "sparkles").imageScale(.small).foregroundStyle(contentColor("action", scheme))
@@ -423,14 +363,14 @@ struct SessionPreview: View {
                             }.font(.vzn("smallScale")).accessibilityElement(children: .combine)
                             Text(text).font(readingFont(store)).frame(maxWidth: .infinity, alignment: .leading)
                         }
-                    } else { section("Viezan", text) }
+                    }
                 }
                 if !session.draft.isEmpty { section(store.text("unsentDraft"), session.draft) }
                 if session.messages.isEmpty && session.draft.isEmpty { Text(store.text("noContent")).foregroundStyle(.secondary) }
-            } else if glass, session.feature == .dictionary, let entry = DictionaryEntry.parse(session.output) {
+            } else if session.feature == .dictionary, let entry = DictionaryEntry.parse(session.output) {
                 // History-States: a lookup previews as its entry, as it reads in Dictionary.
                 DictionaryResultView(entry: entry, store: store)
-            } else if glass {
+            } else {
                 // History-States: the source in a flat card, the translation plain under it with Copy.
                 VStack(alignment: .leading, spacing: metric("small")) {
                     Eyebrow(text: store.text("source") + " · " + store.text("lang_" + session.source))
@@ -443,9 +383,6 @@ struct SessionPreview: View {
                         CopyResponseButton(text: session.output, label: store.text("copy"), copiedLabel: store.text("copied")).padding(.leading, -metric("small"))
                     }
                 }.padding(.horizontal, metric("inset"))
-            } else {
-                section(store.text("source"), session.draft.isEmpty ? store.text("noContent") : session.draft)
-                section(store.text("result"), session.output.isEmpty ? store.text("emptyResult") : session.output)
             }
         }.frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
     }
@@ -506,26 +443,19 @@ struct ActivityView: View {
         focusEpoch += 1
     }
     private func epoch(_ id: String) -> Int { focusedControl == id ? focusEpoch : 0 }
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     @Environment(\.colorScheme) private var scheme
     // Glass (Overlays board): state dot, title and the state on one line; the model moves to help.
     @ViewBuilder private func jobHead(title: String, status: String, model: String, tone: StatusTone) -> some View {
-        if glass {
-            HStack(alignment: .firstTextBaseline, spacing: metric("small")) {
-                StatusDot(tone: tone)
-                Text(title).font(.vzn("labelScale", .medium)).foregroundStyle(contentColor("text-strong", scheme)).lineLimit(1)
-                Spacer(minLength: metric("small"))
-                Text(status).font(.vzn("smallScale")).foregroundStyle(contentColor(tone == .failed ? "danger" : "text-muted", scheme)).lineLimit(1).fixedSize()
-            }.help(model).accessibilityElement(children: .combine)
-        } else {
-            Text(title).font(.vzn("labelScale", .semibold)).lineLimit(2)
-            Text(status).font(.vzn("captionScale")).foregroundStyle(.secondary)
-            Text(model).font(.vzn("captionScale")).foregroundStyle(.secondary)
-        }
+        HStack(alignment: .firstTextBaseline, spacing: metric("small")) {
+            StatusDot(tone: tone)
+            Text(title).font(.vzn("labelScale", .medium)).foregroundStyle(contentColor("text-strong", scheme)).lineLimit(1)
+            Spacer(minLength: metric("small"))
+            Text(status).font(.vzn("smallScale")).foregroundStyle(contentColor(tone == .failed ? "danger" : "text-muted", scheme)).lineLimit(1).fixedSize()
+        }.help(model).accessibilityElement(children: .combine)
     }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("inset")) {
-            HStack { Text(store.text("activity")).font(.vzn("labelScale", .semibold)); Spacer(); ShellToolbarButton(label: store.text("close"), symbol: "xmark", identifier: "activity-close", focusEpoch: epoch("close"), onTab: { moveFocus(from: "close", backwards: $0) }, action: dismiss) }
+            HStack { Text(ActivityTitle.text(jobs: rows.count + (store.interpretation.busy ? 1 : 0)) { store.text($0) }).font(.vzn("labelScale", .semibold)).accessibilityAddTraits(.isHeader); Spacer(); ShellToolbarButton(label: store.text("close"), symbol: "xmark", identifier: "activity-close", focusEpoch: epoch("close"), onTab: { moveFocus(from: "close", backwards: $0) }, action: dismiss) }
                 .frame(height: metric("control"))
             if store.workspace.tasks.isEmpty && !store.interpretation.busy {
                 Text(store.text("noTasks")).foregroundStyle(.secondary)
@@ -604,12 +534,15 @@ private struct HistoryRowStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View { HistoryRowBody(configuration: configuration, selected: selected) }
 }
 private struct HistoryRowBody: View {
+    @Environment(\.isFocused) private var focused
+    @Environment(\.colorScheme) private var scheme
     var configuration: ButtonStyleConfiguration
     var selected: Bool
     @State private var hovered = false
     var body: some View {
         configuration.label
             .background { if selected || hovered || configuration.isPressed { GlassLens(radius: metric("radius"), hover: !selected) } }
+            .overlay { if focused { RoundedRectangle(cornerRadius: metric("radius")).strokeBorder(contentColor("action-text", scheme), lineWidth: metric("hairline") * 2).allowsHitTesting(false).accessibilityHidden(true) } }
             .contentShape(Rectangle()).onHover { hovered = $0 }
     }
 }
@@ -623,11 +556,10 @@ struct BlockingDialog<Content: View>: View {
     var onCancel: () -> Void
     @ViewBuilder var content: Content
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.solidSurfaces) private var solidSurfaces
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: metric("inset") + metric("hairline") * 2, style: .continuous)
-        let solid = reduceTransparency || contrast == .increased
+        let solid = solidSurfaces
         ZStack {
             Button(action: onCancel) { chromeColor("shadow-lg-color", scheme).contentShape(Rectangle()) }
                 .buttonStyle(.plain).focusable(false).accessibilityHidden(true)
@@ -686,5 +618,22 @@ private struct DangerSolidBody: View {
             .overlay { if hovered || configuration.isPressed { Capsule().fill(contentColor("text-strong", scheme).opacity(metric("selectionOpacity"))) } }
             .overlay { if focused { Capsule().inset(by: -metric("hairline") * 2).strokeBorder(contentColor("action-text", scheme), lineWidth: metric("hairline") * 2) } }
             .contentShape(Capsule()).onHover { hovered = $0 }
+    }
+}
+
+/// What the library says when no session is listed (History-States): nothing saved yet, nothing
+/// archived yet, or a search with no match and a way out.
+enum HistoryEmptyMessage {
+    static func keys(query: String, archived: Bool) -> (title: String, hint: String?) {
+        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return (archived ? "historyArchivedEmpty" : "historyEmpty", nil) }
+        return ("noHistory", "historyNoMatchesHint")
+    }
+}
+
+/// The activity layer's heading (Shell-States): "Hoạt động · 3 việc" while there is work, the
+/// plain name when there is none.
+enum ActivityTitle {
+    static func text(jobs: Int, text: (String) -> String) -> String {
+        jobs > 0 ? text("activityCount").replacingOccurrences(of: "{count}", with: String(jobs)) : text("activity")
     }
 }

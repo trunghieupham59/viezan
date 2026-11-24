@@ -2,19 +2,19 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Controls.impl
+import "SettingsSearch.js" as SettingsSearch
 
 Item {
     id: settings
     required property var bridge
     property Item searchAnchor: null
     signal feedback(string message, bool error)
-    readonly property bool glass: workspace.appearance?.preset === "glass"
     property var workspace: bridge.state // the host may pass its own converted snapshot
     readonly property var metrics: bridge.metrics
     readonly property var preferences: workspace.appearance || {mode: "system", textSize: "medium"}
     readonly property real navWidth: metrics.sidebar - metrics.large
     // Glass keeps the two columns at the default window size with the app sidebar open.
-    readonly property bool wide: width >= metrics.reading - (glass ? metrics.large * 2 + metrics.gutter : 0)
+    readonly property bool wide: width >= metrics.reading - (metrics.large * 2 + metrics.gutter)
     readonly property real readingPointSize: Qt.application.font.pointSize * bridge.resources.textScales[preferences.textSize]
     property string query: ""
     signal queryEdited(string value)
@@ -30,25 +30,21 @@ Item {
     property string activeSection: "general"
     // Review 18 settings navigation icons, packaged from qml/icons.
     readonly property var sectionIcons: ({general: "settings", appearance: "appearance", providers: "providers", localModels: "localModels", desktop: "utilities", data: "data", about: "about", voice: "interpret", modules: "apps", updates: "refresh"})
-    readonly property var matches: bridge.resources.settingsSections.filter(section => {
-        const haystack = [section.title, section.description].concat(section.terms).map(t).join(" ")
-        return normalize(haystack).includes(normalize(query.trim()))
-    })
-    readonly property var sections: glass ? bridge.resources.settingsSections : matches
-    readonly property var visibleSections: !glass && query.trim() ? sections : sections.filter(section => section.id === activeSection)
+    readonly property var matches: SettingsSearch.matches(bridge, query)
+    readonly property var sections: bridge.resources.settingsSections
+    readonly property var visibleSections: sections.filter(section => section.id === activeSection)
     objectName: "settings-workspace"
     readonly property var localeStrings: bridge.strings
     function t(key) { return localeStrings[key] || key }
-    function normalize(value) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/đ/g, "d") }
     function selectSection(id) {
         activeSection = id
-        if (glass) { queryEdited(""); results.close() }
+        queryEdited(""); results.close()
         Qt.callLater(() => { settingsScroll.contentItem.contentY = 0 })
     }
     function activateSearchResult() { if (matches.length) selectSection(matches[0].id) }
     function focusSearchResults() { if (results.visible && matches.length) resultList.forceActiveFocus(Qt.TabFocusReason) }
     onQueryChanged: {
-        if (!glass || !searchAnchor) return
+        if (!searchAnchor) return
         if (query.trim()) { results.openAt(searchAnchor); searchAnchor.forceActiveFocus() }
         else results.close()
     }
@@ -60,12 +56,14 @@ Item {
         closePolicy: Popup.CloseOnPressOutside
         contentItem: ListView {
             id: resultList; implicitHeight: Math.max(metrics.navControl, contentHeight)
+            Accessible.role: Accessible.List
+            Accessible.name: settings.t("settingsSearch")
             clip: true; model: settings.matches; currentIndex: 0; keyNavigationEnabled: true
             onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
             Keys.onReturnPressed: if (count) settings.selectSection(settings.matches[currentIndex].id)
             Keys.onEnterPressed: if (count) settings.selectSection(settings.matches[currentIndex].id)
             Keys.onEscapePressed: { settings.queryEdited(""); results.close(); settings.searchAnchor.forceActiveFocus() }
-            ScrollBar.vertical: ScrollBar { policy: resultList.contentHeight > resultList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
+            ScrollBar.vertical: ScrollBar { Accessible.name: settings.t("settingsSearch"); policy: resultList.contentHeight > resultList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
             Label { visible: !resultList.count; text: settings.t("noSettings"); width: parent.width; padding: metrics.small; wrapMode: Text.Wrap }
             delegate: Kit.PanelRow {
                 required property var modelData
@@ -104,6 +102,8 @@ Item {
             rowSpacing: metrics.inset
             ColumnLayout {
                 visible: settings.wide && sections.length > 0
+                Accessible.role: Accessible.Grouping
+                Accessible.name: settings.t("settings")
                 Layout.fillHeight: true
                 Layout.preferredWidth: settings.navWidth
                 Layout.maximumWidth: settings.navWidth
@@ -119,6 +119,7 @@ Item {
                             model: modelData[1]
                             delegate: Kit.GlassButton {
                                 id: sectionButton
+                                objectName: "settings-nav-" + modelData.id
                                 glassMaterial: false
                                 required property var modelData
                                 text: t(modelData.title)
@@ -126,6 +127,7 @@ Item {
                                 Layout.minimumHeight: metrics.compactControl + metrics.hairline * 2
                                 checkable: true
                                 checked: settings.activeSection === modelData.id
+                                Accessible.selected: checked
                                 flat: true
                                 leftPadding: metrics.small
                                 contentItem: RowLayout {
@@ -135,9 +137,9 @@ Item {
                                 }
                                 background: Rectangle {
                                     radius: metrics.radius
-                                    color: workbench.appearance?.preset === "glass" && sectionButton.checked ? "transparent" : sectionButton.checked ? Qt.tint(palette.base, Qt.alpha(palette.highlight, metrics.selectionOpacity)) : sectionButton.hovered ? palette.alternateBase : "transparent"
-                                    Kit.ControlGlassSurface { anchors.fill: parent; visible: workbench.appearance?.preset === "glass" && sectionButton.checked; radius: metrics.radius }
-                                    border.width: sectionButton.visualFocus ? metrics.hairline : 0
+                                    color: !sectionButton.checked && sectionButton.hovered ? palette.alternateBase : "transparent"
+                                    Kit.ControlGlassSurface { anchors.fill: parent; visible: sectionButton.checked; radius: metrics.radius }
+                                    border.width: sectionButton.visualFocus ? metrics.focusRingWidth : 0
                                     border.color: palette.highlight
                                 }
                                 Accessible.name: text
@@ -149,7 +151,7 @@ Item {
                     }
                 }
                 Item { Layout.fillHeight: true }
-                Label { visible: settings.glass; text: t("changesImmediately"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.leftMargin: metrics.small; Layout.rightMargin: metrics.small }
+                Label { text: t("changesImmediately"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.leftMargin: metrics.small; Layout.rightMargin: metrics.small }
             }
             ToolSeparator { visible: settings.wide; orientation: Qt.Vertical; Layout.fillHeight: true }
             ColumnLayout {
@@ -167,7 +169,8 @@ Item {
                     onActivated: settings.selectSection(sections[currentIndex].id)
                 }
                 Label { visible: sections.length === 0; text: t("noSettings"); wrapMode: Text.Wrap; Layout.fillWidth: true }
-                ScrollView {
+                NamedScrollView {
+                    scrollName: settings.t("settings")
                     id: settingsScroll
                     clip: true
                     ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
@@ -195,7 +198,7 @@ Item {
                                 }
                             }
                         }
-                        Label { visible: !settings.glass || !settings.wide; text: t("changesImmediately"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                        Label { visible: !settings.wide; text: t("changesImmediately"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
                     }
                 }
                 Item { visible: sections.length === 0; Layout.fillHeight: true }
@@ -212,7 +215,7 @@ Item {
     }
     Component {
         id: providersCard
-        ProviderSettings { bridge: settings.bridge; dangerColor: settings.dangerColor; width: parent.width; onFeedback: (message, error) => settings.feedback(message, error) }
+        ProviderSettings { bridge: settings.bridge; width: parent.width; onFeedback: (message, error) => settings.feedback(message, error) }
     }
     Component {
         id: generalCard
@@ -303,14 +306,6 @@ Item {
                     anchors.fill: parent
                     spacing: 0
                     Kit.CardRow {
-                        title: settings.t("themePreset"); detail: settings.t("presetDescription")
-                        SettingsPicker { readonly property var keys: ["graphite", "glass", "paper", "corporate", "midnight"]; implicitContentWidthPolicy: ComboBox.WidestText; model: keys.map(key => settings.t("preset_" + key)); currentIndex: keys.indexOf(preferences.preset || "graphite"); Accessible.name: settings.t("themePreset"); onActivated: bridge.command("appearance", {preset: keys[currentIndex]}) }
-                    }
-                    Kit.CardRow {
-                        title: settings.t("themeAccent"); detail: settings.t("accentDescription")
-                        SettingsPicker { readonly property var keys: ["auto", "violet", "pink", "teal", "green", "amber", "red"]; implicitContentWidthPolicy: ComboBox.WidestText; model: keys.map(key => settings.t("accent_" + key)); currentIndex: keys.indexOf(preferences.accent || "auto"); Accessible.name: settings.t("themeAccent"); onActivated: bridge.command("appearance", {accent: keys[currentIndex]}) }
-                    }
-                    Kit.CardRow {
                         title: t("themeMode"); detail: t("themeDescription")
                         Kit.FilterGroup {
                             objectName: "settings-theme"
@@ -323,6 +318,10 @@ Item {
                             Kit.FilterButton { text: t("themeDark") }
                             Kit.FilterButton { text: t("themeSystem") }
                         }
+                    }
+                    Kit.CardRow {
+                        title: settings.t("themeAccent"); detail: settings.t("accentDescription")
+                        SettingsPicker { readonly property var keys: ["auto", "violet", "pink", "teal", "green", "amber", "red"]; implicitContentWidthPolicy: ComboBox.WidestText; model: keys.map(key => settings.t("accent_" + key)); currentIndex: keys.indexOf(preferences.accent || "auto"); Accessible.name: settings.t("themeAccent"); onActivated: bridge.command("appearance", {accent: keys[currentIndex]}) }
                     }
                     Kit.CardRow {
                         title: t("readingSize"); detail: t("readingSizeDescription"); divider: false

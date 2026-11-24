@@ -46,7 +46,7 @@ extension AppKitFixtureTests {
             let store = WorkbenchStore(persistence: GlassStorage(), automaticProvider: false)
             store.setLocale("vi")
             store.setRoute("chat")
-            store.setAppearance(mode: mode, textSize: .medium, preset: "glass")
+            store.setAppearance(mode: mode, textSize: .medium)
             NativeTheme.shared.preferences = store.workspace.preferences
             let shell = ShellPresentation()
             let host = NSHostingView(rootView: GlassShellFixture(store: store, shell: shell))
@@ -127,7 +127,7 @@ extension AppKitFixtureTests {
             let store = WorkbenchStore(persistence: GlassStorage(), automaticProvider: false)
             store.setRoute("chat")
             store.setLocale("vi")
-            store.setAppearance(mode: mode, preset: "glass")
+            store.setAppearance(mode: mode)
             NativeTheme.shared.preferences = store.workspace.preferences
             let sessionID = store.session.id
             store.setDraft(sessionID, "Bản nháp còn nguyên khi đổi chiều rộng・下書き")
@@ -241,12 +241,11 @@ extension AppKitFixtureTests {
             let previousPreferences = NativeTheme.shared.preferences
             defer { NativeTheme.shared.preferences = previousPreferences }
             let store = WorkbenchStore(persistence: GlassStorage(), automaticProvider: false)
-            store.setAppearance(preset: "glass")
             NativeTheme.shared.preferences = store.workspace.preferences
             var activations = 0
             let host = NSHostingView(rootView: VStack {
                 HStack {
-                    // Default actions inherit the preset without an explicit flag.
+                    // Default actions own their glass material.
                     ShellToolbarButton(label: "Open history", symbol: "clock", identifier: "glass-enabled", showsLabel: true) { activations += 1 }
                     ShellToolbarButton(label: "New conversation", symbol: "plus", identifier: "glass-disabled", showsLabel: true, enabled: false) { activations += 10 }
                 }
@@ -336,7 +335,6 @@ extension AppKitFixtureTests {
             let previousPreferences = NativeTheme.shared.preferences
             defer { NativeTheme.shared.preferences = previousPreferences }
             let store = WorkbenchStore(persistence: GlassStorage(), automaticProvider: false)
-            store.setAppearance(preset: "glass")
             NativeTheme.shared.preferences = store.workspace.preferences
             let button = ShellToolbarButton.FocusButton(frame: NSRect(x: 20, y: 20, width: 160, height: 32))
             button.title = "History"

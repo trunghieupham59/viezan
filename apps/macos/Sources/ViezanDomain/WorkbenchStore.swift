@@ -1,6 +1,80 @@
 import Foundation
 import Observation
 
+public enum FileSearchPlanningError: Error, Equatable {
+    case badResponse, noModel, provider(String)
+}
+
+enum FileSearchPlanner {
+    static func request(_ description: String, model: String) -> Request {
+        let input = String(description.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500))
+        var request = Request(sessionID: "", feature: .chat, model: model, input: input, source: "", target: "", revision: 0, locale: "")
+        request.systemPrompt = FileSearchPlan.instruction
+        request.exactSystemPrompt = true
+        request.reasoningEffort = "low"
+        return request
+    }
+
+    private actor Reply {
+        var text = ""
+        private(set) var oversized = false
+
+        func append(_ chunk: String) {
+            guard !oversized else { return }
+            text.append(chunk)
+            if text.count > 4_000 {
+                oversized = true
+                text = ""
+                // The transport's receiver cannot throw. Cancel the streaming child at this chunk.
+                withUnsafeCurrentTask { $0?.cancel() }
+            }
+        }
+    }
+
+    typealias Stream = @Sendable (Request, @escaping @Sendable (String) async -> Void) async throws -> Void
+
+    private static func failure(_ error: Error, model: String) -> FileSearchPlanningError {
+        if (error as? URLError)?.code == .timedOut { return .badResponse }
+        let code = WorkbenchStore.failureCode(error, model: model)
+        if code == CloudFailure.missingKey.rawValue { return .noModel }
+        if error is URLError, ProviderDiscovery.cloudProviders.contains(ProviderDiscovery.provider(model)) {
+            return .provider(CloudFailure.network.rawValue)
+        }
+        return .provider(code)
+    }
+
+    static func run(_ request: Request, timeout: Duration = .seconds(10), stream: @escaping Stream) async throws -> FileSearchPlan {
+        try Task.checkCancellation()
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        return try await withThrowingTaskGroup(of: FileSearchPlan.self) { group in
+            group.addTask {
+                let reply = Reply()
+                do {
+                    try await stream(request) { await reply.append($0) }
+                } catch {
+                    if await reply.oversized { throw FileSearchPlanningError.badResponse }
+                    try Task.checkCancellation()
+                    throw failure(error, model: request.model)
+                }
+                guard await !reply.oversized else { throw FileSearchPlanningError.badResponse }
+                try Task.checkCancellation()
+                guard ContinuousClock.now < deadline, let plan = FileSearchPlan.parse(await reply.text) else {
+                    throw FileSearchPlanningError.badResponse
+                }
+                return plan
+            }
+            group.addTask {
+                try await Task.sleep(until: deadline, clock: .continuous)
+                throw FileSearchPlanningError.badResponse
+            }
+            defer { group.cancelAll() }
+            guard let plan = try await group.next() else { throw CancellationError() }
+            try Task.checkCancellation()
+            return plan
+        }
+    }
+}
+
 @MainActor @Observable public final class WorkbenchStore {
     public private(set) var workspace = Workspace()
     public let audio = NativeAudio()
@@ -8,6 +82,8 @@ import Observation
     public let applications = Applications()
     public let thermalMonitor = ThermalMonitor()
     public let desktopIntegration = DesktopIntegration()
+    public let systemControls = SystemControls()
+    public let pinnedNotes = PinnedNotes()
     public let modelManager = LocalModelManager()
     public let updates = NativeUpdates()
     public let localPerformance = LocalPerformance()
@@ -198,9 +274,19 @@ import Observation
             candidate.runtime = preview.preferences.runtime; candidate.rates = preview.preferences.rates
         }
         _ = try candidate.validated()
-        // Persist before publishing: import must never report success on a failed save.
-        if !preview.interpretation.isEmpty { try interpretation.importArchive(preview.interpretation) }
-        try persistence.save(candidate); workspace = candidate; applyVoice()
+        // Persist before publishing: import must never report success on a failed save. The
+        // workspace is written first and put back if the meetings cannot be, so a failure never
+        // leaves half a backup imported.
+        let previous = workspace
+        // Anything that would make the meetings refuse is found before the workspace is written,
+        // so only a write failure is left to undo.
+        if !preview.interpretation.isEmpty { try interpretation.checkImport(preview.interpretation) }
+        try persistence.save(candidate)
+        if !preview.interpretation.isEmpty {
+            do { try interpretation.importArchive(preview.interpretation) }
+            catch { try? persistence.save(previous); throw error }
+        }
+        workspace = candidate; applyVoice()
     }
     public func renameSession(_ id: String, title: String) {
         let value = String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(256))
@@ -255,10 +341,16 @@ import Observation
             if let previous = workspace.active[feature.rawValue].flatMap(session) { fresh.model = previous.model; fresh.source = previous.source; fresh.target = previous.target }
             candidate.sessions.append(fresh); candidate.active[feature.rawValue] = fresh.id
         }
-        _ = try candidate.validated(); try persistence.save(candidate)
+        _ = try candidate.validated()
+        // Two stores, one outcome: meetings go first, and come back if the workspace cannot be
+        // saved, so a failure never leaves one history cleared and the other intact. Attachments
+        // are swept only after both are done.
+        let meetings = interpretation.sessions, selected = interpretation.selectedID
+        try interpretation.clearAll()
+        do { try persistence.save(candidate) }
+        catch { interpretation.restoreAll(meetings, selected: selected); throw error }
         workspace = candidate; resetNotice = nil
         try quarantine(candidate)
-        try interpretation.clearAll()
     }
     public func deleteArchivedSession(_ id: String) throws {
         guard !loadBlocked, let item = session(id), item.archived == true, running(id) == nil else { throw StorageFailure.invalidData }
@@ -274,7 +366,7 @@ import Observation
     }
     @discardableResult public func createDetachedSession(feature: Feature, draft: String = "") -> String {
         var item = Session(feature: feature)
-        item.model = providers.availability(session.model) == .available ? session.model : preferredModel ?? session.model
+        item.model = detachedSessionModel
         item.source = session.source; item.target = session.target; item.draft = draft
         guard !loadBlocked else { return session.id }
         workspace.sessions.insert(item, at: 0); save(); return item.id
@@ -406,6 +498,16 @@ import Observation
         get { workspace.menuBarTemperature ?? true }
         set { guard !loadBlocked else { return }; workspace.menuBarTemperature = newValue; save() }
     }
+    /// The picker's Pinned group. Bounded so the panel stays a short list.
+    public nonisolated static let pinnedModelLimit = 8
+    public var pinnedModels: [String] { workspace.pinnedModels ?? [] }
+    public func canPinModel(_ model: String) -> Bool { pinnedModels.contains(model) || pinnedModels.count < Self.pinnedModelLimit }
+    public func togglePinnedModel(_ model: String) {
+        guard !loadBlocked, NativeModel.valid(model), canPinModel(model) else { return }
+        var pins = pinnedModels
+        if let index = pins.firstIndex(of: model) { pins.remove(at: index) } else { pins.append(model) }
+        workspace.pinnedModels = pins.isEmpty ? nil : pins; save()
+    }
     public var compareBySentence: Bool {
         get { workspace.compareBySentence ?? false }
         set { guard !loadBlocked else { return }; workspace.compareBySentence = newValue; save() }
@@ -529,10 +631,9 @@ import Observation
         guard !loadBlocked, !localRuntime.owned, !localRuntime.busy, value.valid else { return }
         workspace.runtime = value; save()
     }
-    public func setAppearance(mode: AppearanceMode? = nil, textSize: ReadingSize? = nil, preset: String? = nil, accent: String? = nil) {
+    public func setAppearance(mode: AppearanceMode? = nil, textSize: ReadingSize? = nil, accent: String? = nil) {
         guard !loadBlocked else { return }
         var preferences = workspace.preferences
-        if let preset { guard ["graphite", "glass", "paper", "corporate", "midnight"].contains(preset) else { return }; preferences.preset = preset }
         if let accent { guard ["auto", "violet", "pink", "teal", "green", "amber", "red"].contains(accent) else { return }; preferences.accent = accent }
         if let mode { preferences.mode = mode }
         if let textSize { preferences.textSize = textSize }
@@ -541,6 +642,24 @@ import Observation
     }
     /// Longest source Translate sends (characters); longer text is refused before any provider call.
     public static let translateLimit = 5000
+    package var detachedSessionModel: String {
+        providers.availability(session.model) == .available ? session.model : preferredModel ?? session.model
+    }
+
+    /// The caller supplies the raw model displayed in the Launcher privacy note.
+    public func planFileSearch(_ description: String, model: String) async throws -> FileSearchPlan {
+        try Task.checkCancellation()
+        guard providers.availability(model) == .available else { throw FileSearchPlanningError.noModel }
+        let request = FileSearchPlanner.request(description, model: model)
+        // Check the transport's final messages before dispatch, including any shared chat instructions.
+        guard ProviderPrompt.messages(request) == [.init(role: "system", content: FileSearchPlan.instruction), .init(role: "user", content: request.input)] else {
+            throw FileSearchPlanningError.badResponse
+        }
+        return try await FileSearchPlanner.run(request) { request, receive in
+            try await NativeProvider.stream(request, receive: receive)
+        }
+    }
+
     @discardableResult public func submit(_ id: String) -> WorkTask? {
         autoTranslationRequest?.cancel(); autoTranslationRequest = nil
         guard !loadBlocked, let current = session(id), moduleEnabled(current.feature.rawValue), !(current.model.hasPrefix("ollama:") && localPerformance.busy), (!current.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || ([.chat, .translate].contains(current.feature) && !(current.images ?? []).isEmpty)),
@@ -795,7 +914,7 @@ import Observation
         guard workers.isEmpty else { return }
         do {
             if let saved = try persistence.load() {
-                var loaded = saved.upgrading()
+                var loaded = try saved.upgrading()
                 recovered = loaded.tasks.contains { $0.status == .running }
                 for i in loaded.tasks.indices where loaded.tasks[i].status == .running { loaded.tasks[i].status = .interrupted }
                 // Titles imported with a mis-read encoding are repaired once, here, not at every display.
@@ -824,7 +943,7 @@ import Observation
     public func shutdown() {
         autoTranslationRequest?.cancel(); autoTranslationRequest = nil
         updateTimer?.cancel(); updateTimer = nil
-        localPerformance.cancel(); updates.cancel(); localRuntime.stop(); interpretation.cancel(); thermalMonitor.stop(); desktopIntegration.shutdown(); modelManager.cancel(); audio.cancel()
+        localPerformance.cancel(); updates.cancel(); localRuntime.stop(); interpretation.cancel(); thermalMonitor.stop(); desktopIntegration.shutdown(); systemControls.shutdown(); modelManager.cancel(); audio.cancel()
         for worker in workers.values { worker.cancel() }
         workers.removeAll()
         for index in workspace.tasks.indices where workspace.tasks[index].status == .running { workspace.tasks[index].status = .interrupted }

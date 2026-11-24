@@ -65,9 +65,8 @@ Preview preview(const QByteArray &data) {
     for (const auto &task : result.tasks) for (const auto &image : images(task.toMap().value("request").toMap())) if (!known(image)) return {};
     result.valid = true; return result;
 }
-bool materialize(const Preview &preview) {
-    if (!preview.valid) return false;
-    for (const auto &image : preview.attachments) if (!Attachments::restore(image.toMap(), preview.bytes.value(image.toMap().value("id").toString()))) return false;
-    return true;
+std::shared_ptr<Attachments::RestoreBatch> prepareAttachments(const Preview &preview) {
+    if (!preview.valid) return {};
+    return Attachments::RestoreBatch::prepare(preview.attachments, preview.bytes);
 }
 }

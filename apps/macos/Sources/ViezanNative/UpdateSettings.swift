@@ -10,6 +10,20 @@ private extension Optional where Wrapped == String { var orEmpty: String { self 
 private var shortVersion: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "–" }
 
 // One sentence for where the update stands, shared by Settings and the prompt.
+/// UpdateSheet board, before anything is downloaded: "Viezan 2.6.0 · 48 MB · bạn đang dùng 2.5.2".
+@MainActor private func updateSheetSummary(_ store: WorkbenchStore) -> String? {
+    let updates = store.updates
+    // A failed check or download keeps its own message.
+    guard !updates.busy, updates.downloaded == nil, updates.status != "updateError", let release = updates.release ?? store.updatePrompt else { return nil }
+    return UpdateSummary.text(version: release.version, size: release.size, current: shortVersion) { store.text($0) }
+}
+enum UpdateSummary {
+    static func text(version: String, size: Int64?, current: String, text: (String) -> String) -> String {
+        let sized = size.flatMap { $0 > 0 ? ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) : nil }
+        return text(sized == nil ? "updateSheetSummaryNoSize" : "updateSheetSummary")
+            .replacingOccurrences(of: "{version}", with: version).replacingOccurrences(of: "{size}", with: sized ?? "").replacingOccurrences(of: "{current}", with: current)
+    }
+}
 @MainActor private func updateStatusText(_ store: WorkbenchStore) -> String {
     let updates = store.updates
     if updates.busy && updates.release == nil { return store.text("updateChecking") }
@@ -21,6 +35,8 @@ private var shortVersion: String { Bundle.main.infoDictionary?["CFBundleShortVer
         }
         return ([store.text("updateDownloading").replacingOccurrences(of: "{percent}", with: String(Int(updates.progress * 100))), "v" + release.version] + [remaining].compactMap { $0 }).joined(separator: " · ")
     }
+    if updates.installing { return store.text("updateInstalling") }
+    if updates.status == "updateInstallError" { return store.text("updateInstallError") }
     if updates.downloaded != nil, let release = updates.release { return store.text("updateReadyVersion").replacingOccurrences(of: "{version}", with: release.version) }
     // Settings-Update: the package size and when Viezan last checked.
     let checked = updates.checkedAt.map { store.text("updateCheckedAgo").replacingOccurrences(of: "{time}", with: relativeTime($0, store: store)) }
@@ -33,6 +49,24 @@ private var shortVersion: String { Bundle.main.infoDictionary?["CFBundleShortVer
     return ""
 }
 
+/// The ready state's primary action: install in place when the app can replace itself, otherwise hand over the package.
+private struct InstallUpdateButton: View {
+    let store: WorkbenchStore
+    var dismisses = false
+    var body: some View {
+        let updates = store.updates
+        if updates.canInstall, updates.status != "updateInstallError" {
+            Button(store.text("installUpdate")) { install() }.buttonStyle(.vznPrimary).disabled(updates.installing || store.localPerformance.busy).accessibilityIdentifier("update-install")
+        } else {
+            Button(store.text("openUpdate")) { updates.openInstaller(); if dismisses { store.dismissUpdatePrompt() } }.buttonStyle(.vznPrimary)
+        }
+    }
+    private func install() {
+        // Save first, as quitting does: the app is never replaced under a process that then refuses to quit.
+        store.save(); guard store.storageError == nil || store.loadBlocked else { return }
+        Task { if await store.updates.install() { NSApp.terminate(nil) } }
+    }
+}
 struct UpdateSettings: View {
     @Bindable var store: WorkbenchStore
     var body: some View {
@@ -50,7 +84,7 @@ struct UpdateSettings: View {
                     if updates.busy { Button(store.text("cancel"), role: .destructive) { updates.cancel() }.buttonStyle(.vznOutline) }
                     else {
                         Button(store.text("checkUpdates")) { updates.check() }.buttonStyle(.vznOutline).accessibilityIdentifier("settings-check-updates")
-                        if updates.downloaded != nil { Button(store.text("openUpdate")) { updates.openInstaller() }.buttonStyle(.vznPrimary) }
+                        if updates.downloaded != nil { InstallUpdateButton(store: store) }
                         else if updates.release != nil { Button(store.text("downloadUpdate")) { updates.download() }.buttonStyle(.vznPrimary) }
                     }
                 }
@@ -72,9 +106,8 @@ struct UpdateSettings: View {
 struct UpdatePrompt: View {
     @Bindable var store: WorkbenchStore
     @Environment(\.colorScheme) private var scheme
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
-        if glass { glassBody } else { classicBody }
+        glassBody
     }
     // UpdateSheet board, inside the window's centred blocking dialog: app icon, title and state,
     // the notes as bullets, a meter while downloading, then View changes · Later · the one action.
@@ -89,7 +122,7 @@ struct UpdatePrompt: View {
                 }
                 VStack(alignment: .leading, spacing: metric("tight")) {
                     Text(store.text("updateTitle") + " Viezan").font(.vzn("subtitleScale", .semibold)).foregroundStyle(contentColor("text-strong", scheme)).accessibilityAddTraits(.isHeader)
-                    Text(updateStatusText(store)).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).monospacedDigit()
+                    Text(updateSheetSummary(store) ?? updateStatusText(store)).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).monospacedDigit()
                 }
             }
             if updates.busy, updates.release != nil {
@@ -116,33 +149,9 @@ struct UpdatePrompt: View {
                 Spacer()
                 Button(store.text("remindLater")) { store.snoozeUpdate() }.buttonStyle(.vznOutline).keyboardShortcut(.cancelAction).accessibilityIdentifier("update-later")
                 if updates.busy { Button(store.text("cancel"), role: .destructive) { updates.cancel() }.buttonStyle(.vznOutline) }
-                else if updates.downloaded != nil { Button(store.text("openUpdate")) { updates.openInstaller(); store.dismissUpdatePrompt() }.buttonStyle(.vznPrimary) }
+                else if updates.downloaded != nil { InstallUpdateButton(store: store, dismisses: true) }
                 else { Button(store.text("downloadUpdate")) { updates.download() }.buttonStyle(.vznPrimary).keyboardShortcut(.defaultAction).accessibilityIdentifier("update-download") }
             }
         }
-    }
-    private var classicBody: some View {
-        let updates = store.updates
-        return VStack(alignment: .leading, spacing: metric("inset")) {
-            VStack(alignment: .leading, spacing: metric("small")) {
-                Text(store.text("updateTitle")).font(.vzn("headingScale", .semibold)).accessibilityAddTraits(.isHeader)
-                Text(updateStatusText(store)).foregroundStyle(.secondary)
-            }
-            if let release = updates.release ?? store.updatePrompt, !release.notes.isEmpty {
-                ScrollView {
-                    Text(release.notes).font(readingFont(store)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
-                }.frame(maxHeight: metric("editor") * 2).padding(metric("inset")).cardSurface(padded: false)
-            }
-            if updates.busy, updates.release != nil { ProgressView(value: updates.progress) }
-            HStack(spacing: metric("small")) {
-                if let page = (updates.release ?? store.updatePrompt)?.page { Link(store.text("viewChanges"), destination: page).buttonStyle(.vznQuiet) }
-                Spacer()
-                Button(store.text("remindLater")) { store.snoozeUpdate() }.buttonStyle(.vznOutline).keyboardShortcut(.cancelAction).accessibilityIdentifier("update-later")
-                if updates.busy { Button(store.text("cancel"), role: .destructive) { updates.cancel() }.buttonStyle(.vznOutline) }
-                else if updates.downloaded != nil { Button(store.text("openUpdate")) { updates.openInstaller(); store.dismissUpdatePrompt() }.buttonStyle(.vznPrimary) }
-                else { Button(store.text("downloadUpdate")) { updates.download() }.buttonStyle(.vznPrimary).keyboardShortcut(.defaultAction).accessibilityIdentifier("update-download") }
-            }
-        }.padding(metric("gutter")).frame(width: metric("sidebar") + metric("reading") / 2)
-            .accessibilityElement(children: .contain).accessibilityLabel(store.text("updateTitle"))
     }
 }

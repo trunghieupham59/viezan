@@ -304,10 +304,10 @@ Lưới hai bảng của trang này dùng `.app-panel-grid` với container quer
 | `thermal_reader_missing_title` / `_desc` | Thiếu trình đọc cảm biến / Không tìm thấy tệp viezan-smc bên cạnh ứng dụng… |
 | `thermal_error_title` / `thermal_retry` | Không đọc được cảm biến / Thử lại |
 | `thermal_fan_helper_idle_title` | Điều khiển quạt đang tắt |
-| `thermal_fan_helper_starting` | Đang khởi chạy helper… |
-| `thermal_fan_helper_ready` | Helper đã kết nối (v{version}) |
-| `thermal_fan_helper_error_title` | Không khởi chạy được helper |
-| `thermal_fan_helper_missing_short` / `thermal_fan_helper_missing` | Thiếu helper / Không tìm thấy tệp viezan-fan-helper bên cạnh ứng dụng… |
+| `thermal_fan_helper_starting` | Đang khởi chạy dịch vụ quạt… |
+| `thermal_fan_helper_ready` | Dịch vụ quạt đã kết nối (v{version}) |
+| `thermal_fan_helper_error_title` | Không khởi chạy được dịch vụ quạt |
+| `thermal_fan_helper_missing_short` / `thermal_fan_helper_missing` | Thiếu dịch vụ quạt / Không tìm thấy tệp thực thi của dịch vụ quạt bên cạnh ứng dụng… |
 | `thermal_fan_enable` / `thermal_fan_disable` / `thermal_fan_retry` | Bật điều khiển quạt / Tắt điều khiển quạt / Thử lại |
 | `thermal_fan_restore_all` | Về tự động |
 | `thermal_fan_mode_auto` / `_fixed` / `_sensor` / `_system` | Tự động / Cố định / Theo cảm biến / Tự động (hệ thống) |
@@ -319,12 +319,12 @@ Lưới hai bảng của trang này dùng `.app-panel-grid` với container quer
 | `thermal_fan_source_dialog_title` / `_desc` | Cảm biến cụ thể / Toàn bộ cảm biến thô máy này báo cáo. Quạt sẽ chỉ theo đúng một cảm biến này. |
 | `thermal_fan_source_filter` / `_filter_clear` / `_no_match` / `_close` | Lọc theo tên hoặc mã / Xoá bộ lọc / Không có cảm biến nào khớp. / Đóng |
 | `thermal_fan_source_affinity` / `_affinity_desc` | Cảm biến gần {fan} / làm mát {sensors} |
-| `thermal_fan_profiles_title` / `thermal_fan_profile_custom` | Profile / Tuỳ chỉnh |
-| `thermal_fan_profile_save` / `_name_placeholder` / `_save_confirm` / `_save_cancel` | Lưu profile / Tên profile / Lưu / Huỷ |
-| `thermal_fan_profile_delete` / `thermal_fan_profile_error` | Xoá profile {name} / Không áp dụng được profile. |
+| `thermal_fan_profiles_title` / `thermal_fan_profile_custom` | Cấu hình / Tuỳ chỉnh |
+| `thermal_fan_profile_save` / `_name_placeholder` / `_save_confirm` / `_save_cancel` | Lưu cấu hình / Tên cấu hình / Lưu / Huỷ |
+| `thermal_fan_profile_delete` / `thermal_fan_profile_error` | Xoá cấu hình {name} / Không áp dụng được cấu hình. |
 | `thermal_fan_profile_builtin_*` | Theo hệ thống · Yên tĩnh · Mát · Gaming · AI local (kèm mô tả `_desc`) |
-| `thermal_fan_restored_reason` + `thermal_fan_reason_*` | Helper đã trả quạt về tự động ({reason}). — không nhận được nhịp từ app / chạm trần nhiệt độ / máy đi ngủ / máy vừa dậy / mất kết nối |
-| `thermal_fan_disclaimer_title` / `_intro` | Trước khi điều khiển quạt / Viezan sẽ chạy một helper nhỏ với quyền quản trị cho phiên này. Hệ thống sẽ hỏi mật khẩu. |
+| `thermal_fan_restored_reason` + `thermal_fan_reason_*` | Dịch vụ quạt đã trả quạt về tự động ({reason}). — không nhận được nhịp từ app / chạm trần nhiệt độ / máy đi ngủ / máy vừa dậy / mất kết nối |
+| `thermal_fan_disclaimer_title` / `_intro` | Trước khi điều khiển quạt / Viezan sẽ chạy một dịch vụ quạt nhỏ với quyền quản trị cho phiên này. Hệ thống sẽ hỏi mật khẩu. |
 | `thermal_fan_disclaimer_point_range` / `_restore` / `_ceiling` | Chỉ đặt tốc độ trong giới hạn máy cho phép / Tự trả quạt về tự động khi thoát app, mất kết nối, máy ngủ hoặc dậy / Tự trả về tự động khi một cảm biến vượt {ceiling}°C |
 | `thermal_fan_disclaimer_warning` | Cho quạt chạy chậm hơn hệ thống có thể làm máy nóng hơn và giảm tuổi thọ linh kiện. Bạn tự chịu trách nhiệm khi dùng. |
 | `thermal_fan_disclaimer_accept` / `_cancel` | Tôi hiểu, tiếp tục / Huỷ |
@@ -349,7 +349,6 @@ Bản vẽ gốc ↔ mã:
 
 1. **Công tắc chế độ:** board `Thermal` vẽ segmented control nền xám; mã dùng ba nút pill `sm` (`primary·soft` khi chọn, `neutral·ghost` khi không). Đặc tả theo mã (đúng hợp đồng Button).
 2. **Tiêu đề bảng nhiệt độ:** board "Cảm biến"; mã "Nhiệt độ" (`thermal_sensors_title`). Giữ mã.
-3. **Câu "Hệ thống đang dừng quạt vì máy mát."** dưới quạt 0 RPM (board `Thermal`) — **đề xuất**, mã chưa có.
 4. **Thông báo khôi phục có hành động "Bật lại profile Mát?"** (board `States`): main nay tự áp lại profile hoặc cài đặt Tuỳ chỉnh sau sleep, wake và mất nhịp, nên nút chỉ còn ý nghĩa sau khi chạm trần nhiệt độ. **Đề xuất:** thêm nút `xs · primary · outline` "Bật lại {profile}" cho riêng trường hợp đó.
 5. **Menu thanh menu:** board `SmallSurfaces` có dòng tóm tắt "CPU 58,2°C · Quạt …", "Mở Nhiệt độ & quạt", "Ẩn số đo"; mã có "Mở Viezan" (mở cửa sổ chính, không vào trang) và "Ẩn nhiệt độ khỏi thanh menu". **Đề xuất:** thêm dòng tóm tắt và mục mở thẳng trang.
 6. **Popover:** board `Popovers` vẽ "Tốc độ quạt" dạng segmented; mã dùng `SelectField`.
@@ -361,19 +360,47 @@ Thiếu sót trong mã (không có trong bản vẽ):
 9. **Lịch sử / sparkline:** `useThermalMonitor` giữ 90 mẫu mỗi cảm biến và quạt nhưng trang không vẽ. **Đề xuất** (nếu cần): sparkline trong hàng cảm biến.
 10. **Xoá profile không xác nhận và không hoàn tác.** **Đề xuất:** toast có "Hoàn tác" hoặc xác nhận nhỏ.
 11. **Nút đang chạy không có spinner:** khi bận, mọi nút chỉ bị `disabled` (trừ chip "Đang khởi chạy helper…"). Nền tảng yêu cầu nhãn "Đang …" — **đề xuất** cho áp dụng profile và Về tự động.
-12. **Toolbar quạt `nowrap`:** khi helper `ready` và form "Lưu profile" mở (ô tên + Lưu + Huỷ) cạnh ô Profile, nút ✕ và "Về tự động", toolbar có thể tràn ở vùng hẹp. Chưa kiểm chứng bằng QA hình ảnh; **đề xuất** cho form xuống một hàng riêng dưới toolbar.
 13. **Hai vùng `role="status"` cho cùng tiến trình nhận diện** (bảng quạt và popover) có thể đọc trùng khi popover mở.
 14. **Đồng ý miễn trừ:** trang ghi `acknowledged` mà không chờ kết quả; nếu lưu thất bại, dialog sẽ hỏi lại lần sau (an toàn, nhưng im lặng).
 15. **Chuỗi lỗi từ main chưa qua i18n:** các hook đã bỏ chuỗi dự phòng tiếng Anh, nhưng thông báo lỗi đọc cảm biến và lỗi lệnh quạt do main gửi về (`error`, `res.error`, `control.error`) vẫn hiển thị nguyên văn, nên người dùng tiếng Việt có thể thấy câu tiếng Anh trong `CapabilityNotice` và toast. **Đề xuất:** ánh xạ mã lỗi sang khoá i18n, chỉ giữ chi tiết kỹ thuật làm dòng phụ.
 
 ## Native implementation follow-up — 2026-10-28
 
+SwiftUI R2 (2026-11-24). Mở **Quy tắc** nạp nguồn và ngưỡng đang chạy. Ở chế độ tự động hoặc thủ công, bản nháp bắt đầu ở nguồn nóng nhất toàn máy, 45–75 °C. Xem trước tính RPM tức thời cho từng quạt. **Áp dụng** chạy quy tắc với tên **Tuỳ chỉnh**. **Lưu thành cấu hình…** mở ô tên riêng và có thể đặt tên cho quy tắc đang chạy. Lỗi thứ tự ngưỡng, tên và điều kiện áp dụng nằm cạnh điều khiển tương ứng.
+
+Huy hiệu trên thẻ ghi chế độ hiện hành. Bên dưới hàng nút, quy tắc ghi nguồn, khoảng nhiệt và số đo cùng RPM dịch vụ đang giữ cho từng quạt. Chế độ thủ công liệt kê các mục tiêu đã xác nhận. Thanh trượt theo RPM thực tới khi người dùng chỉnh, giữ số đang chọn qua mỗi lần đọc rồi hiển thị mục tiêu sau khi áp dụng. Danh sách cấu hình ghi nguồn, ngưỡng và đánh dấu hàng đang chạy. Quy tắc, cấu hình và điều khiển thủ công dùng chung xác nhận lần đầu trong phiên. **Về tự động** hiện ngay trên thẻ và thực hiện trong một bước.
+
 SwiftUI (macOS), đã chạy thật: khoá SMC được phân loại như bản cũ (`ThermalSensors.classify`, bảng
 khoá biết trước rồi tới chữ cái phân hệ) và gộp thành hàng theo nhóm CPU/GPU/Cảm biến khác (tên
 `thermal_label_*`, "{count} cảm biến · TB {avg}", số đo ấm ≥ 70 °C cam, nóng ≥ 90 °C đỏ; hàng chưa nhận diện
 đứng cuối nhóm); danh sách khoá thô nằm trong mục mở rộng "{count} cảm biến". Ô nóng nhất ghi tên + khoá;
-quạt "Quạt {n}". Điều khiển thủ công chỉ hiện thanh trượt khi helper đã bật.
+quạt "Quạt {n}". Điều khiển thủ công chỉ hiện thanh trượt khi helper đã bật. Quạt 0 RPM không có mục tiêu
+ghi "Hệ thống đang dừng quạt vì máy mát." (`thermal_fan_stopped`) thay cho khoảng tốc độ, chỉ khi không cảm biến nào
+từ 70 °C trở lên; máy đang ấm mà quạt còn đứng thì ô quạt giữ khoảng tốc độ, không nêu lý do.
+
+SwiftUI (Glass và Classic) gộp IOHID cùng SMC theo nhóm và nhãn. Tooltip hàng gộp ghi tên từng cảm biến HID.
+Ô nóng nhất và mục chọn nguồn ghi “nhãn · tên”, hoặc chỉ tên nếu HID chưa phân loại. Ô nóng nhất có một dòng và tooltip đầy đủ.
+Danh sách thô xếp theo nhiệt độ giảm dần rồi theo tên hiển thị. Tên HID tối đa hai dòng. VoiceOver đọc mỗi hàng HID một lần theo thứ tự tên, nhãn (nếu có), nhiệt độ.
+Một đường phân cách nằm sau bốn nguồn tổng hợp. Khi chọn HID, ghi chú dưới bộ chọn cho biết helper chỉ kiểm tra trần nhiệt trên SMC.
 
 Qt (Linux hwmon): `ThermalSensors.h` phân loại theo chip/kênh (coretemp, k10temp → CPU; amdgpu, i915 → GPU;
 nvme → Ổ lưu trữ; BAT → Pin; iwlwifi → Wi-Fi) và gộp hàng như trên; cảm biến chưa nhận diện giữ tên driver.
 Ô nóng nhất ghi tên + nguồn; quạt "Quạt {n}". Nóng ≥ 90 °C dùng màu danger của theme. Chưa chạy trên Linux thật.
+
+SwiftUI R3 (2026-11-24). Hai nút **Cấu hình quạt** và **Quy tắc** cung cấp chế độ hiện hành cho VoiceOver. Nút **Xoá** đọc kèm tên cấu hình. Thanh trượt đọc tên quạt và phân biệt tốc độ hiện tại, đang chọn và mục tiêu.
+
+Trong **Quy tắc**, Tab đi từ nguồn tới ngưỡng thấp, ngưỡng cao, **Lưu thành cấu hình…**, rồi **Áp dụng**. Khi đặt tên, thứ tự là ô tên, **Lưu**, **Huỷ**, rồi **Áp dụng**. Enter xác nhận tên hợp lệ. Escape thu ô tên và trả focus về **Lưu thành cấu hình…** trước khi lần Escape tiếp theo đóng popover. Khi đang ghép chữ, IME xử lý Enter và Escape. Đóng popover mở bằng bàn phím hoặc trợ năng trả focus về nút mở. Mỗi hàng cấu hình đặt **Áp dụng** trước **Xoá**.
+
+Toast áp dụng chờ dịch vụ quạt xác nhận mục tiêu. Toast **Về tự động** chờ lệnh khôi phục của chính thao tác đó thành công. Các lần đọc cảm biến tiếp theo không phát lại thông báo.
+
+SwiftUI, dịch vụ quạt chờ phê duyệt (2026-11-24). Thẻ điều khiển ghi “Cần cho phép dịch vụ quạt chạy nền” kèm nút **Mở Cài đặt hệ thống**. Ứng dụng đọc lại quyền khi trở thành cửa sổ hoạt động. Khi quyền được cấp, huy hiệu chuyển sang “Dịch vụ quạt đã bật”.
+
+SwiftUI, lỗi quạt và nhóm cảm biến (2026-11-24): mỗi lỗi quạt có câu riêng (`fanCommandError`, `fanProfileApplyError`, `fanProfileSaveError`, `fanCalibrationError`, `helperRegisterError`, `helperUnregisterError`) và hiện ngay trong thẻ "Chế độ điều khiển", dưới dòng mô tả; dải lỗi cuối trang chỉ còn cho lỗi đọc cảm biến (có "Thử lại"). Nhóm "Cảm biến khác" mặc định thu gọn như mục 3, dòng tiêu đề ghi số đo nóng nhất; CPU và GPU luôn mở. Trạng thái mở không được lưu.
+
+### Điều khiển quạt trên macOS (R4)
+
+- Chọn cấu hình từ thanh menu chỉ áp dụng ngay khi phiên đã xác nhận điều khiển thủ công, dịch vụ quạt đã bật, đang theo dõi và quạt có thể nhận lệnh. Các trường hợp khác mở trang **Nhiệt độ & quạt**. Người dùng chọn cấu hình tại đó và xác nhận lần đầu trước khi áp dụng.
+- Thẻ điều khiển và popover **Quy tắc** cùng ghi **Đang hiệu chuẩn quạt** trong suốt quá trình hiệu chuẩn. Khi chờ dịch vụ xác nhận lệnh, cả hai ghi **Đang áp dụng…**. **Về tự động** cho phép huỷ cả lệnh đang chờ. Rời trang giữ giám sát cho tới khi kết thúc điều khiển hoặc hiệu chuẩn.
+- Khi đổi chế độ hoặc nhả mục tiêu của quạt, thanh trượt bỏ tốc độ đang chọn. Kéo về tốc độ đang giữ sẽ hiện **Mục tiêu**. Trong lúc hiệu chuẩn hoặc khi dừng giám sát, cả thanh trượt và nút **Áp dụng** đều tắt. Lý do hiện một lần dưới tiêu đề **Điều khiển thủ công**.
+- Dòng dự kiến dùng số theo ngôn ngữ giao diện, ví dụ “Dự kiến: 56 °C → 2.450 RPM”. Thiếu số đo cho nguồn đã chọn sẽ khoá **Áp dụng** và hiện lý do. Lỗi lưu nằm dưới ô tên, người dùng có thể thử lại. Mỗi lần lưu thành công hiện một thông báo kèm tên cấu hình, kể cả khi đang chạy một quy tắc khác.
+- Khi cột hẹp, **Lưu thành cấu hình…** nằm dưới tóm tắt quy tắc. Từng nút **Áp dụng** giữ nguyên chiều rộng của nhãn.

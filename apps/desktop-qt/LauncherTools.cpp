@@ -1,5 +1,9 @@
 #include "LauncherTools.h"
-#include <QDirIterator>
+#include <QDateTime>
+#include <QDir>
+#include <QDirListing>
+#include <QFileInfo>
+#include <QSet>
 #include <QStandardPaths>
 #include <QElapsedTimer>
 #include <QRegularExpression>
@@ -7,7 +11,43 @@
 #include <climits>
 #include <tuple>
 #include <cmath>
+#ifdef Q_OS_MACOS
+#include <CoreFoundation/CoreFoundation.h>
+#include <QUrl>
+#endif
 namespace {
+bool skippedName(const QString &name) {
+    static const QSet<QString> skipped{"node_modules", "DerivedData", "Pods", "Carthage",
+                                       "site-packages", "__pycache__", "target", "dist", "build"};
+    return name.startsWith('.') || skipped.contains(name);
+}
+
+bool underHome(const QString &relative) {
+    return QDir::isRelativePath(relative) && relative != ".." && !relative.startsWith("../");
+}
+
+bool launcherDirectory(const QFileInfo &info) {
+    if (!info.isDir()) return false;
+#ifdef Q_OS_MACOS
+    // RTFD is a document package even when Launch Services has no type registration.
+    if (info.suffix().compare("rtfd", Qt::CaseInsensitive) == 0) return false;
+    const auto url = QUrl::fromLocalFile(info.absoluteFilePath()).toCFURL();
+    CFBooleanRef package = nullptr;
+    if (url) {
+        CFURLCopyResourcePropertyForKey(url, kCFURLIsPackageKey, &package, nullptr);
+        CFRelease(url);
+    }
+    if (package) {
+        const bool isPackage = CFBooleanGetValue(package);
+        CFRelease(package);
+        return !isPackage;
+    }
+    return !info.isBundle();
+#else
+    return true;
+#endif
+}
+
 struct Parser {
     QString source; qsizetype index = 0; int depth = 0; bool valid = true;
     void space() { while (index < source.size() && source[index].isSpace()) ++index; }
@@ -42,14 +82,56 @@ QString calculate(const QString &input) {
     return parser.valid && parser.index == input.size() && std::isfinite(value) ? QString::number(value, 'g', 12) : QString{};
 }
 QVariantList files(const QString &input) {
+    QStringList roots;
+    for (const auto folder : {QStandardPaths::DocumentsLocation, QStandardPaths::DesktopLocation, QStandardPaths::DownloadLocation})
+        roots.append(QStandardPaths::writableLocation(folder));
+    return files(input, QDir::home(), roots);
+}
+
+QVariantList files(const QString &input, const QDir &home, const QStringList &roots) {
     const auto query = input.trimmed(); if (query.size() < 2 || query.toUtf8().size() > 256) return {};
     QVariantList result; int visited = 0; QElapsedTimer timer; timer.start();
-    for (const auto folder : {QStandardPaths::DocumentsLocation, QStandardPaths::DesktopLocation, QStandardPaths::DownloadLocation}) {
-        const auto root = QStandardPaths::writableLocation(folder); if (root.isEmpty()) continue;
-        QDirIterator iterator(root, QDir::Files | QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
-        while (iterator.hasNext()) {
-            const auto path = iterator.next(); if (++visited > 20000 || result.size() >= 50 || timer.elapsed() > 2000) return result;
-            const auto info = iterator.fileInfo(); if (info.fileName().contains(query, Qt::CaseInsensitive) && info.canonicalFilePath() == path) result.append(QVariantMap{{"id", path}, {"name", info.fileName()}});
+    const QDir canonicalHome(home.canonicalPath());
+    QStringList pending;
+    for (const auto &root : roots) {
+        if (!QDir::isAbsolutePath(root)) continue;
+        const QFileInfo folder(root);
+        if (folder.isSymLink() || folder.isJunction() || !folder.isDir()) continue;
+        // A standard folder may have a redirected ancestor or live on another volume.
+        const auto path = folder.canonicalFilePath();
+        if (path.isEmpty()) continue;
+        const auto relative = canonicalHome.relativeFilePath(path);
+        if (underHome(relative) && relative != ".") {
+            const auto parts = relative.split('/', Qt::SkipEmptyParts);
+            if (std::any_of(parts.cbegin(), parts.cend(), skippedName)) continue;
+        }
+        pending.append(path);
+    }
+    QSet<QString> scanned;
+    while (!pending.isEmpty()) {
+        if (timer.elapsed() > 2000) break;
+        const QFileInfo folder(pending.takeFirst());
+        const auto path = folder.absoluteFilePath();
+        if (scanned.contains(path) || folder.isSymLink() || folder.isJunction() || folder.canonicalFilePath() != path) continue;
+        scanned.insert(path);
+        for (const auto &entry : QDirListing(path)) {
+            if (++visited > 20000 || timer.elapsed() > 2000) return result;
+            const QString name = entry.fileName();
+            if (skippedName(name)) continue;
+            const auto info = entry.fileInfo();
+            if (info.isSymLink() || info.isJunction()) continue;
+            const bool directory = launcherDirectory(info);
+            if (directory) pending.append(info.absoluteFilePath());
+            if (!name.contains(query, Qt::CaseInsensitive) || (!info.isFile() && !info.isDir())) continue;
+            const auto id = info.absoluteFilePath();
+            if (info.canonicalFilePath() != id) continue;
+            const auto parent = canonicalHome.relativeFilePath(info.absolutePath());
+            QVariantMap row{{"id", id}, {"name", name}, {"isDirectory", directory},
+                            {"parent", parent == "." ? "~" : underHome(parent) ? "~/" + parent : info.absolutePath()}};
+            const auto modified = info.lastModified();
+            if (modified.isValid()) row.insert("modified", modified.toSecsSinceEpoch());
+            result.append(row);
+            if (result.size() >= 50) return result;
         }
     }
     return result;

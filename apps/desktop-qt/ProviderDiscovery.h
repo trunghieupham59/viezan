@@ -2,6 +2,7 @@
 #include <QMap>
 #include <QSet>
 #include <QStringList>
+#include <QVariantMap>
 
 // Which AI sources this device can use now: local runtimes that answer on loopback
 // (models already downloaded) and cloud providers with a saved key. Mirrors
@@ -14,7 +15,9 @@ struct Snapshot {
     QMap<QString, QStringList> models; // provider -> "provider:model"; absent = did not answer
     QSet<QString> keyed;               // cloud providers with a saved key
     QMap<QString, QString> failures;   // provider -> failure code of its last listing
+    QSet<QString> speechKeyed;         // STT-capable providers with a saved key, including Groq
     bool checked = false;
+    QVariantMap ollamaSizes;           // "ollama:model" -> bytes from the same /api/tags listing
     QStringList all() const;
     bool empty() const;
     // unknown | available | offline | missingKey | notInstalled | unsupported

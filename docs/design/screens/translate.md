@@ -1,5 +1,9 @@
 # Dịch (AI Translate)
 
+## Native hiện tại — trợ năng macOS (2026-11-08)
+
+- Nội dung so sánh theo câu và bản ghép dùng cỡ chữ đọc; hai pane có tên nhóm, kết quả có giá trị trạng thái. Nút kiểu dịch giữ tên kiểu đang nhìn thấy trong nhãn trợ năng.
+
 > Bản vẽ gốc: `boards/Translate.dc.html`, `boards/TranslateModes.dc.html` (ảnh, giọng nói, so sánh theo câu), `boards/Popovers.dc.html` (Tuỳ chọn Dịch, chọn model so sánh), `boards/Histories.dc.html` (Lịch sử dịch), `boards/States.dc.html` (Dịch · đang tải), `boards/Narrow.dc.html` · Board chi tiết: `specs/translate.html` · Mã nguồn: `src/pages/TranslatePage.tsx`
 
 Luật chung (token, Button, bề mặt, responsive, trạng thái chung) nằm ở [`../foundations.md`](../foundations.md). Tài liệu này chỉ ghi phần riêng của trang Dịch. Mọi khẳng định đều dẫn về mã; điều mã chưa có được ghi "đề xuất" trong mục 10.
@@ -106,7 +110,7 @@ Ký hiệu loại: `size · variant · appearance`. "Chọn" = trạng thái đa
 | S10 | Xoá 🗑 | `ClearButton` `md · danger · ghost` icon, "Xoá" | Bấm | Xoá nguồn, ảnh, kết quả, kết quả so sánh, lỗi, mục lịch sử đang đánh dấu | Ô trống; không hỏi xác nhận (đảo ngược bằng Lịch sử nếu đã dịch) | Ẩn khi ô trống hoặc đang thu âm |
 | S11 | Viết lại ✎ (nguồn) | `RewriteButton` `md · neutral · ghost` icon | Bấm | Gửi nguồn cho model viết lại tự nhiên hơn, thay nội dung ô nguồn | Nhãn "Đang viết lại…" | Ẩn khi có ảnh, trống hoặc đang thu âm |
 | S12 | Đọc to 🔊 (nguồn) | `SpeakButton` `md`; đang đọc: `danger · ghost` "Dừng đọc" | Bấm | TTS theo ngôn ngữ nguồn (nguồn `auto` dùng `DEFAULT_TTS_FALLBACK_LANG`) | Icon đổi ■ / spinner khi tải | Như S11 |
-| S13 | Bộ đếm "N ký tự" | Chữ `--vzn-font-size-sm` | — | > 5000 ký tự (`TRANSLATE_INPUT_WARNING_CHARS`): thêm ⓘ "· Có thể dịch lâu hơn", title giải thích | — | Ẩn khi có ảnh hoặc đang thu |
+| S13 | Bộ đếm "N ký tự" | Chữ `--vzn-font-size-sm` | — | > 5000 ký tự: bộ đếm đỏ kèm "Dài hơn 5.000 ký tự; hãy chia nhỏ văn bản." (`sourceTooLong`), nút Dịch tắt (chặn cứng, quyết định 2026-11-24) | — | Ẩn khi có ảnh hoặc đang thu |
 | S14 | Tóm tắt "Phong cách: …" | Chữ muted | — | Chỉ hiện khi phong cách khác mặc định ("Chung") | — | — |
 | S15 | Gợi ý "Enter để dịch" | Chữ muted, `aria-hidden` | — | Chỉ khi tự động dịch tắt; ẩn khi ô nguồn hẹp hơn 680 px. Nút Dịch luôn mang gợi ý này trong `title` | — | — |
 | S16 | Dịch | `TranslateButton` `md · primary · solid`, `aria-busy`; so sánh: "Dịch · N mô hình" | Bấm / Enter | Chạy dịch (1 model hoặc N model song song) | Spinner + "Đang dịch…" / "Đang tạo N bản dịch…" | Chỉ hiện khi tự động dịch tắt (luôn tắt khi so sánh). Native `disabled` khi chưa có chữ/ảnh |
@@ -202,7 +206,7 @@ Toast của trang tự đóng khi rời trang (`TranslatePage.tsx`).
 | Thiếu khoá / model | Nhà cung cấp chưa có API key | Toast "Chưa có API key. Vào Cài đặt để thêm." + "Mở Cài đặt". Trong hộp thoại model: nhóm nhà cung cấp ghi "Chưa có key", hàng model `disabled` "Cần API key". So sánh: cột lỗi "Thêm API key cho X trước khi thử lại." | Mở Cài đặt, Chọn model khác |
 | Ảnh không đọc được | Không có chữ / lỗi xử lý | Toast "Không tìm thấy văn bản trong ảnh" hoặc "Không thể xử lý ảnh" | Thử lại, đổi ảnh |
 | Ảnh: đổi nhà cung cấp dự phòng | Bật Cài đặt › "Dự phòng khi dịch ảnh" (`imageProviderFallback`, mặc định tắt) và nhà cung cấp chọn không đọc được ảnh | Kết quả bình thường + toast cảnh báo "Đã chuyển model" | Đóng toast. Tắt cài đặt thì ảnh chỉ gửi tới nhà cung cấp đã chọn và lỗi hiện như "Lỗi chung" |
-| Văn bản dài | > 5000 ký tự | Bộ đếm ⓘ "· Có thể dịch lâu hơn"; vẫn gửi toàn bộ (không có giới hạn cứng) | Dịch |
+| Văn bản dài | > 5000 ký tự | Bộ đếm đỏ + `sourceTooLong`; nút Dịch tắt, domain từ chối gửi (giới hạn cứng, quyết định 2026-11-24) | Rút ngắn hoặc chia nhỏ văn bản |
 | Lịch sử trống / lọc trống | Chưa có mục / không khớp | "Các bản dịch bạn chạy sẽ hiện ở đây." / "Không tìm thấy kết quả" | — |
 | Module tắt | Cài đặt › Module | Trang và lệnh ẩn (`foundations.md` §12) | Bật lại trong Cài đặt |
 
@@ -369,7 +373,7 @@ Bản vẽ gốc đề xuất mà mã chưa có (tất cả là **đề xuất**
 5. **"Chụp vùng màn hình"** và **bấm vào vùng chữ để dịch riêng đoạn đó** (`TranslateModes.dc.html`). Chưa có.
 6. **Giọng nói chép theo thời gian thực, tên STT ("Whisper local") và nút "Dừng và dịch"** (`TranslateModes.dc.html`). Mã chép một lần sau khi dừng (`VoiceRecorder`), nút dừng là icon ■; dịch chạy theo chế độ tự động/thủ công.
 7. **Lịch sử nhóm theo ngày ("Hôm nay", "Hôm qua")**, nhãn "ảnh" cho mục dịch ảnh (`Histories.dc.html`). Mã liệt kê phẳng với thời gian tương đối; bản dịch ảnh đã được lưu (cột nguồn là tên tệp) nhưng không có nhãn "ảnh".
-8. **Giới hạn ký tự cứng**: không có; chỉ cảnh báo mềm ở 5000 ký tự. Bản vẽ không yêu cầu thêm.
+8. **Giới hạn ký tự cứng**: có, 5000 ký tự (người dùng chốt 2026-11-24, thay cho cảnh báo mềm trước đây). Cả hai bản native đã chặn ở view và ở domain (`translateLimit`, BACKEND-GAPS #18).
 
 ## Khôi phục và làm mới lượt (V1)
 

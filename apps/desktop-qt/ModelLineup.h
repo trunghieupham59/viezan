@@ -11,6 +11,8 @@ struct Family { QString provider, name; int rank = 0; double version = 0; bool p
 inline const QStringList tierNames{"fast", "balanced", "careful"};
 QString provider(const QString &id);
 QString model(const QString &id);
+// Matching key in the shared reasoning policy, empty for models without adjustable effort.
+QString effortFamily(const QString &id);
 bool isChatModel(const QString &id);
 std::optional<Family> family(const QString &id);
 QStringList featured(const QStringList &ids, int limit = 4);
@@ -19,7 +21,7 @@ QString shortName(const QString &id);
 // {fast, balanced, careful} → model ID, or empty when the provider is local or lists one size.
 QVariantMap tiers(const QString &current, const QStringList &listing);
 // Picker sections: [{key, rows: [{kind: tier|model|setup|typed, tier?, model?, provider?}]}].
-QVariantList sections(const QString &query, const QVariantMap &tiers, const QStringList &recent, const QMap<QString, QStringList> &listings, const QStringList &cloud, const QStringList &local);
+QVariantList sections(const QString &query, const QVariantMap &tiers, const QStringList &recent, const QMap<QString, QStringList> &listings, const QStringList &cloud, const QStringList &local, const QStringList &pinned = {});
 // Distinct chat models from a newest-first history, at most three.
 QStringList recent(const QStringList &history);
 }

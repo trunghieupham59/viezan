@@ -16,6 +16,28 @@ struct LocalModelSettings: View {
     private typealias Suggestion = NativeResources.LocalModelSuggestion
     private static var suggestions: [Suggestion] { NativeResources.shared.localModelSuggestions }
     private var installed: [String] { store.localModels.filter { $0.hasPrefix("ollama:") } }
+    /// Size on disk of each installed model, read from the runtime whenever the list changes.
+    @State private var sizes: [String: Int64] = [:]
+    /// The measured speed each installed model's row shows (Settings-Local board), read when the
+    /// list changes and after a measurement ends.
+    @State private var speeds: [String: LocalMeasurement] = [:]
+    /// Reads the stored measurements off the main thread; a newer read replaces an older one.
+    private func refreshSpeeds() {
+        let models = installed
+        Task {
+            let found = await Task.detached { LocalPerformance.measured(models) }.value
+            if models == installed { speeds = found }
+        }
+    }
+    private func installedDetail(_ model: String) -> String {
+        var parts: [String] = []
+        if let bytes = sizes[model], bytes > 0 { parts.append(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) }
+        parts.append(model)
+        if let speed = speeds[model], let rate = speed.tokensPerSecond {
+            parts.append(store.text("localModelMeasured").replacingOccurrences(of: "{mode}", with: speed.id).replacingOccurrences(of: "{rate}", with: rate.formatted(.number.precision(.fractionLength(1)).locale(Locale(identifier: store.workspace.locale)))))
+        } else { parts.append(store.text("notMeasured")) }
+        return parts.joined(separator: " · ")
+    }
     private var ollamaRunning: Bool { store.providers.models["ollama"] != nil }
     private var anyBusy: Bool { store.modelManager.busy || store.localPerformance.busy }
     private func resultSummary(id: String, tokens: Double?, gpu: Double?) -> String {
@@ -50,9 +72,9 @@ struct LocalModelSettings: View {
             Button(store.text("start")) { store.localPerformance.compare() }
         } message: { Text(store.text("runtimeCompareHint")) }
         .task { await store.localRuntime.refresh() }
-        .confirmationDialog(store.text("deleteModelConfirm"), isPresented: Binding(get: { deletion != nil }, set: { if !$0 { deletion = nil } }), titleVisibility: .visible) {
+        .confirmationDialog(store.text("deleteModel"), isPresented: Binding(get: { deletion != nil }, set: { if !$0 { deletion = nil } }), titleVisibility: .visible) {
             Button(store.text("deleteModel"), role: .destructive) { if let model = deletion { remove(model) }; deletion = nil }
-        } message: { Text(deletion ?? "") }
+        } message: { Text(store.text("deleteNamedModelConfirm").replacingOccurrences(of: "{name}", with: deletion.map { nativeModelLabel("ollama:" + $0, store: store) } ?? "")) }
     }
     private var runtimesCard: some View {
         CardSection(flush: true, title: store.text("localRuntimes")) {
@@ -71,7 +93,7 @@ struct LocalModelSettings: View {
     private var runtimeCard: some View {
         CardSection(flush: true, title: store.text("runtimeSettings")) {
             CardRow(title: store.text("thisDevice"), detail: store.text("runtimeHint")) {
-                Text("CPU \(store.localRuntime.processors) · " + ByteCountFormatter.string(fromByteCount: Int64(store.localRuntime.memory), countStyle: .memory)).foregroundStyle(.secondary)
+                Text(store.text("deviceProcessors").replacingOccurrences(of: "{count}", with: String(store.localRuntime.processors)) + " · " + store.text("deviceMemory").replacingOccurrences(of: "{size}", with: ByteCountFormatter.string(fromByteCount: Int64(store.localRuntime.memory), countStyle: .memory))).foregroundStyle(.secondary)
             }
             CardRow(title: store.text("runtimeParallel")) {
                 SettingsPicker(id: "runtime-parallel", label: store.text("runtimeParallel"), options: [1, 2, 4].map { SettingsPickerOption(id: String($0), title: String($0)) },
@@ -92,7 +114,15 @@ struct LocalModelSettings: View {
     // Download status as one string so the row's view tree stays small.
     private var managerProgressText: String {
         var text = store.text(store.modelManager.status)
-        if let progress = store.modelManager.progress { text += " · " + String(Int(progress * 100)) + "%" }
+        // Settings-Local board: "Đang tải · 2,1 / 4,9 GB"; the bar beside it carries the proportion.
+        if let bytes = store.modelManager.transferred {
+            // One unit, named once: both numbers use the unit of the total.
+            let formatter = ByteCountFormatter(); formatter.countStyle = .file
+            formatter.allowedUnits = bytes.total >= 1_000_000_000 ? .useGB : bytes.total >= 1_000_000 ? .useMB : .useKB
+            let total = formatter.string(fromByteCount: bytes.total)
+            formatter.includesUnit = false
+            text += " · " + formatter.string(fromByteCount: bytes.completed) + " / " + total
+        }
         return text
     }
     private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -131,7 +161,9 @@ struct LocalModelSettings: View {
                 Text(managerProgressText).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1)
                 stopButton
             }
-            if let progress = store.modelManager.progress { ProgressView(value: progress).frame(width: metric("sidebar") - metric("large")) } else { ProgressView().controlSize(.small) }
+            // Named for assistive technology; the text beside it carries the bytes.
+            if let progress = store.modelManager.progress { ProgressView(value: progress).frame(width: metric("sidebar") - metric("large")).accessibilityLabel(store.text("downloadModel")).accessibilityValue(managerProgressText) }
+            else { ProgressView().controlSize(.small).accessibilityLabel(store.text("downloadModel")).accessibilityValue(managerProgressText) }
         }
     }
     private var otherModelRow: some View {
@@ -155,7 +187,7 @@ struct LocalModelSettings: View {
         CardSection(flush: true, title: store.text("downloadedModels")) {
             if installed.isEmpty { Text(store.text("noLocalModels")).foregroundStyle(.secondary).padding(metric("inset")) }
             ForEach(installed, id: \.self) { model in
-                CardRow(title: nativeModelLabel(model, store: store), detail: model, divider: model != installed.last) {
+                CardRow(title: nativeModelLabel(model, store: store), detail: installedDetail(model), divider: model != installed.last) {
                     Button(store.text("runtimeCompare")) {
                         store.localPerformance.selectModel(model)
                         // Overlays-Settings board: ask first in the centred dialog, the result card follows.
@@ -165,7 +197,7 @@ struct LocalModelSettings: View {
                         .buttonStyle(.vznOutline).disabled(anyBusy || store.interpretation.busy || store.workspace.tasks.contains { $0.status == .running && $0.request.model.hasPrefix("ollama:") })
                     Button(store.text("deleteModel"), role: .destructive) {
                         let name = String(model.dropFirst(7))
-                        if let confirm { confirm(SettingsConfirm(title: store.text("deleteModelConfirm"), message: name, confirm: store.text("deleteModel")) { remove(name) }) }
+                        if let confirm { confirm(SettingsConfirm(title: store.text("deleteModel"), message: store.text("deleteNamedModelConfirm").replacingOccurrences(of: "{name}", with: nativeModelLabel(model, store: store)), confirm: store.text("deleteModel")) { remove(name) }) }
                         else { deletion = name }
                     }.buttonStyle(.vznQuiet).disabled(store.modelManager.busy)
                 }
@@ -174,6 +206,13 @@ struct LocalModelSettings: View {
                 Button(store.text("refreshModels")) { Task { await store.refreshModels(provider: "ollama") } }.buttonStyle(.vznQuiet).disabled(store.loadingModels)
                 if store.loadingModels { ProgressView().controlSize(.small) }
             }.padding(.horizontal, metric("small")).padding(.vertical, metric("small"))
+        }
+        .onChange(of: store.localPerformance.busy) { _, busy in if !busy { refreshSpeeds() } }
+        .task(id: installed) {
+            refreshSpeeds()
+            guard !installed.isEmpty else { sizes = [:]; return }
+            // A cancelled or failed read keeps the sizes already shown.
+            if let found = try? await LocalProvider.catalog(), !Task.isCancelled { sizes = found }
         }
     }
     private var performance: LocalPerformance { store.localPerformance }
@@ -219,7 +258,7 @@ struct LocalModelSettings: View {
         }
     }
     private func applyButton(_ mode: String) -> some View {
-        Button(store.text("apply")) { performance.select(mode) }.buttonStyle(.vznOutline).disabled(performance.busy || performance.selectedMode == mode)
+        Button(store.text("apply")) { performance.select(mode); refreshSpeeds() }.buttonStyle(.vznOutline).disabled(performance.busy || performance.selectedMode == mode)
     }
     private static func number(_ value: Double?, digits: Int) -> String { (value ?? 0).formatted(.number.precision(.fractionLength(digits))) }
     private func resultRow(_ result: LocalMeasurement) -> some View {

@@ -1,5 +1,6 @@
 #pragma once
 #include <QObject>
+#include "CurrencyRates.h"
 #include <QAbstractNativeEventFilter>
 #include <QVariantMap>
 #include "WindowsSelection.h"
@@ -11,7 +12,9 @@ class DesktopIntegration final : public QObject, public QAbstractNativeEventFilt
     Q_OBJECT
     Q_PROPERTY(bool canReplaceSelection READ canReplaceSelection NOTIFY changed)
     Q_PROPERTY(bool canUndoSelection READ canUndoSelection NOTIFY changed)
-    Q_PROPERTY(QString currency READ currency NOTIFY changed)
+    Q_PROPERTY(QString currencyStatus READ currencyStatus NOTIFY currencyChanged)
+    Q_PROPERTY(QString currencyTarget READ currencyTarget WRITE setCurrencyTarget NOTIFY currencyChanged)
+    Q_PROPERTY(QStringList currencyCodes READ currencyCodes CONSTANT)
     Q_PROPERTY(bool launchAtLogin READ launchAtLogin NOTIFY changed)
     Q_PROPERTY(QVariantList shortcuts READ shortcuts NOTIFY changed)
     Q_PROPERTY(QVariantList files READ files NOTIFY changed)
@@ -20,13 +23,18 @@ class DesktopIntegration final : public QObject, public QAbstractNativeEventFilt
     Q_PROPERTY(bool applicationsBusy READ applicationsBusy NOTIFY changed)
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
 public:
-    explicit DesktopIntegration(QObject *parent = nullptr);
+    explicit DesktopIntegration(QObject *parent = nullptr, QNetworkAccessManager *ratesNetwork = nullptr);
     ~DesktopIntegration() override;
     bool canReplaceSelection() const { return m_selection.canReplace(); }
     bool canUndoSelection() const { return m_selection.canUndo(); }
     Q_INVOKABLE bool replaceSelection(const QString &text);
     Q_INVOKABLE bool undoSelection();
-    QString currency() const { return m_currency; }
+    QString currencyStatus() const { return m_currencyStatus; }
+    QStringList currencyCodes() const { return CurrencyRates::codes(); }
+    QString currencyTarget() const { return m_currencyTarget; }
+    void setCurrencyTarget(const QString &target);
+    Q_INVOKABLE QVariantMap currencyQuote(const QString &input, const QString &locale) const;
+    Q_INVOKABLE void loadCurrencyRates(bool retry);
     bool launchAtLogin() const;
     Q_INVOKABLE void setLaunchAtLogin(bool enabled);
     Q_INVOKABLE QString diagnostics() const;
@@ -56,12 +64,18 @@ public:
     bool nativeEventFilter(const QByteArray &type, void *message, qintptr *result) override;
 signals:
     void changed();
+    void currencyChanged();
     void activated(const QString &action, const QString &selectedText);
 private:
     WindowsSelection m_selection;
     QVariantList m_shortcuts, m_applications, m_files;
     quint64 m_fileSearchGeneration = 0;
-    QString m_file, m_error, m_currency;
+    QString m_file, m_error;
+    CurrencyRates::Loader m_rates;
+    bool m_shuttingDown = false;
+    QString m_currencyStatus = "idle", m_currencyTarget;
+    QJsonObject m_currencySnapshot;
+    qint64 m_currencyRetryAfter = 0;
     bool m_busy = false;
     bool m_applicationsBusy = false;
     bool persist(const QVariantList &values);

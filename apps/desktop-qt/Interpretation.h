@@ -11,12 +11,17 @@
 #include <QVariantList>
 #include <QQueue>
 #include <QPointer>
+#include <functional>
+
+class QSaveFile;
 
 class Interpretation final : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList inputs READ inputs NOTIFY changed)
     Q_PROPERTY(QVariantList sessions READ sessions NOTIFY changed)
     Q_PROPERTY(QVariantMap current READ current NOTIFY changed)
+    Q_PROPERTY(QString speakingSource READ speakingSource NOTIFY playbackChanged)
+    Q_PROPERTY(bool preparing READ preparing NOTIFY playbackChanged)
     Q_PROPERTY(bool listening READ listening NOTIFY changed)
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
     // An analysis is being written (Interpret-Summary "Đang tổng hợp…"); cancelSummary stops only it.
@@ -29,7 +34,9 @@ public:
     explicit Interpretation(QObject *parent = nullptr);
     ~Interpretation() override;
     static bool validateArchive(const QVariantList &sessions);
-    bool importArchive(const QVariantList &sessions);
+    // A joint operation receives the staged transcript and commits it with the workspace.
+    using ArchiveCommit = std::function<bool(QSaveFile &)>;
+    bool importArchive(const QVariantList &sessions, const ArchiveCommit &commit = {});
     QVariantList inputs() const { return m_audioCapture.inputs(); }
     QVariantList sessions() const { return m_sessions; }
     QVariantMap current() const;
@@ -48,22 +55,30 @@ public:
     bool summarizing() const { return m_summarizing; }
     bool blocked() const { return m_blocked; }
     Q_INVOKABLE void reload();
-    bool clearAll();
+    bool clearAll(const ArchiveCommit &commit = {});
     Q_INVOKABLE void select(const QString &id);
     // A fresh, empty transcript; the next start creates the session.
-    Q_INVOKABLE void clearSelection() { if (busy()) return; m_selected.clear(); emit changed(); }
+    Q_INVOKABLE void clearSelection() { if (busy()) return; silence(); m_selected.clear(); emit changed(); }
     Q_INVOKABLE void summarize(const QString &kind = "summary");
+    // One instruction per analysis, so the summary does not repeat the other three (as Swift summaryPrompt).
+    static QString summaryPrompt(const QString &kind, const QString &target);
     Q_INVOKABLE void retry(const QString &id);
     /// `translatedOnly` drops the original lines ("Chỉ bản dịch"), as Swift export(srt:translatedOnly:).
     Q_INVOKABLE QString exportText(bool srt = false, bool translatedOnly = false) const;
     Q_INVOKABLE void exportFile(const QUrl &url, bool srt, bool translatedOnly = false);
-    Q_INVOKABLE void speak(const QString &text);
+    QString speakingSource() const { return m_audio.speakingSource(); }
+    bool preparing() const { return m_audio.preparing(); }
+    Q_INVOKABLE void speak(const QString &text, const QString &source = {});
     void configureVoice(const QString &provider, const QString &voice, double rate = 1) { m_audio.configureVoice(provider, voice, rate); }
     Q_INVOKABLE void silence() { m_audio.silence(); }
     void setAvailableModels(const QStringList &models) { m_audio.setAvailableModels(models); }
 signals:
+    void storageReloaded();
+    void playbackChanged();
     void changed();
+    void failed(const QString &code);
 private:
+    void fail(const QString &code) { m_error = code; emit failed(code); }
     SpeakerTurns m_turns;
     QVariantList m_sessions;
     QString m_summaryKind = "summary";
@@ -89,6 +104,7 @@ private:
     void translate(const QString &id, const QString &original);
     void finish(const QString &status, const QString &error = {});
     void updateSegment(const QString &id, const QVariantMap &fields, const QString &chunk = {});
-    bool persist();
+    bool persist() { return persist(m_sessions, {}); }
+    bool persist(const QVariantList &sessions, const ArchiveCommit &commit);
     void load();
 };

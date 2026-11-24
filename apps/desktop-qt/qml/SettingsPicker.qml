@@ -22,7 +22,7 @@ Kit.GlassComboBox {
     ToolTip.visible: hovered && !popup.visible
     ToolTip.text: displayText
     onPopupChanged: if (popup && popup !== glassPopup) popup.parent = picker
-    Binding { target: picker; property: "popup"; value: glassPopup; when: picker.usesGlass }
+    Binding { target: picker; property: "popup"; value: glassPopup; when: picker.glassMaterial }
     property Popup glassPopup: Popup {
         id: glassPopup
         objectName: picker.objectName + "-popup"
@@ -47,6 +47,8 @@ Kit.GlassComboBox {
         contentItem: ListView {
             id: list
             objectName: picker.objectName + "-list"
+            Accessible.role: Accessible.List
+            Accessible.name: picker.Accessible.name
             implicitHeight: contentHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
@@ -63,6 +65,7 @@ Kit.GlassComboBox {
             Keys.onSpacePressed: choose()
             onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
             ScrollBar.vertical: ScrollBar {
+                Accessible.name: picker.Accessible.name
                 id: bar
                 policy: list.contentHeight > list.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
                 contentItem: Rectangle { implicitWidth: picker.metrics.tight; radius: width / 2; color: picker.palette.placeholderText }

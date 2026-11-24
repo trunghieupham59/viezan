@@ -87,7 +87,7 @@ extension AppKitFixtureTests {
                                        listModels: { _ in [] }, hasKey: { _ in false })
             store.setLocale("vi")
             store.setRoute("chat")
-            store.setAppearance(mode: mode, textSize: .medium, preset: "glass")
+            store.setAppearance(mode: mode, textSize: .medium)
             NativeTheme.shared.preferences = store.workspace.preferences
             let sessionID = store.session.id
             let modelID = "ollama:llama3.2:latest"
