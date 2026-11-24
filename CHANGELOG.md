@@ -6,6 +6,15 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+## [2.6.1]
+
+- Internal macOS Previews now use one pinned Apple Development certificate across
+  builds so macOS can match prior Accessibility and Screen Recording grants.
+- Public macOS updates require notarized Apple Silicon and Intel disk images.
+  The release workflow checks a visible window after a fresh install and upgrades
+  from 2.4.2, 2.5.2 and 2.6.0. Electron's fallback download name points to the
+  same verified disk image. Draft builds can still produce manual-install Previews.
+
 ## [2.6.0]
 
 - Translate: "Use as source" can be undone, restoring the draft and the

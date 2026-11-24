@@ -15,12 +15,25 @@ import subprocess
 import sys
 import zipfile
 from runtime_manifest import verify_runtime
+from verify_macos_dmg import verify_dmg, VIEZAN_REQUIREMENT
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def run(*args, env=None):
     subprocess.run([str(a) for a in args], check=True, cwd=ROOT, env=env)
+
+
+def notarize(upload, staple_target, profile, keychain):
+    command = ['xcrun', 'notarytool', 'submit', upload, '--keychain-profile', profile,
+               '--wait', '--output-format', 'json']
+    if keychain:
+        command.extend(['--keychain', keychain])
+    result = subprocess.run(command, check=True, stdout=subprocess.PIPE, text=True)
+    submission = json.loads(result.stdout)
+    if submission['status'] != 'Accepted':
+        raise SystemExit(f"Apple notarization {submission['id']}: {submission['status']}")
+    run('xcrun', 'stapler', 'staple', staple_target)
 
 
 def legacy_feed(installer, version):
@@ -40,6 +53,7 @@ def main():
     parser.add_argument('--patched-runtime', type=Path, help='Prepared Windows Viezan Ollama runtime directory')
     parser.add_argument('--identity', help='macOS Developer ID Application signing identity')
     parser.add_argument('--notary-profile', help='Existing notarytool Keychain profile')
+    parser.add_argument('--notary-keychain', type=Path, help='Keychain containing the notary profile when using a custom keychain')
     parser.add_argument('--certificate-thumbprint', help='Windows code-signing certificate in CurrentUser/My')
     parser.add_argument('--linuxdeploy', type=Path, help='Installed linuxdeploy executable with Qt plugin')
     args = parser.parse_args()
@@ -47,8 +61,8 @@ def main():
     output = args.output.expanduser().resolve()
     if output.exists() or source == output or output in source.parents or source in output.parents:
         parser.error('Choose a new staging directory outside the input')
-    if args.notary_profile and not args.identity:
-        parser.error('Notarization requires a signing identity')
+    if sys.platform == 'darwin' and not (args.identity and args.notary_profile):
+        parser.error('macOS distribution requires --identity (Developer ID Application) and --notary-profile')
     output.mkdir(parents=True)
     version = json.loads((ROOT / 'package.json').read_text())['version']
     architecture = {'AMD64': 'x64', 'x86_64': 'x64', 'aarch64': 'arm64'}.get(platform.machine(), platform.machine())
@@ -57,32 +71,31 @@ def main():
         if source.suffix != '.app' or not (source / 'Contents/MacOS/ViezanNative').is_file():
             parser.error('Input must be the native Viezan app bundle')
         app = output / 'Viezan.app'
-        shutil.copytree(source, app, symlinks=True)
-        if args.identity:
-            for binary in sorted((app / 'Contents/Resources/native').iterdir()):
-                if binary.is_file() and os.access(binary, os.X_OK):
-                    run('codesign', '--force', '--options', 'runtime', '--timestamp', '--sign', args.identity, binary)
-            run('codesign', '--force', '--options', 'runtime', '--timestamp', '--entitlements', ROOT / 'apps/packaging/entitlements.mac.plist', '--sign', args.identity, app)
-            run('codesign', '--verify', '--strict', '--deep', app)
-        archive = output / (name + '.zip')
-        run('ditto', '-c', '-k', '--keepParent', app, archive)
-        if args.notary_profile:
-            run('xcrun', 'notarytool', 'submit', archive, '--keychain-profile', args.notary_profile, '--wait')
-            run('xcrun', 'stapler', 'staple', app)
-            # Replace only the archive created by this invocation after stapling.
-            archive.unlink()
-            run('ditto', '-c', '-k', '--keepParent', app, archive)
-        image = output / (name + '.dmg')
+        run('ditto', source, app)
+        signing = ['codesign', '--force', '--options', 'runtime', '--timestamp', '--sign', args.identity]
+        for binary in sorted((app / 'Contents/Resources/native').iterdir()):
+            if binary.is_file() and os.access(binary, os.X_OK):
+                run(*signing, '--identifier', 'com.viezan.native.preview.' + binary.name, binary)
+        run(*signing, '--identifier', 'com.viezan.native.preview', '--entitlements',
+            ROOT / 'apps/packaging/entitlements.mac.plist', app)
+        run('codesign', '--verify', '--strict', '--deep', app)
+        run('codesign', '--verify', '-R', VIEZAN_REQUIREMENT, app)
         disk = output / 'disk'
         disk.mkdir()
-        shutil.copytree(app, disk / 'Viezan.app', symlinks=True)
+        # Keep the submission ZIP out of the release assets. The public ZIP contains the stapled app.
+        submission_zip = disk / 'submit.zip'
+        run('ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', app, submission_zip)
+        notarize(submission_zip, app, args.notary_profile, args.notary_keychain)
+        submission_zip.unlink()
+        archive = output / (name + '.zip')
+        run('ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', app, archive)
+        run('ditto', app, disk / 'Viezan.app')
         (disk / 'Applications').symlink_to('/Applications')
+        image = output / (name + '.dmg')
         run('hdiutil', 'create', '-volname', 'Viezan', '-srcfolder', disk, '-format', 'UDZO', image)
-        if args.identity:
-            run('codesign', '--timestamp', '--sign', args.identity, image)
-        if args.notary_profile:
-            run('xcrun', 'notarytool', 'submit', image, '--keychain-profile', args.notary_profile, '--wait')
-            run('xcrun', 'stapler', 'staple', image)
+        run('codesign', '--timestamp', '--sign', args.identity, image)
+        notarize(image, image, args.notary_profile, args.notary_keychain)
+        verify_dmg(image, distribution_arch=architecture, version=version)
         artifacts = [archive, image]
     elif sys.platform == 'win32':
         if source.suffix.lower() != '.exe' or not args.qt_bin:

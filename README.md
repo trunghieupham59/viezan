@@ -169,13 +169,39 @@ is invoked by the native build helper.
 python3 scripts/native/package.py --input .native-build/macos/Viezan.app --output .native-packages/macos --identity "Developer ID Application: …" --notary-profile Viezan
 ```
 
+For notarized macOS distribution, packaging requires a Developer ID Application identity and an
+Apple notarization profile. It signs the helpers and app, staples Apple's tickets
+to the app and DMG, then mounts the final image read-only to check its contents.
+To repeat the distribution check on a downloaded DMG, run
+`python3 scripts/native/verify_macos_dmg.py /path/to/Viezan.dmg` on macOS 15 or later.
+Before publication, GitHub Actions tests the uploaded DMG on a fresh Mac of each
+architecture. It checks the installed window on first launch and after upgrading
+from 2.4.2, 2.5.2 and 2.6.0. The 2.6.0 test uses the native updater's DMG
+replacement code. The 2.5.2 updater opens the DMG for a manual install.
+If 2.6.0 cannot launch, install the notarized DMG over the existing app in
+Applications. See [offline transfer](docs/migration/native-implementation/legacy-data-migration.md)
+for history and settings from Electron 2.4.x.
+See the [required GitHub Actions secrets](.github/WORKFLOWS.md#macos-release-credentials).
+
+Internal Previews use one Apple Development certificate. The packager checks
+its pinned fingerprint on the app and each helper inside the mounted DMG.
+Keep this identity and bundle identifier across updates so macOS can recognize
+the app's Accessibility and Screen Recording grants. Users moving from an older
+ad hoc Preview may need to authorize the first development-signed build.
+Public releases require Developer ID and notarization. Choose `preview-arm64.dmg`
+for Apple Silicon or `preview-x64.dmg` for Intel. After dragging Viezan to
+Applications and trying to open it,
+testers who trust the build can use **Open Anyway** if macOS offers it in
+**System Settings → Privacy & Security**. Preview DMGs have no native update
+manifest.
+
 Windows packaging requires `windeployqt`, NSIS and an installed signing certificate
 (`--qt-bin`, `--certificate-thumbprint`); an optional `--patched-runtime` directory
 is checked against its full manifest and pinned binary hashes. Linux packaging requires a provisioned
 linuxdeploy executable and its Qt plugin (`--linuxdeploy`, `--qt-bin`). Packaging
 emits version/platform/architecture-specific artifacts and checksum manifests.
-The manual release workflow uses prepared signing runners and uploads artifacts
-for review; it does not publish or install them. Publish the matching manifest
+The manual macOS Preview workflow uploads both verified DMGs as run artifacts.
+A version change on develop publishes a release after its notarized Mac packages pass the installation tests. Publish the matching manifest
 and its `.json.sig` signature alongside each installer for the native updater to
 discover it. The release job signs manifests with the Ed25519 private key in the
 `VIEZAN_UPDATE_SIGNING_KEY` secret and stops when that secret is missing or does

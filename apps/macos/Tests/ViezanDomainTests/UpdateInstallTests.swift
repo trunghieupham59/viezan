@@ -11,6 +11,26 @@ private func bundle(_ root: URL, _ name: String, version: String, identifier: St
 }
 private func marker(_ app: URL) -> String? { try? String(contentsOf: app.appendingPathComponent("Contents/marker"), encoding: .utf8) }
 
+// The release gate supplies a mounted-and-copied 2.6.0 bundle and the actual
+// candidate DMG. Create the target ourselves so this cannot replace a user's app.
+@Test(.enabled(if: ProcessInfo.processInfo.environment["VIEZAN_MAC_UPGRADE_FIXTURE"] != nil))
+func updateReplacesReleasedMacBundleFromCandidateDMG() throws {
+    let environment = ProcessInfo.processInfo.environment
+    let root = URL(fileURLWithPath: try #require(environment["VIEZAN_MAC_UPGRADE_FIXTURE"]))
+    let version = try #require(environment["VIEZAN_MAC_UPGRADE_VERSION"])
+    let files = FileManager.default, directory = root.appendingPathComponent("updater-install")
+    try files.createDirectory(at: directory, withIntermediateDirectories: false)
+    let target = directory.appendingPathComponent("Viezan.app")
+    try files.copyItem(at: root.appendingPathComponent("prior.app"), to: target)
+    let backup = try NativeUpdates.replace(target, image: root.appendingPathComponent("update.dmg"),
+                                           version: version, identifier: "com.viezan.native.preview")
+    defer { try? files.removeItem(at: backup) }
+    let old = try #require(NSDictionary(contentsOf: backup.appendingPathComponent("previous.app/Contents/Info.plist")))
+    #expect(old["CFBundleShortVersionString"] as? String == "2.6.0")
+    let new = try #require(NSDictionary(contentsOf: target.appendingPathComponent("Contents/Info.plist")))
+    #expect(new["CFBundleShortVersionString"] as? String == version)
+}
+
 @Test func updateSwapInstallsOnlyThisAppAtTheVerifiedVersion() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true); defer { try? FileManager.default.removeItem(at: root) }

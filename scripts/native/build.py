@@ -36,12 +36,18 @@ def signing_identity():
 
 def sign_mac(app, identity):
     # Sign helpers first, then the bundle; never --deep (it re-signs nested code blindly).
+    identity = identity or "-"
+    signing = ["codesign", "--force", "--sign", identity]
+    entitlements = []
+    if identity != "-":
+        signing.extend(["--options", "runtime"])
+        entitlements = ["--entitlements", ROOT / "apps/packaging/entitlements.mac.plist"]
     for binary in sorted((app / "Contents/Resources/native").iterdir()):
-        run("codesign", "--force", "--sign", identity, "--identifier", "com.viezan.native.preview." + binary.name, binary)
-    run("codesign", "--force", "--sign", identity, "--identifier", "com.viezan.native.preview", app)
+        run(*signing, "--identifier", "com.viezan.native.preview." + binary.name, binary)
+    run(*signing, "--identifier", "com.viezan.native.preview", *entitlements, app)
 
 
-def build_mac(configuration, output, *, scratch=None, development=None):
+def build_mac(configuration, output, *, scratch=None, development=None, build_number=1):
     if sys.platform != "darwin":
         raise SystemExit("The SwiftUI target requires macOS and Xcode.")
     package = ROOT / "apps/macos"
@@ -66,7 +72,7 @@ def build_mac(configuration, output, *, scratch=None, development=None):
             "CFBundleExecutable": "ViezanNative", "CFBundleIdentifier": "com.viezan.native.preview",
             "CFBundleName": "Viezan", "CFBundleDisplayName": "Viezan",
             "CFBundlePackageType": "APPL", "CFBundleShortVersionString": json.loads((ROOT / "package.json").read_text())["version"],
-            "CFBundleVersion": "1", "CFBundleIconFile": "AppIcon", "LSMinimumSystemVersion": "15.0",
+            "CFBundleVersion": str(build_number), "CFBundleIconFile": "AppIcon", "LSMinimumSystemVersion": "15.0",
             "NSMicrophoneUsageDescription": "Viezan records audio only when you start recording for transcription or interpretation.",
             "NSAudioCaptureUsageDescription": "Viezan captures system audio only when you start system-audio interpretation.",
             "NSAppleEventsUsageDescription": "Viezan uses keyboard shortcuts when you invoke translation in another application, System Events when you switch the system appearance from the Launcher, and Finder when you uninstall an app that needs administrator permission.",
@@ -93,11 +99,10 @@ def build_mac(configuration, output, *, scratch=None, development=None):
     with (daemon_dir / "com.viezan.fan-helper.plist").open("wb") as stream:
         plistlib.dump(daemon, stream)
     identity = signing_identity()
-    if identity:
-        sign_mac(app, identity)
-    else:
+    if not identity:
         print("warning: no valid Apple Development identity; ad-hoc signed builds re-prompt for keychain access",
               file=sys.stderr)
+    sign_mac(app, identity)
     print(app)
     return app
 
@@ -109,12 +114,15 @@ def main():
     parser.add_argument("--output", type=pathlib.Path, required=True, help="Dedicated native build directory")
     parser.add_argument("--qt-prefix", type=pathlib.Path, help="Installed Qt kit; dependencies are not installed")
     parser.add_argument("--launch", action="store_true", help="Launch after a successful build")
+    parser.add_argument("--build-number", type=int, help="macOS CFBundleVersion (defaults to 1)")
     options = parser.parse_args()
+    if options.build_number is not None and (options.target != "macos" or options.build_number < 1):
+        parser.error("--build-number requires a macOS target and a positive integer")
     output = options.output.expanduser().resolve()
     if output == ROOT or ROOT.is_relative_to(output):
         parser.error("Choose a dedicated output directory, not the repository or an ancestor")
     if options.target == "macos":
-        app = build_mac(options.configuration, output)
+        app = build_mac(options.configuration, output, build_number=options.build_number or 1)
         if options.launch: run("open", app)
     else:
         args = ["cmake", "-S", ROOT / "apps/desktop-qt", "-B", output,

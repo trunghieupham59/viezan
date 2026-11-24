@@ -18,6 +18,14 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
     var store: WorkbenchStore?
     var desktopPanels: DesktopPanels?
     var window: NSWindow?
+    // Observe the grants of the actual GUI process during an install test.
+    // The preflight APIs neither request access nor read screen or selection content.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        guard CommandLine.arguments.contains("--report-permissions") else { return }
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+        let status = "build=\(build) pid=\(ProcessInfo.processInfo.processIdentifier) accessibility=\(AXIsProcessTrusted()) screenRecording=\(CGPreflightScreenCaptureAccess())\n"
+        FileHandle.standardOutput.write(Data(status.utf8))
+    }
     func applicationWillFinishLaunching(_ notification: Notification) {
         guard let identifier = Bundle.main.bundleIdentifier,
               let other = NSRunningApplication.runningApplications(withBundleIdentifier: identifier).first(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) else { return }
