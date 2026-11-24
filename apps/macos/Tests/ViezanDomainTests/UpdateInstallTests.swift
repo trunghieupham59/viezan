@@ -62,12 +62,13 @@ private func marker(_ app: URL) -> String? { try? String(contentsOf: app.appendi
 @Test func updateRelaunchWaitsForTheOldProcessBeforeCleaningUp() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString), staging = root.appendingPathComponent("staging")
     try FileManager.default.createDirectory(at: staging.appendingPathComponent("previous.app"), withIntermediateDirectories: true); defer { try? FileManager.default.removeItem(at: root) }
-    let old = Process(); old.executableURL = URL(fileURLWithPath: "/bin/sleep"); old.arguments = ["2"]; try old.run()
+    let old = Process(); old.executableURL = URL(fileURLWithPath: "/bin/sleep"); old.arguments = ["60"]; try old.run(); defer { old.terminate() }
     // The target does not exist, so nothing opens on the machine running the test.
     try NativeUpdates.relaunch(root.appendingPathComponent("Missing.app"), removing: staging, after: old.processIdentifier)
     try await Task.sleep(for: .milliseconds(800))
     #expect(FileManager.default.fileExists(atPath: staging.path))
-    old.waitUntilExit()
-    for _ in 0..<50 where FileManager.default.fileExists(atPath: staging.path) { try await Task.sleep(for: .milliseconds(100)) }
+    // Ended here rather than by its own timer: a loaded machine can take longer than the pause above.
+    old.terminate(); old.waitUntilExit()
+    for _ in 0..<100 where FileManager.default.fileExists(atPath: staging.path) { try await Task.sleep(for: .milliseconds(100)) }
     #expect(!FileManager.default.fileExists(atPath: staging.path))
 }
