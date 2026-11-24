@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 
 from build import ROOT, run, sign_mac
+from package import create_dmg
 from verify_macos_dmg import PREVIEW_CERTIFICATE, verify_dmg
 
 
@@ -23,7 +24,7 @@ def package_preview(source, output, arch, version):
         sign_mac(app, PREVIEW_CERTIFICATE)
         (disk / 'Applications').symlink_to('/Applications')
         image = stage / destination.name
-        run('hdiutil', 'create', '-volname', f'Viezan {version} Preview', '-srcfolder', disk, '-format', 'UDZO', image)
+        create_dmg(disk, image, f'Viezan {version} Preview')
         verify_dmg(image, preview_arch=arch, version=version)
         # Make only a verified image visible, including when another build targets the same path.
         os.link(image, destination)

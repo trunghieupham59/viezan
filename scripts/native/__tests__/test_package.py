@@ -22,6 +22,31 @@ ABC_SHA512 = "3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU
 
 
 class MacReleaseTests(unittest.TestCase):
+    def test_transient_diskimages_failure_keeps_partial_image_out_of_result(self):
+        attempts = []
+        def create(command, **kwargs):
+            image = command[-1]
+            attempts.append(image)
+            image.write_bytes(b'partial' if len(attempts) == 1 else b'complete')
+            return subprocess.CompletedProcess(command, int(len(attempts) == 1), stderr='Resource busy')
+
+        with tempfile.TemporaryDirectory() as directory, patch.object(package.time, 'sleep'), \
+                patch.object(subprocess, 'run', side_effect=create), redirect_stderr(io.StringIO()):
+            destination = pathlib.Path(directory) / 'Preview.dmg'
+            package.create_dmg(directory, destination, 'Viezan')
+            self.assertEqual(destination.read_bytes(), b'complete')
+            self.assertEqual(len(set(attempts)), 2)
+
+    def test_permanent_diskimages_failure_stops_without_an_artifact(self):
+        error = subprocess.CompletedProcess(['hdiutil'], 1, stderr='Permission denied')
+        with tempfile.TemporaryDirectory() as directory, redirect_stderr(io.StringIO()), \
+                patch.object(subprocess, 'run', return_value=error) as create:
+            destination = pathlib.Path(directory) / 'Preview.dmg'
+            with self.assertRaises(subprocess.CalledProcessError):
+                package.create_dmg(directory, destination, 'Viezan')
+            create.assert_called_once()
+            self.assertFalse(destination.exists())
+
     def test_preview_rejects_an_intel_app_with_an_arm_helper(self):
         with tempfile.TemporaryDirectory() as directory:
             app = pathlib.Path(directory) / 'Viezan.app'
