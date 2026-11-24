@@ -6,6 +6,8 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+## [2.6.0]
+
 - Translate: "Use as source" can be undone, restoring the draft and the
   language pair it replaced, and on macOS no longer sets the same language on
   both sides when the source was automatic.
