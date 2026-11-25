@@ -6,6 +6,12 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+## [2.6.1]
+
+- On Windows, Alt+T translates the selected text in a floating card while the
+  original app keeps keyboard focus. It replaces only the verified selection,
+  including when the card is closed and reopened. The Viezan tray menu can
+  reopen the last result for keyboard actions and Undo.
 - The macOS Quiet fan profile ignores isolated CPU temperature spikes, ramps up under sustained load and slows down gradually. A CPU reading of 100 °C or higher still requests maximum fan speed immediately.
 - Choosing an AI model updates the default across features and quick actions. Existing chats remember their model, and running requests and retries keep the model they started with.
 
@@ -42,8 +48,6 @@ Entries describe their version's source and do not certify that an installer has
 - Qt Chat accepts pasted clipboard images, including PNG data copied without a file.
 - macOS Dictionary keeps pasted context over 500 characters and shows how to shorten it before lookup.
 - macOS Thermal provides removal, System Settings and a permission check in the fan helper approval notice.
-
-## [2.6.1]
 
 - The macOS app loads its resources from the installed bundle so a GitHub-built
   DMG opens on a machine without the Swift build directory.
