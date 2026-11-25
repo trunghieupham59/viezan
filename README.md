@@ -49,7 +49,8 @@ Existing GitHub releases may still be the previous app.
   lifecycle. On macOS the launcher asks AI in the same window and hands the
   conversation to AI Chat. The macOS Launcher also offers Prevent sleep (until Viezan quits), Mute and system-wide Dark mode. Prevent sleep and Mute are macOS-only.
   On macOS, Launcher searches file content through Spotlight without building its own index and prepares “Find files with AI” requests using only the typed query for the selected model (both features are pending on Qt).
-  Qt Quick AI groups each question with its reply and opens the model picker for that conversation. On Windows, Quick Translate offers Undo after reading the edited document back from its original editor.
+  Qt Quick AI groups each question with its reply and opens the model picker for that conversation.
+  On Windows, Quick Translate shows a floating card near the pointer and keeps the current app in front. It automatically replaces an editable selection after verifying the focused editor, selection and text. The card offers Undo after a verified edit, or Copy and Open in Translate when automatic replacement is unavailable.
   On Windows/Linux, the screen-region selector announces its keyboard controls and the shortcut recorder announces when it is saving.
   The macOS Launcher offers Retry when its application folders cannot be read. The Qt Launcher names all 30 target currencies in the app language and shows relative dates for future file modifications.
 - The sidebar identifies history stored on this device separately from live

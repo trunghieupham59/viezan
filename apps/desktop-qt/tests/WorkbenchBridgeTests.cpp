@@ -6817,6 +6817,8 @@ private slots:
     }
     void launcherSettingsJumpMatchesTitleAndTermWordsOnly();
     void launcherOpensMatchingSettingsSection();
+    void quickTranslateSubmitsFromHiddenPanel_data();
+    void quickTranslateSubmitsFromHiddenPanel();
     void w5bQuickPanels_data();
     void w5bQuickPanels();
     void w5bUpdateSheet();
@@ -7868,6 +7870,52 @@ void WorkbenchBridgeTests::w5bLauncher() {
     QCOMPARE(warnings.count(), 0);
 }
 
+void WorkbenchBridgeTests::quickTranslateSubmitsFromHiddenPanel_data() {
+    QTest::addColumn<bool>("reopen");
+    QTest::newRow("first-open") << false;
+    QTest::newRow("closed-then-reopened") << true;
+}
+
+void WorkbenchBridgeTests::quickTranslateSubmitsFromHiddenPanel() {
+    QFETCH(bool, reopen);
+    QTemporaryDir dir;
+    WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("quickTranslatePrimary", {{"value", "ja"}});
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty("workbench", &bridge);
+    QQmlComponent component(&engine, QUrl("qrc:/qml/DesktopPanels.qml"));
+    QScopedPointer<QObject> owner(component.createWithInitialProperties({{"bridge", QVariant::fromValue(&bridge)}}));
+    QVERIFY2(owner, qPrintable(component.errorString()));
+    auto *window = qobject_cast<QQuickWindow *>(owner.data());
+    QVERIFY(window);
+    owner->setProperty("useSelectionCard", true);
+    auto *card = owner->findChild<QQuickWindow *>("selection-card");
+    QVERIFY(card);
+    QVERIFY(!card->transientParent());
+    QVERIFY(card->flags().testFlag(Qt::WindowDoesNotAcceptFocus));
+    QVERIFY(card->flags().testFlag(Qt::FramelessWindowHint));
+    if (reopen) {
+        bridge.desktopIntegration()->activated("translateSelection", "Previous selection");
+        QVERIFY(card->isVisible());
+        QVERIFY(card->close());
+    }
+    QVERIFY(!window->isVisible());
+    QVERIFY(!card->isVisible());
+    const auto previousOwner = owner->property("ownerID").toString();
+    const auto previousCount = bridge.state().value("tasks").toList().size();
+    const QString selectedText = QStringLiteral("xin chào các bạn");
+    bridge.desktopIntegration()->activated("translateSelection", selectedText);
+    QVERIFY(card->isVisible());
+    QVERIFY(!window->isVisible());
+    QTRY_COMPARE(bridge.state().value("tasks").toList().size(), previousCount + 1);
+    const auto sessionID = owner->property("ownerID").toString();
+    QVERIFY(!sessionID.isEmpty() && sessionID != previousOwner);
+    const auto request = latest(bridge).value("request").toMap();
+    QCOMPARE(request.value("sessionID"), sessionID);
+    QCOMPARE(request.value("input"), selectedText);
+    QCOMPARE(request.value("target"), QString("ja"));
+}
+
 void WorkbenchBridgeTests::w5bQuickPanels_data() {
     QTest::addColumn<QString>("locale"); QTest::addColumn<QString>("mode");
     for (const auto &locale : {"vi", "en", "ja"}) for (const auto &mode : {"light", "dark"})
@@ -7885,12 +7933,14 @@ void WorkbenchBridgeTests::w5bQuickPanels() {
         import "qrc:/qml" as V
         V.DesktopPanels {
             bridge: proxy
+            useSelectionCard: false
             QtObject {
                 id:desktop; objectName:"selection-fixture"
                 property bool canReplaceSelection:false
                 property bool canUndoSelection:false
                 property string error:""
                 property string replacement:""
+                function selectionCardAnchor() { return {pointer: Qt.point(950, 580), area: Qt.rect(0, 0, 960, 600)} }
                 function replaceSelection(value) { replacement=value; return true }
                 signal activated(string action, string selectedText)
             }
@@ -7954,8 +8004,47 @@ void WorkbenchBridgeTests::w5bQuickPanels() {
     QVERIFY(QMetaObject::invokeMethod(replace, "clicked"));
     QCOMPARE(selection->property("replacement").toString(), "Synthetic result");
     QCOMPARE(feedback->property("text"), bridge.strings().value("quickReplaced"));
+    // Exercise the Windows presentation with a writable target through the actual async result path.
+    owner->setProperty("useSelectionCard", true);
+    selection->setProperty("replacement", "");
+    auto *card = owner->findChild<QQuickWindow *>("selection-card"); QVERIFY(card);
+    QSignalSpy mainRequests(owner.data(), SIGNAL(openMainRequested(QString)));
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "activate", Q_ARG(QVariant, "translateSelection"), Q_ARG(QVariant, "hola")));
+    QVERIFY(card->isVisible()); QVERIFY(!window->isVisible()); QVERIFY(!card->transientParent());
+    const auto floatingTask = latest(bridge);
+    bridge.command("receive", {{"taskID", floatingTask.value("id")}, {"attemptID", floatingTask.value("attemptID")},
+                               {"chunk", "hello"}, {"terminal", "succeeded"}});
+    QTRY_COMPARE(selection->property("replacement").toString(), "hello");
+    QVERIFY(card->property("replaced").toBool());
+    QCOMPARE(mainRequests.count(), 0);
+    QVERIFY(card->x() + card->width() <= 960 && card->y() + card->height() <= 600);
+    selection->setProperty("replacement", "");
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "activate", Q_ARG(QVariant, "translateSelection"), Q_ARG(QVariant, "uno")));
+    const auto dismissedTask = latest(bridge);
+    card->hide();
+    bridge.command("receive", {{"taskID", dismissedTask.value("id")}, {"attemptID", dismissedTask.value("attemptID")},
+                               {"chunk", "one"}, {"terminal", "succeeded"}});
+    QCoreApplication::processEvents();
+    QVERIFY(selection->property("replacement").toString().isEmpty());
+    selection->setProperty("canReplaceSelection", false);
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "activate", Q_ARG(QVariant, "translateSelection"), Q_ARG(QVariant, "read only")));
+    const auto lastTranslationID = owner->property("ownerID").toString();
+    const auto readOnlyTask = latest(bridge);
+    bridge.command("receive", {{"taskID", readOnlyTask.value("id")}, {"attemptID", readOnlyTask.value("attemptID")},
+                               {"chunk", "Read-only result"}, {"terminal", "succeeded"}});
+    QTRY_VERIFY(card->property("hasResult").toBool());
+    QVERIFY(card->isVisible() && !window->isVisible());
+    QVERIFY(selection->property("replacement").toString().isEmpty());
+    QCOMPARE(mainRequests.count(), 0);
+    const auto openLabel = bridge.strings().value("openInTranslate").toString();
+    auto *openTranslation = visualText(card->contentItem(), openLabel, true);
+    QVERIFY(openTranslation);
+    QVERIFY(QMetaObject::invokeMethod(openTranslation, "clicked"));
+    QCOMPARE(mainRequests.count(), 1);
+    QCOMPARE(mainRequests.first().first().toString(), lastTranslationID);
+    QVERIFY(!card->isVisible());
     // A different active main-window session must not change the detached panel owner.
-    bridge.command("navigate", {{"feature", "chat"}}); QCOMPARE(owner->property("ownerID").toString(), translationID);
+    bridge.command("navigate", {{"feature", "chat"}}); QCOMPARE(owner->property("ownerID").toString(), lastTranslationID);
     QVERIFY(QMetaObject::invokeMethod(owner.data(), "activate", Q_ARG(QVariant, "quickChat"), Q_ARG(QVariant, "")));
     const auto chatID = owner->property("ownerID").toString(); QVERIFY(chatID != translationID);
     auto *draft = visualItem(window->contentItem(), "quick-draft"); QVERIFY(draft);
