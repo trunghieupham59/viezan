@@ -59,7 +59,9 @@ ColumnLayout {
         visible: !!panel.updates.version; title: "Viezan " + panel.updates.version; Layout.fillWidth: true
         ColumnLayout {
             width: parent.width; spacing: panel.metrics.small
-            TextArea { objectName: "update-notes"; Accessible.name: panel.t("releaseNotes"); text: panel.updates.notes; visible: !!text; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; Layout.fillWidth: true; background: Item {} }
+            // Wrap to the card's width. The unwrapped width of long notes must not size the card:
+            // before the page lays the card out, that fed back through wrapping into a polish loop.
+            TextArea { objectName: "update-notes"; Accessible.name: panel.t("releaseNotes"); text: panel.updates.notes; visible: !!text; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; Layout.fillWidth: true; Layout.preferredWidth: 0; background: Item {} }
             Label { objectName: "settings-update-size"; visible: panel.updates.packageSize > 0; text: (panel.updates.packageSize / 1000000).toLocaleString(Qt.locale(panel.bridge.locale), 'f', 1) + " MB"; color: palette.placeholderText }
             ProgressBar { objectName: "update-progress"; Accessible.name: panel.t("updateStatus"); visible: panel.updates.busy; value: panel.updates.progress; Layout.fillWidth: true }
             Label { objectName: "settings-update-remaining"; visible: panel.updates.busy && panel.updates.remainingSeconds >= 0; text: panel.remainingText(); color: palette.placeholderText }

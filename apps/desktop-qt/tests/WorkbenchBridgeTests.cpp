@@ -6822,6 +6822,7 @@ private slots:
     void w5bQuickPanels_data();
     void w5bQuickPanels();
     void w5bUpdateSheet();
+    void updateNotesLayoutSettles();
 
     // ---- W5a Shell ----
     void w5aCompactShell_data();
@@ -8309,6 +8310,97 @@ void WorkbenchBridgeTests::w5bUpdateSheet() {
     update->setProperty("status", "updateReady"); update->setProperty("installSucceeds", true);
     proxy->setProperty("loadBlocked", true); proxy->setProperty("failSave", true);
     QVERIFY(click("update-sheet-install")); QCOMPARE(quit.count(), 1);
+    QCOMPARE(warnings.count(), 0);
+}
+
+// Settings > Updates froze in 2.6.0 and 2.6.1: the release-notes card had no layout width yet,
+// so it followed its implicit width, which followed the notes' unwrapped width, and wrapping
+// the notes changed that width again (a polish loop in the card's ColumnLayout). The loop
+// needs the card's layout to be polished before the page's, which this fixture cannot force;
+// it checks that the notes never size the card, wrap, and settle without layout warnings.
+void WorkbenchBridgeTests::updateNotesLayoutSettles() {
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+    QQmlEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench", &bridge);
+    QQmlComponent component(&engine);
+    component.setData(R"(
+        import QtQuick
+        import QtQuick.Controls
+        import QtQuick.Layouts
+        import "qrc:/qml" as V
+        ApplicationWindow {
+            visible:true; width:820; height:640
+            QtObject {
+                id:update; objectName:"update-fixture"
+                property bool busy:false
+                property bool ready:false
+                property bool canInstall:true
+                property string version:""
+                property string notes:""
+                property string status:""
+                property real packageSize:0
+                property real progress:0
+                property real checkedAt:0
+                property real remainingSeconds:-1
+                function download() {}
+                function cancel() {}
+                function openInstaller() {}
+                function check() {}
+            }
+            QtObject {
+                id:proxy; objectName:"update-notes-proxy"
+                property var resources:workbench.resources; property var strings: workbench.strings; property var metrics: workbench.metrics; property var palettes: workbench.palettes; property var appearance: workbench.appearance; property var locale: workbench.locale; property var disabledModules: workbench.disabledModules; property var voice: workbench.voice
+                property var state:workbench.state
+                property var updates:update
+                property var updatePrompt:({})
+                property bool autoCheckUpdates:true
+                property bool loadBlocked:false
+                function snoozeUpdate() {}
+                function dismissUpdatePrompt() {}
+                function presentUpdateIfAvailable() {}
+            }
+            // Same hosting as SettingsWorkspace: a reading column with the section in a Loader.
+            V.NamedScrollView {
+                id:scroll; scrollName:"Settings"; anchors.fill:parent
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                contentWidth: availableWidth; contentHeight: content.implicitHeight
+                ColumnLayout {
+                    id:content; objectName:"update-notes-content"; width: Math.min(scroll.availableWidth, workbench.metrics.reading); spacing: workbench.metrics.large
+                    Loader { Layout.fillWidth:true; sourceComponent: Component { V.UpdateSettings { bridge:proxy; width: parent.width } } }
+                }
+            }
+            V.UpdateSheet { objectName:"update-sheet-fixture"; bridge:proxy }
+        }
+    )", QUrl("qrc:/update-notes-layout.qml"));
+    QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner, qPrintable(component.errorString()));
+    auto *window = qobject_cast<QQuickWindow *>(owner.data()); QVERIFY(window); QVERIFY(QTest::qWaitForWindowExposed(window));
+    auto *update = owner->findChild<QObject *>("update-fixture"); auto *proxy = owner->findChild<QObject *>("update-notes-proxy");
+    auto *sheet = owner->findChild<QObject *>("update-sheet-fixture"); QVERIFY(update && proxy && sheet);
+    // Release notes are Markdown: table rows and download links are long lines without spaces.
+    QString notes = "## Downloads\n\n| Platform | Download |\n| --- | --- |\n";
+    for (const auto *platform : {"win32-x64.exe", "linux-x64.AppImage", "darwin-arm64.dmg", "darwin-x64.dmg"})
+        notes += QString("| %1 | [Installer](https://github.com/trunghieupham59/viezan/releases/download/v9.9.9/Viezan-9.9.9-%1) · [Portable](https://github.com/trunghieupham59/viezan/releases/download/v9.9.9/Viezan-9.9.9-%1.zip) |\n").arg(platform);
+    for (int item = 0; item < 12; ++item) notes += "\n- A change described in a sentence long enough to wrap several times inside the settings card at every supported window width.";
+    update->setProperty("checkedAt", QDateTime::currentMSecsSinceEpoch() / 1000.0);
+    update->setProperty("packageSize", 94000000.0); update->setProperty("status", "updateAvailable"); update->setProperty("version", "9.9.9");
+    update->setProperty("notes", notes); // Last, as in the app: the card's own layout is polished before the page's.
+    proxy->setProperty("updatePrompt", QVariantMap{{"version", "9.9.9"}, {"notes", notes}});
+    QTRY_VERIFY(sheet->property("visible").toBool());
+    auto *notesArea = visualItem(window->contentItem(), "update-notes"); QVERIFY(notesArea && notesArea->parentItem());
+    auto *content = visualItem(window->contentItem(), "update-notes-content"); QVERIFY(content);
+    // A layout asking a wrapping TextEdit for its implicit width gets the unwrapped width.
+    QVERIFY(notesArea->implicitWidth() > content->width());
+    QStringList unsettled;
+    for (int width = 480; width <= 1100; width += 7) {
+        QElapsedTimer timer; timer.start();
+        window->resize(width, 640); QTest::qWait(5);
+        // The unwrapped notes must not size the card: they wrap to the width the page gives it.
+        if (notesArea->parentItem()->implicitWidth() > content->width() || timer.elapsed() > 500 || !warnings.isEmpty())
+            unsettled << QString("%1 (card %2, page %3, %4 ms)").arg(width).arg(notesArea->parentItem()->implicitWidth()).arg(content->width()).arg(timer.elapsed());
+    }
+    QVERIFY2(unsettled.isEmpty(), qPrintable("release notes widened the card at window widths: " + unsettled.join(", ")));
+    QVERIFY(notesArea->height() > notesArea->width() / 4); // Wrapped into many lines, not one wide row.
     QCOMPARE(warnings.count(), 0);
 }
 
