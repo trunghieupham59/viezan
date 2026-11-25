@@ -47,6 +47,16 @@ struct WindowsSelection::State : WindowsSelectionText {
     ComPtr<IUIAutomationTextPattern> pattern;
     ComPtr<IUIAutomationTextRange> selected;
     ComPtr<IUIAutomationValuePattern> editor;
+    HWND foreground = nullptr;
+    bool stillFocused() const {
+        if (!foreground || GetForegroundWindow() != foreground) return false;
+        ComPtr<IUIAutomation> automation;
+        ComPtr<IUIAutomationElement> focused;
+        BOOL same = FALSE;
+        return SUCCEEDED(CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&automation)))
+            && SUCCEEDED(automation->GetFocusedElement(&focused)) && focused
+            && SUCCEEDED(automation->CompareElements(element.Get(), focused.Get(), &same)) && same;
+    }
     int process = 0; bool captured = false;
     ~State() { editor.Reset(); selected.Reset(); pattern.Reset(); element.Reset(); if (SUCCEEDED(initialized)) CoUninitialize(); }
     bool value(QString &result) const {
@@ -69,6 +79,7 @@ QString WindowsSelection::capture() {
 #ifdef Q_OS_WIN
     state = std::make_unique<State>();
     auto &s = *state; ComPtr<IUIAutomation> automation; ComPtr<IUIAutomationTextRangeArray> ranges;
+    s.foreground = GetForegroundWindow();
     if (FAILED(CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&automation))) ||
         FAILED(automation->GetFocusedElement(&s.element)) || !s.element) return {};
     BOOL password = TRUE;
@@ -115,7 +126,7 @@ WindowsSelectionText::Result WindowsSelection::replace(const QString &replacemen
         FAILED(selection->CompareEndpoints(TextPatternRangeEndpoint_End, s.selected.Get(), TextPatternRangeEndpoint_End, &end)) || end != 0 ||
         !text(selection.Get(), current) || current != s.selection) return WindowsSelectionText::Result::Failed;
     return s.replace(replacement, [&s](QString &value) { return s.value(value); },
-                     [&s](const QString &value) { return setValue(s.editor.Get(), value); });
+                     [&s](const QString &value) { return s.stillFocused() && setValue(s.editor.Get(), value); });
 #else
     Q_UNUSED(replacement)
     return WindowsSelectionText::Result::Failed;

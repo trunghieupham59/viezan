@@ -550,6 +550,7 @@
   "quickNeedsScreenRecording": "システム設定の画面収録でViezanを許可してください。",
   "quickFailed": "テキストを翻訳できませんでした。",
   "quickResultTitle": "{lang}への翻訳",
+  "quickReviewSelection": "直前の選択範囲の翻訳を表示",
   "quickReadOnly": "ここではテキストを置き換えられません。翻訳をコピーしてください。",
   "quickPaste": "選択範囲に貼り付け",
   "launchError": "このアプリケーションを開けません。",

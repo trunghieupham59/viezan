@@ -88,6 +88,22 @@ int main(int argc, char *argv[]) {
         auto *item = menu.addAction(text(action));
         QObject::connect(item, &QAction::triggered, &app, [&bridge, action] { bridge.desktopIntegration()->trigger(action); });
     }
+#ifdef Q_OS_WIN
+    auto *reviewSelection = menu.addAction(text("quickReviewSelection"));
+    const auto selectionPanel = [&window]() {
+        return window ? window->findChild<QObject *>(QStringLiteral("quick-panel")) : nullptr;
+    };
+    QObject::connect(&menu, &QMenu::aboutToShow, &menu, [reviewSelection, selectionPanel, text] {
+        QVariant available;
+        if (auto *panel = selectionPanel())
+            QMetaObject::invokeMethod(panel, "canReviewSelection", Q_RETURN_ARG(QVariant, available));
+        reviewSelection->setText(text("quickReviewSelection"));
+        reviewSelection->setEnabled(available.toBool());
+    });
+    QObject::connect(reviewSelection, &QAction::triggered, &menu, [selectionPanel] {
+        if (auto *panel = selectionPanel()) QMetaObject::invokeMethod(panel, "reviewSelection");
+    });
+#endif
     menu.addSeparator(); auto *quit = menu.addAction(text("quit"));
     QObject::connect(quit, &QAction::triggered, &app, [&bridge, &app] {
         if (bridge.localPerformance()->busy()) { bridge.localPerformance()->cancel(); return; }

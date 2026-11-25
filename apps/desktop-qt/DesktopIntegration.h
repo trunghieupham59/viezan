@@ -29,6 +29,7 @@ public:
     bool canUndoSelection() const { return m_selection.canUndo(); }
     Q_INVOKABLE bool replaceSelection(const QString &text);
     Q_INVOKABLE bool undoSelection();
+    Q_INVOKABLE QVariantMap selectionCardAnchor() const;
     QString currencyStatus() const { return m_currencyStatus; }
     QStringList currencyCodes() const { return CurrencyRates::codes(); }
     QString currencyTarget() const { return m_currencyTarget; }

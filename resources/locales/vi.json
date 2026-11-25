@@ -550,6 +550,7 @@
   "quickNeedsScreenRecording": "Cần cấp quyền Ghi màn hình cho Viezan trong Cài đặt hệ thống.",
   "quickFailed": "Không thể dịch văn bản.",
   "quickResultTitle": "Bản dịch sang {lang}",
+  "quickReviewSelection": "Xem lại bản dịch vùng chọn",
   "quickReadOnly": "Không thay được chữ ở vị trí này. Hãy sao chép bản dịch.",
   "quickPaste": "Dán thay vùng chọn",
   "launchError": "Không mở được ứng dụng này.",

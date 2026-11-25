@@ -7,6 +7,8 @@
 #include <QDateTime>
 #include <QTimer>
 #include <QGuiApplication>
+#include <QCursor>
+#include <QScreen>
 #include <QClipboard>
 #include <QKeySequence>
 #include <QStandardPaths>
@@ -341,6 +343,13 @@ void DesktopIntegration::revealFile(const QString &path) {
 #else
     QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath()));
 #endif
+}
+
+QVariantMap DesktopIntegration::selectionCardAnchor() const {
+    const auto pointer = QCursor::pos();
+    auto *screen = QGuiApplication::screenAt(pointer);
+    if (!screen) screen = QGuiApplication::primaryScreen();
+    return {{"pointer", pointer}, {"area", screen ? screen->availableGeometry() : QRect()}};
 }
 
 bool DesktopIntegration::replaceSelection(const QString &text) {
