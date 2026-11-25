@@ -6,9 +6,11 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+## [2.6.2]
+
 - On Windows and Linux, Settings › App updates no longer freezes while showing
-  long release notes. Viezan 2.6.0 can freeze there when it finds 2.6.1;
-  install 2.6.1 from the GitHub release page instead.
+  long release notes. Viezan 2.6.0 and 2.6.1 can freeze there when they find a
+  newer version; install it from the GitHub release page instead.
 
 ## [2.6.1]
 
