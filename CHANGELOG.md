@@ -6,6 +6,10 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+- On Windows and Linux, Settings › App updates no longer freezes while showing
+  long release notes. Viezan 2.6.0 can freeze there when it finds 2.6.1;
+  install 2.6.1 from the GitHub release page instead.
+
 ## [2.6.1]
 
 - On Windows, Alt+T translates the selected text in a floating card while the
