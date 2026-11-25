@@ -22,6 +22,20 @@ AuxiliaryWindow {
     readonly property var task: snapshot.tasks.find(value => value.request.sessionID === ownerID && value.status === "running")
     readonly property var latestTask: snapshot.tasks.find(value => value.request.sessionID === ownerID)
     readonly property bool translating: mode === "translateSelection"
+    function canReviewSelection() {
+        return useSelectionCard && translating && !!ownerID && !card.emptySelection && bridge.moduleEnabled("translate")
+            && bridge.state.sessions.some(value => value.id === ownerID && !value.archived)
+    }
+    function reviewSelection() {
+        if (!canReviewSelection()) return
+        card.hide()
+        card.reviewing = true
+        if (!desktop.canUndoSelection) card.replaced = false
+        card.show()
+        card.raise()
+        card.requestActivate()
+        cardClose.forceActiveFocus(Qt.TabFocusReason)
+    }
     readonly property string draftText: session?.draft || ""
     readonly property int inputLength: translating || quickAI ? bridge.graphemeCount(draftText, quickAI) : 0
     readonly property bool tooLong: translating ? inputLength > 5000 : quickAI && inputLength > 3000
@@ -112,14 +126,17 @@ AuxiliaryWindow {
         objectName: "selection-card"
         bridge: panel.bridge
         transientParent: null
-        flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowDoesNotAcceptFocus
+        flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | (reviewing ? 0 : Qt.WindowDoesNotAcceptFocus)
         title: panel.t("translateSelection")
         property var anchor
         property string pendingOwner: ""
         property bool replaced: false
+        property bool reviewing: false
+        property string replacementNotice: ""
         property bool emptySelection: false
         readonly property string language: panel.t("lang_" + (panel.session?.target || "vi"))
-        readonly property string statusText: replaced ? panel.t("quickReplaced") : emptySelection ? panel.t("quickNoSelection")
+        readonly property string statusText: replacementNotice ? panel.t(replacementNotice)
+            : replaced ? panel.t("quickReplaced") : emptySelection ? panel.t("quickNoSelection")
             : panel.tooLong ? panel.t("sourceTooLong") : panel.missingModel ? panel.t("noProviderNotice")
             : panel.errorCode ? panel.t(panel.errorCode) : panel.answer ? panel.tpl("quickResultTitle", {lang: language})
             : panel.tpl("quickTranslating", {lang: language})
@@ -137,6 +154,8 @@ AuxiliaryWindow {
             anchor = panel.desktop.selectionCardAnchor()
             emptySelection = !text.trim()
             replaced = false
+            reviewing = false
+            replacementNotice = ""
             show()
             if (emptySelection) dismissTimer.restart()
             if (panel.canSubmit) {
@@ -145,10 +164,11 @@ AuxiliaryWindow {
             }
         }
         function replaceAnswer() {
-            if (panel.canReplace && panel.desktop.replaceSelection(panel.answer)) {
+            if (!panel.canReplace || reviewing) return
+            if (panel.desktop.replaceSelection(panel.answer)) {
                 replaced = true
                 dismissTimer.restart()
-            }
+            } else replacementNotice = panel.desktop.error || "selectionUnchanged"
         }
         function finishTranslation() {
             if (!visible || !pendingOwner || pendingOwner !== panel.ownerID || !panel.canReplace) return
@@ -162,6 +182,7 @@ AuxiliaryWindow {
             interval: card.emptySelection ? 5000 : 1500
             onTriggered: card.hide()
         }
+        Shortcut { sequence: "Escape"; enabled: card.visible && card.reviewing; onActivated: card.hide() }
         ColumnLayout {
             id: cardBody
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
@@ -174,7 +195,7 @@ AuxiliaryWindow {
                     text: card.statusText; font.bold: true; Accessible.role: Accessible.AlertMessage
                     onTextChanged: if (card.visible) Accessible.announce(card.statusText)
                 }
-                Kit.IconButton { iconName: "close"; text: panel.t("close"); onClicked: card.hide() }
+                Kit.IconButton { id: cardClose; iconName: "close"; text: panel.t("close"); onClicked: card.hide() }
             }
             NamedScrollView {
                 id: resultScroll
@@ -197,12 +218,17 @@ AuxiliaryWindow {
                 visible: card.hasResult || panel.tooLong || panel.missingModel || !!panel.errorCode
                 Kit.QuietButton { text: panel.t("openInTranslate"); onClicked: { card.hide(); panel.openMain() } }
                 Kit.GlassButton { visible: card.hasResult; text: panel.t("copy"); onClicked: { panel.bridge.copy(panel.answer); card.hide() } }
-                Kit.PrimaryButton { visible: card.hasResult && panel.canReplace; text: panel.t("quickPaste"); onClicked: card.replaceAnswer() }
+                Kit.PrimaryButton { visible: card.hasResult && panel.canReplace && !card.replacementNotice && !card.reviewing; text: panel.t("quickPaste"); onClicked: card.replaceAnswer() }
                 Kit.QuietButton { visible: panel.canRetry; text: panel.t("retry"); onClicked: panel.retry() }
             }
             Kit.QuietButton {
                 visible: card.replaced && panel.desktop.canUndoSelection; text: panel.t("undoSelection")
-                onClicked: if (panel.desktop.undoSelection()) card.hide()
+                onClicked: {
+                    dismissTimer.stop()
+                    card.replaced = false
+                    if (panel.desktop.undoSelection()) card.hide()
+                    else card.replacementNotice = panel.desktop.error
+                }
             }
         }
     }

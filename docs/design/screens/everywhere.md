@@ -17,6 +17,7 @@ Người dùng chọn văn bản trong ứng dụng đang làm việc và nhấn
 - Trên macOS, thẻ kết quả của cả Dịch vùng chọn và Dịch vùng màn hình có nút **Ghim thành ghi chú** ngay trước **Sao chép** để giữ bản dịch trong một [thẻ nổi](pinned-notes.md).
 - Trên macOS, chỉ báo thay thế thành công sau khi đọc lại đúng nội dung kết quả. Dùng lệnh dán của ứng dụng khi ứng dụng, nội dung và vùng chọn gốc vẫn khớp; không ghi bằng setter vùng chọn Trợ năng. Bản dịch giống nguyên văn không được báo là đã thay thế. Văn bản web chỉ đọc hoặc control không cho xác minh giá trị hiển thị thẻ kết quả để sao chép thủ công.
 - Trên Windows, phím tắt hiện một thẻ nổi gần con trỏ và giữ focus ở ứng dụng đang dùng. Cả lần đầu và sau khi đóng thẻ, Viezan tự dịch rồi tự thay khi cửa sổ, ô nhập, nội dung và vùng chọn vẫn khớp. Thẻ báo đã thay và cho phép hoàn tác sau khi kiểm tra lại nội dung. Với vùng chỉ đọc hoặc khi không thể thay, thẻ giữ bản dịch để sao chép hoặc mở trong Dịch. Nút **Mở trong Dịch** mới đưa cửa sổ chính lên trước.
+- Sau khi thông báo tự đóng, nhấn **Win+B**, chọn biểu tượng Viezan rồi mở menu bằng **Shift+F10**. Lệnh **Xem lại bản dịch vùng chọn** đưa focus vào thẻ gần nhất. Dùng Tab để đến Hoàn tác hoặc các thao tác của kết quả, và Esc để đóng thẻ.
 - Trên Linux, khả năng đăng ký phím tắt và đọc vùng chọn phụ thuộc phiên desktop. Người dùng có thể sao chép rồi dán vào cửa sổ dịch.
 
 Cửa sổ thông báo nổi trên macOS có nền ngoài trong suốt; lớp hosting và thẻ nội dung dùng cùng bán kính bo góc. Bóng cửa sổ phải theo đường bo, không có khung chữ nhật bao ngoài.

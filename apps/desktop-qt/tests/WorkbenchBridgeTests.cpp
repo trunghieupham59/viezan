@@ -7940,8 +7940,15 @@ void WorkbenchBridgeTests::w5bQuickPanels() {
                 property bool canUndoSelection:false
                 property string error:""
                 property string replacement:""
+                property string original:""
                 function selectionCardAnchor() { return {pointer: Qt.point(950, 580), area: Qt.rect(0, 0, 960, 600)} }
-                function replaceSelection(value) { replacement=value; return true }
+                function replaceSelection(value) {
+                    if (error || value === original) return false
+                    replacement = value
+                    canUndoSelection = true
+                    return true
+                }
+                function undoSelection() { replacement = ""; canUndoSelection = false; return true }
                 signal activated(string action, string selectedText)
             }
             QtObject {
@@ -8018,14 +8025,42 @@ void WorkbenchBridgeTests::w5bQuickPanels() {
     QVERIFY(card->property("replaced").toBool());
     QCOMPARE(mainRequests.count(), 0);
     QVERIFY(card->x() + card->width() <= 960 && card->y() + card->height() <= 600);
-    selection->setProperty("replacement", "");
+    // The notification times out, but the tray command can still reach Undo by keyboard.
+    QTRY_VERIFY_WITH_TIMEOUT(!card->isVisible(), 4000);
+    QVariant reviewable;
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "canReviewSelection", Q_RETURN_ARG(QVariant, reviewable)));
+    QVERIFY(reviewable.toBool());
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "reviewSelection"));
+    QVERIFY(card->isVisible() && !window->isVisible());
+    QVERIFY(!card->flags().testFlag(Qt::WindowDoesNotAcceptFocus));
+    auto *undo = visualText(card->contentItem(), bridge.strings().value("undoSelection").toString(), true);
+    QVERIFY(undo);
+    QTest::keyClick(card, Qt::Key_Tab);
+    QTRY_VERIFY(undo->hasActiveFocus());
+    QTest::keyClick(card, Qt::Key_Space);
+    QTRY_VERIFY(!card->isVisible());
+    QVERIFY(selection->property("replacement").toString().isEmpty());
     QVERIFY(QMetaObject::invokeMethod(owner.data(), "activate", Q_ARG(QVariant, "translateSelection"), Q_ARG(QVariant, "uno")));
+    QVERIFY(card->flags().testFlag(Qt::WindowDoesNotAcceptFocus));
     const auto dismissedTask = latest(bridge);
     card->hide();
     bridge.command("receive", {{"taskID", dismissedTask.value("id")}, {"attemptID", dismissedTask.value("attemptID")},
                                {"chunk", "one"}, {"terminal", "succeeded"}});
     QCoreApplication::processEvents();
     QVERIFY(selection->property("replacement").toString().isEmpty());
+    for (const QString &error : {QString(), QStringLiteral("selectionChanged")}) {
+        selection->setProperty("error", error);
+        selection->setProperty("original", "hello");
+        QVERIFY(QMetaObject::invokeMethod(owner.data(), "activate", Q_ARG(QVariant, "translateSelection"), Q_ARG(QVariant, "hello")));
+        const auto attempt = latest(bridge);
+        bridge.command("receive", {{"taskID", attempt.value("id")}, {"attemptID", attempt.value("attemptID")},
+                                   {"chunk", error.isEmpty() ? "hello" : "hola"}, {"terminal", "succeeded"}});
+        const QString notice = error.isEmpty() ? "selectionUnchanged" : error;
+        QTRY_COMPARE(card->property("statusText").toString(), bridge.strings().value(notice).toString());
+        QVERIFY(card->property("hasResult").toBool());
+        QVERIFY(!visualText(card->contentItem(), bridge.strings().value("quickPaste").toString(), true));
+    }
+    selection->setProperty("error", "");
     selection->setProperty("canReplaceSelection", false);
     QVERIFY(QMetaObject::invokeMethod(owner.data(), "activate", Q_ARG(QVariant, "translateSelection"), Q_ARG(QVariant, "read only")));
     const auto lastTranslationID = owner->property("ownerID").toString();
@@ -8036,6 +8071,11 @@ void WorkbenchBridgeTests::w5bQuickPanels() {
     QVERIFY(card->isVisible() && !window->isVisible());
     QVERIFY(selection->property("replacement").toString().isEmpty());
     QCOMPARE(mainRequests.count(), 0);
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "reviewSelection"));
+    QTRY_VERIFY(card->isActive());
+    QTest::keyClick(card, Qt::Key_Escape);
+    QTRY_VERIFY(!card->isVisible());
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "reviewSelection"));
     const auto openLabel = bridge.strings().value("openInTranslate").toString();
     auto *openTranslation = visualText(card->contentItem(), openLabel, true);
     QVERIFY(openTranslation);

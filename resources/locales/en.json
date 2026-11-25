@@ -550,6 +550,7 @@
   "quickNeedsScreenRecording": "Allow Viezan under Screen Recording in System Settings.",
   "quickFailed": "Couldn't translate the text.",
   "quickResultTitle": "Translation into {lang}",
+  "quickReviewSelection": "Review last selection translation",
   "quickReadOnly": "This text can't be replaced here. Copy the translation instead.",
   "quickPaste": "Paste over selection",
   "launchError": "Cannot open this application.",
