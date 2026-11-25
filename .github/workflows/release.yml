@@ -76,25 +76,30 @@ jobs:
           PREVIEW_ONLY: ${{ inputs.preview_only || false }}
           HAS_CERT: ${{ secrets.MACOS_DEVELOPER_ID_P12 != '' }}
           HAS_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_PASSWORD != '' }}
+          HAS_APPLE_ID: ${{ secrets.APPLE_ID != '' }}
+          HAS_APP_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD != '' }}
           HAS_PREVIEW_CERT: ${{ secrets.MACOS_PREVIEW_DEVELOPMENT_P12 != '' }}
           HAS_PREVIEW_PASSWORD: ${{ secrets.MACOS_PREVIEW_DEVELOPMENT_PASSWORD != '' }}
         run: |
-          if [[ "$PREVIEW_ONLY" == true || ( "$HAS_CERT" == false && "$HAS_PASSWORD" == false ) ]]; then
-            if [[ "$PREVIEW_ONLY" != true && "$GITHUB_REF" == refs/heads/develop ]]; then
-              echo "::error::A public release needs notarized macOS update DMGs. Configure the Developer ID certificate and password, or build a Preview on a draft branch."
-              exit 1
-            fi
+          if [[ "$PREVIEW_ONLY" == true || ( "$GITHUB_REF" != refs/heads/develop && "$HAS_CERT" == false && "$HAS_PASSWORD" == false ) ]]; then
             if [[ "$HAS_PREVIEW_CERT" != true || "$HAS_PREVIEW_PASSWORD" != true ]]; then
               echo "::error::Internal Previews require the pinned Apple Development identity and its password."
               exit 1
             fi
             echo "mode=preview" >> "$GITHUB_OUTPUT"
-          elif [[ "$HAS_CERT" == true && "$HAS_PASSWORD" == true ]]; then
-            echo "mode=distribution" >> "$GITHUB_OUTPUT"
-          else
-            echo "::error::The Developer ID certificate and its password must be configured together."
+            exit 0
+          fi
+
+          missing=()
+          [[ "$HAS_CERT" == true ]] || missing+=(MACOS_DEVELOPER_ID_P12)
+          [[ "$HAS_PASSWORD" == true ]] || missing+=(MACOS_DEVELOPER_ID_PASSWORD)
+          [[ "$HAS_APPLE_ID" == true ]] || missing+=(APPLE_ID)
+          [[ "$HAS_APP_PASSWORD" == true ]] || missing+=(APPLE_APP_SPECIFIC_PASSWORD)
+          if (( ${#missing[@]} )); then
+            echo "::error::Missing GitHub Actions secrets for notarized macOS distribution: ${missing[*]}. For internal artifacts, run this workflow with preview_only=true."
             exit 1
           fi
+          echo "mode=distribution" >> "$GITHUB_OUTPUT"
 
   package:
     needs: version
