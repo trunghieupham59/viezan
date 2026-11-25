@@ -59,13 +59,12 @@ import ViezanDomain
         let note = try #require(notes.add(text: "Original"))
         let draft = PinnedNoteDraft(id: note.id, notes: notes)
         draft.text = "First"
+        let firstSave = try #require(draft.saveTask)
         draft.text = "Second"
+        let secondSave = try #require(draft.saveTask)
+        #expect(firstSave.isCancelled)
         #expect(notes.notes.first?.text == "Original")
-        // Allow the main actor to run the delayed save, without depending on exact timer delivery.
-        let deadline = ContinuousClock.now + .seconds(3)
-        while notes.notes.first?.text != "Second", ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        await secondSave.value
         #expect(PinnedNotes(file: file).notes.first?.text == "Second")
         draft.text = "Final"
         draft.flush()

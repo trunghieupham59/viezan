@@ -154,7 +154,7 @@ struct PinAsNoteButton: View {
     let id: String
     private let notes: PinnedNotes
     private var pending: String?
-    @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private(set) var saveTask: Task<Void, Never>?
 
     init(id: String, notes: PinnedNotes) { self.id = id; self.notes = notes }
     var hasPendingText: Bool { pending != nil }
